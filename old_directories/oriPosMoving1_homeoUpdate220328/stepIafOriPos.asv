@@ -1,0 +1,119 @@
+function iaf = stepIafOriPos(iaf,inputActive)
+
+if iaf.vm > iaf.thresh
+    iaf.spike = true; % spiking!
+    iaf.vm = iaf.reset; % reset to rest
+    
+    % Plasticity on Basal Synapses
+    iaf.depEligibility = iaf.depEligibility - iaf.depIncrement; % Update Depression Term 
+    iaf.ampaWeights = iaf.ampaWeights + iaf.potEligibility; % Potentiate Synaptic Weights
+    
+    iaf.ampaWeights = min(iaf.ampaWeights, iaf.maxWeight);
+    iaf.ampaWeights = max(iaf.ampaWeights, 0);
+    
+else
+    iaf.spike = false; % not spiking!
+    
+    % Vm is current vm - leak + conductance*DF*Resistance/tau --
+    % --- -which is effectively conductance*DF/capacitance (which is fine)
+    leakTerm = (iaf.rest - iaf.vm) * iaf.dt/iaf.tau;
+    conductance = sum(iaf.ampaConductance + iaf.nmdaConductance);
+    excDV = conductance * (iaf.exRev - iaf.vm) * iaf.dt/iaf.tau;
+    inhDV = iaf.gabaConductance * (iaf.rest - iaf.vm) * iaf.dt/iaf.tau;
+    iaf.vm = iaf.vm + leakTerm + excDV + inhDV;
+end
+
+% Generate Basal Input Conductances
+inputRate = iaf.baseRate * ones(size(iaf.ampaWeights)); % Initialize to only ones with 
+inputRate(ismember(iaf.inputConnection, inputActive)) = iaf.driveRate; 
+
+preSpikes = rand(size(inputRate))<(inputRate * iaf.dt);
+% sum input conductance in each dendrite
+conductance = sum(preSpikes.*iaf.ampaWeights.*(iaf.ampaWeights>iaf.conductanceThreshold), 1); 
+% Update ampa conductance in each dendrite
+iaf.ampaConductance = iaf.ampaConductance + conductance - iaf.ampaConductance * iaf.dt/iaf.ampaTau; 
+iaf.dendriteSpiking = iaf.ampaConductance > iaf.nmdaThreshold; % Find spiking dendrites
+iaf.ampaConductance(iaf.dendriteSpiking) = 0; % Reset ampa conductance in spiking dendrites
+iaf.nmdaConductance = iaf.nmdaConductance + iaf.nmdaWeights.*iaf.dendriteSpiking - iaf.nmdaConductance*iaf.dt/iaf.nmdaTau; % move to NMDA
+
+% Generate Inhibitory Conductances
+inhPreSpikes = rand(iaf.numInhibitory,1) < (iaf.inhRate * iaf.dt);
+inhConductance = iaf.inhWeight*sum(inhPreSpikes);
+iaf.gabaConductance = iaf.gabaConductance + inhConductance - iaf.gabaConductance *iaf.dt/iaf.gabaTau;
+
+% Do depression with active inputs
+iaf.ampaWeights = iaf.ampaWeights + preSpikes .* iaf.depEligibility;
+
+% Replace 
+replaceSynapse = iaf.ampaWeights < iaf.minWeight;
+numReplace = sum(replaceSynapse,'all');
+iaf.inputConnection(replaceSynapse) = randi(iaf.numInputs, numReplace, 1);
+iaf.ampaWeights(replaceSynapse) = iaf.startWeight;
+
+% Update Potentiation/Depression Terms BASAL
+iaf.potEligibility = iaf.potEligibility + ...
+    iaf.potIncrement * preSpikes - iaf.potEligibility * iaf.dt/iaf.potTau; 
+iaf.depEligibility = iaf.depEligibility - iaf.depEligibility*iaf.dt/iaf.depTau; 
+
+% Do Homeostasis
+iaf.homRateEstimate = iaf.homRateEstimate + iaf.dt/iaf.homTau * (1*iaf.spike/iaf.dt - iaf.homRateEstimate); 
+iaf.homScale = iaf.homRate / max(0.1,iaf.homRateEstimate) - 1; % fraction change (positive or negative)
+iaf.ampaWeights = iaf.ampaWeights + iaf.homScale*iaf.ampaWeights*iaf.dt/iaf.homTau; 
+
+% Prevent weights from leaving range
+iaf.ampaWeights = min(iaf.ampaWeights, iaf.maxWeight);
+iaf.ampaWeights = max(iaf.ampaWeights, 0);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
