@@ -1,233 +1,187 @@
-from copy import copy
-import numpy as np
+import torch
+from torch import nn
+import torch.nn.functional as F
+from . import inference
 
 
-class IaF:
-    """
-    This is a basic integrate and fire neuron for running conductance models of STDP.
-    """
-
-    def __init__(
-        self,
-        num_inputs,
-        basal_depression_ratio,
-        apical_depression_ratio,
-        num_basal=300,
-        num_apical=100,
-    ):
-        # basic parameters
-        self.dt = 0.001  # s
-        self.tau = 20e-3  # s
-        self.r_m = 100e6  # Ohm
-        self.v_rest = -70e-3  # Volts
-        self.v_thresh = -50e-3  # Volts
-        self.exc_rev = 0e-3  # Volts
-        self.exc_tau = 20e-3  # seconds
-        self.vm = copy(self.v_rest)  # initial membrane potential (Volts)
-
-        self.lose_synapse_ratio = 0.01
-        self.new_synapse_ratio = 0.01
-        self.cond_threshold = 0.1
-
-        # NOTE had a note saying that I'll "make this slow from recurrent excitatory"
-        self.num_inhibitory = 0
-        self.inh_rate = 20
-        self.inh_weight = 200e-12  # Amps
-        self.inh_tau = 20e-3
-        self.inh_conductance = 0
-
+class Oja(nn.Module):
+    def __init__(self, num_units: int, num_inputs: int, method: str = "oja"):
+        super().__init__()
+        self.num_units = num_units
         self.num_inputs = num_inputs
+        self.method = method
+        self.W = nn.Parameter(torch.randn(num_inputs, num_units))
+        self.normalize_weights()
 
-        # basal synaptic structure
-        self.num_basal = num_basal
-        self.max_basal_weight = 300e-12  # pS
-        self.min_basal_weight = self.max_basal_weight * self.lose_synapse_ratio
-        self.basal_start_weight = self.max_basal_weight * self.new_synapse_ratio
-        self.basal_cond_threshold = self.max_basal_weight * self.cond_threshold
-        self.basal_weights = self.max_basal_weight * np.random.rand(self.num_basal)
-        self.basal_conductance = 0
-        self.basal_tune_index = np.random.randint(0, self.num_inputs, self.num_basal)
+    def normalize_weights(self):
+        with torch.no_grad():
+            self.W.data = F.normalize(self.W.data, dim=0)
+        if self.method == "gha":
+            self.gram_schmidt()
 
-        self.num_apical = num_apical
-        self.max_apical_weight = 100e-12  # pS
-        self.min_apical_weight = self.max_apical_weight * self.lose_synapse_ratio
-        self.apical_start_weight = self.max_apical_weight * self.new_synapse_ratio
-        self.apical_cond_threshold = self.max_apical_weight * self.cond_threshold
-        self.apical_weights = self.max_apical_weight * np.random.rand(self.num_apical)
-        self.apical_conductance = 0
-        self.apical_tune_index = np.random.randint(0, self.num_inputs, self.num_apical)
+    def gram_schmidt(self):
+        """Implement Gram-Schmidt on the weights"""
 
-        # STDP Parameters
-        self.plasticity_rate = 0.01
-        self.potentiation_tau = 0.02  # ms
-        self.depression_tau = 0.02  # ms
-        self.basal_depression_ratio = basal_depression_ratio
-        self.apical_depression_ratio = apical_depression_ratio
+        def proj(u, v):
+            return (v @ u).view(1, -1) / (u * u).sum(dim=0).view(1, -1) * u
 
-        self.basal_potentiation = np.zeros(num_basal)
-        self.basal_depression = 0
-        self.basal_pot_value = self.plasticity_rate * self.max_basal_weight
-        self.basal_dep_value = self.plasticity_rate * self.max_basal_weight * self.basal_depression_ratio
+        with torch.no_grad():
+            NC = self.W.size(1)
+            for nc in range(1, NC):
+                self.W[:, nc] -= torch.sum(proj(self.W[:, :nc], self.W[:, nc]), dim=1)
 
-        self.apical_potentiation = np.zeros(num_apical)
-        self.apical_depression = 0
-        self.apical_pot_value = self.plasticity_rate * self.max_apical_weight
-        self.apical_dep_value = self.plasticity_rate * self.max_apical_weight * self.apical_depression_ratio
+    def loss(self, x, y):
+        if self.method == "oja":
+            """In combination with weight normalization leads to Oja's rule"""
+            return -0.5 * torch.sum(y**2)
 
-        # Homeostasis Parameters
-        self.homeo_tau = 20  # seconds
-        self.homeo_rate = 20  # spikes / second
-        self.homeo_rate_estimate = copy(self.homeo_rate)
+        elif self.method == "gha":  # Compute lower triangular part of y.T @ y
+            y_corr_lower = torch.tril(y.T @ y)
 
-    def step(self, input):
-        if self.vm > self.v_thresh:
-            self.spike = True
-            self.vm = self.v_rest  # reset to rest
+            # Compute the loss
+            return -0.5 * torch.trace(self.W.T @ self.W @ y_corr_lower) - torch.trace(self.W.T @ x.T @ y)
 
-            # Implement plasticity on basal synapses
-            self.basal_depression -= self.basal_dep_value
-            self.basal_weights += self.basal_potentiation
-            self.basal_weights = np.minimum(self.basal_weights, self.max_basal_weight)
-            self.basal_weights = np.maximum(self.basal_weights, 0)
-
-            # Implement plasticity on apical synapses
-            self.apical_depression -= self.apical_dep_value
-            self.apical_weights += self.apical_potentiation
-            self.apical_weights = np.minimum(self.apical_weights, self.max_apical_weight)
-            self.apical_weights = np.maximum(self.apical_weights, 0)
-
+    def update_weights(self, x, y, lr=0.1):
+        if self.method == "oja":
+            self.update_oja(x, y, lr)
+        elif self.method == "gha":
+            self.update_gha(x, y, lr)
         else:
-            self.spike = False
+            raise ValueError(f"Unknown method: {self.method}")
 
-            # Vm is current vm - leak + conductance*DF*Resistance/tau --
-            # --- -which is effectively conductance*DF/capacitance (which is fine)
-            leak_term = (self.v_rest - self.vm) * self.dt / self.tau
-            exc_df = self.exc_rev - self.vm
-            inh_df = self.v_rest - self.vm
-            exc_dv = (self.basal_conductance + self.apical_conductance) * exc_df * self.r_m * self.dt / self.tau
-            inh_dv = self.inh_conductance * inh_df * self.r_m * self.dt / self.tau
-            self.vm = self.vm + leak_term + exc_dv + inh_dv
+    def update_oja(self, x, y, lr=0.1):
+        """Implement Oja's rule directly"""
+        with torch.no_grad():
+            dw = x.T @ y - torch.sum(self.W.unsqueeze(1) * (y**2).unsqueeze(0), dim=1)
+            self.W += lr * dw
 
-        # Generate Basal Input Conductances
-        basal_rate = input[self.basal_tune_index]
-        basal_spikes = np.random.rand(*self.basal_weights.shape) < (basal_rate * self.dt)
-        c_basal_conductance = np.sum(basal_spikes * self.basal_weights * (self.basal_weights > self.basal_cond_threshold))
-        self.basal_conductance = c_basal_conductance - self.basal_conductance * self.dt / self.exc_tau
+    def update_gha(self, x, y, lr=0.1):
+        """Implement GHA rule directly"""
+        with torch.no_grad():
+            dw = x.T @ y - self.W @ torch.tril(y.T @ y)
+            self.W += lr * dw
 
-        # Generate Apical Input Conductances
-        apical_rate = input[self.apical_tune_index]
-        apical_spikes = np.random.rand(*self.apical_weights.shape) < (apical_rate * self.dt)
-        c_apical_conductance = np.sum(apical_spikes * self.apical_weights * (self.apical_weights > self.apical_cond_threshold))
-        self.apical_conductance += c_apical_conductance - self.apical_conductance * self.dt / self.exc_tau
-
-        # Generate Inhibitory Conductances
-        inh_pre_spikes = np.random.rand(self.num_inhibitory) < (self.inh_rate * self.dt)
-        inh_conductance = self.inh_weight * np.sum(inh_pre_spikes)
-        self.inh_conductance += inh_conductance - self.inh_conductance * self.dt / self.inh_tau
-
-        # Do depression and replacement with basal inputs
-        self.basal_weights += basal_spikes * self.basal_depression
-        basal_replace = self.basal_weights < self.min_basal_weight
-        self.basal_tune_index[basal_replace] = np.random.randint(0, self.num_inputs, np.sum(basal_replace))
-        self.basal_weights[basal_replace] = self.basal_start_weight
-
-        # Do depression and replacement with apical inputs
-        self.apical_weights += apical_spikes * self.apical_depression
-        apical_replace = self.apical_weights < self.min_apical_weight
-        self.apical_tune_index[apical_replace] = np.random.randint(0, self.num_inputs, np.sum(apical_replace))
-        self.apical_weights[apical_replace] = self.apical_start_weight
-
-        # Update Potentiation/Depression Terms BASAL
-        self.basal_potentiation += self.basal_pot_value * basal_spikes - self.basal_potentiation * self.dt / self.potentiation_tau
-        self.basal_depression -= self.basal_depression * self.dt / self.depression_tau
-
-        # Update Potentiation/Depression Terms APICAL
-        self.apical_potentiation += self.apical_pot_value * apical_spikes - self.apical_potentiation * self.dt / self.potentiation_tau
-        self.apical_depression -= self.apical_depression * self.dt / self.depression_tau
-
-        # Do Homeostasis
-        self.homeo_rate_estimate += (1 * self.spike / self.dt - self.homeo_rate_estimate) * self.dt / self.homeo_tau
-        self.homeo_scale = self.homeo_rate / max(0.1, self.homeo_rate_estimate) - 1  # fraction change
-        self.basal_weights += self.homeo_scale * self.basal_weights * self.dt / self.homeo_tau
-        self.apical_weights += self.homeo_scale * self.apical_weights * self.dt / self.homeo_tau
-
-        # Prevent weights from leaving range
-        self.basal_weights = np.minimum(self.basal_weights, self.max_basal_weight)
-        self.basal_weights = np.maximum(self.basal_weights, 0)
-        self.apical_weights = np.minimum(self.apical_weights, self.max_apical_weight)
-        self.apical_weights = np.maximum(self.apical_weights, 0)
+    def forward(self, x):
+        return x @ self.W
 
 
-class StimulusICA:
-    """
-    A class to store / generate information about the stimuli.
-
-    Will probably refactor to have a base stimulus class that I fill out for different stim types.
-    """
-
-    def __init__(
-        self,
-        num_inputs=99,
-        num_latent=3,
-        source_method="gaussian",
-        source_strength=3,
-        rate_std=10,
-        rate_mean=20,
-        update_tau=20,
-    ):
+class BCM(nn.Module):
+    def __init__(self, num_units: int, num_inputs: int, y0: float = 1.0, eps: float = 0.001):
+        super().__init__()
+        self.num_units = num_units
         self.num_inputs = num_inputs
-        self.num_latent = num_latent
-        self.source_method = source_method
-        self.source_strength = source_strength
-        self.rate_std = rate_std
-        self.rate_mean = rate_mean
-        self.update_tau = update_tau
+        self.y0 = y0
+        self.eps = eps
+        self.W = nn.Parameter(torch.randn(num_inputs, num_units))
+        self.normalize_weights()
 
-        self.source_loading = self._build_source_loading()
-        self.var_adjustment = np.sqrt(np.sum(self.source_loading**2, axis=0) + 1)
+    def normalize_weights(self):
+        with torch.no_grad():
+            self.W.data = F.normalize(self.W.data, dim=0)
 
-        self.need_input = True
-        self.update_buffer = 0
-        self.rate = None
+    def update_weights(self, x, y, lr=0.1):
+        with torch.no_grad():
+            yhat = torch.mean((y - self.y0) ** 2)
+            phi = y * (y - yhat)
+            dw = x.T @ phi - self.eps * self.W
+            self.W += lr * dw
 
-    def step(self):
+    def forward(self, x):
+        return x @ self.W
 
-        if self.need_input or self.rate is None:
-            input_changed = True
-            interval = np.ceil(np.random.exponential(self.update_tau)) + 1  # duration of interval for current rates
-            noise = np.random.randn(self.num_inputs)
-            signal = np.sum(self.source_loading * np.random.randn(self.num_latent).reshape(-1, 1), axis=0)
-            input = (noise + signal) / self.var_adjustment
-            self.rate = self.rate_std * input + self.rate_mean
-            self.rate[self.rate < 0] = 0
-            self.update_buffer = interval - 1
 
+class SparseNet(torch.nn.Module):
+    """
+    Sparse Coding model in PyTorch
+
+    Attributes:
+        shape (torch.Size): shape of the input data.
+        num_basis (int): number of basis functions.
+        dim_basis (int): dimension of a basis function.
+        method (str): method used for sparse coding.
+        phi (torch.nn.Parameter): Learnable parameter representing the basis functions.
+            Initialized with normalized random values for encoding features.
+        device (torch.device): device on which the tensors are placed.
+    """
+
+    def __init__(self, num_basis: int, shape: torch.Size, method: str = "FISTA", device: torch.device = None) -> None:
+        """
+        Constructor for SparseNet.
+
+        Parameters:
+            num_basis (int): number of basis functions components (phi).
+            shape (torch.Size): shape of the input data.
+            method (str, optional): algorithm used to infer the sparse coeffiecents (alpha). The available methods: {'FISTA', 'ISTA', 'log'} (default: 'FISTA').
+            device (torch.device, optional): device to place tensors on (default: None).
+        """
+        if not isinstance(num_basis, int) or not isinstance(shape, torch.Size):
+            raise TypeError("SparseNet.__init__() arguments (position 1 and 2) must be integers.")
+
+        if method not in inference.Methods.__members__:
+            raise TypeError(f"SparseNet.__init__() invalid value for 'method': allowed values are {tuple(inference.Methods.__members__.keys())}.")
+
+        super().__init__()
+        self.device = device
+
+        self.method = method
+        self.shape = shape
+        self.num_basis = num_basis
+        self.dim_basis = shape.numel()
+
+        self.__phi = torch.nn.Parameter(data=F.normalize(torch.randn(self.num_basis, self.dim_basis, device=device), p=2, dim=1), requires_grad=True)
+
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Forward pass for SparseNet.
+
+        Parameters:
+            x (torch.Tensor): input data.
+
+        Returns:
+            tuple[torch.Tensor, torch.Tensor]: the sparse coefficients (alpha) and the reconstructed image.
+        """
+        if isinstance(x, torch.Tensor):
+            x.to(self.device)
+            x = torch.flatten(x, start_dim=1)
         else:
-            input_changed = False
-            self.update_buffer = self.update_buffer - 1
+            raise TypeError("SparseNet(): argument 'x' (position 1) must be a Tensor.")
 
-        self.need_input = self.update_buffer == 0
-        return self.rate, input_changed
+        if x.dim() != 2 or x.shape[1] != self.dim_basis:
+            raise ValueError(f"SparseNet(): input tensor must have shape (batch_size, {self.dim_basis}): got shape {tuple(x.shape)}.")
 
-    def _build_source_loading(self):
+        if self.method == "FISTA":
+            alpha = inference.FISTA(x, phi=self.__phi.detach(), device=self.device)
+        elif self.method == "ISTA":
+            alpha = inference.ISTA(x, phi=self.__phi.detach(), device=self.device)
+        elif self.method == "LOG":
+            alpha = inference.LOG_REGU(x, phi=self.__phi.detach(), device=self.device)
 
-        # always use an even number for symmetry
-        num_input_per_signal = int(np.floor(self.num_inputs / self.num_latent))
+        recon = torch.mm(alpha, self.__phi).view(-1, self.shape[0], self.shape[1])
+        return alpha, recon
 
-        if self.source_method == "divide":
-            loading_base = np.concatenate(
-                (self.source_strength * np.ones(num_input_per_signal), np.zeros((self.num_latent - 1) * num_input_per_signal)),
-            )
+    @property
+    def phi(self) -> torch.Tensor:
+        """
+        Get the basis functions elements (phi) of the Sparse Coding model.
 
-        elif self.source_method == "gaussian":
-            centered_x = np.arange(self.num_inputs)
-            centered_x = centered_x - np.mean(centered_x)
-            width_gaussian = 2 / 5 * num_input_per_signal
-            loading_base = np.roll(np.exp(-(centered_x**2) / (2 * width_gaussian**2)), -num_input_per_signal)
+        Returns:
+            torch.Tensor: the set of basis functions.
+        """
+        return self.__phi.detach().view(-1, self.shape[0], self.shape[1])
 
-        source_loading = np.stack([np.roll(loading_base, ilatent * num_input_per_signal) for ilatent in range(self.num_latent)])
+    @property
+    def W(self) -> torch.Tensor:
+        """
+        Get the basis functions elements (phi) of the Sparse Coding model.
 
-        extra_inputs = self.num_inputs - num_input_per_signal * self.num_latent
-        source_loading = np.concatenate((source_loading, np.zeros((self.num_latent, extra_inputs))), axis=1)
+        Returns:
+            torch.Tensor: the set of basis functions.
+        """
+        return self.__phi.detach().T
 
-        return source_loading
+    def loss(self, img_batch, pred):
+        return ((img_batch - pred) ** 2).sum()
+
+    def normalize_weights(self):
+        with torch.no_grad():
+            self.__phi.data = F.normalize(self.__phi.data, dim=1)
