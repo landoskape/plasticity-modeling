@@ -4,7 +4,7 @@
 % 2. Check whether double angle formulation is the correct one. (Should the
 % tuning angles spread from 0-180 or 0-360?)
 
-clc1
+clc
 apDepIdx = 4;
 numStateIdx = 1;
 basalFollow = 0;
