@@ -1,5 +1,6 @@
 import numpy as np
 from .IaF import IafNeuron
+
 def step_iaf(iaf: IafNeuron, input_rates: np.ndarray) -> IafNeuron:
     """Step the IAF neuron forward one timestep."""
     
