@@ -1,3 +1,6 @@
+# VSCODE
+.vscode/
+
 # Data
 *.mat
 .DS_Store
