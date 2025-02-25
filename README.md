@@ -5,7 +5,7 @@ Eventually I might want to turn this into a useful piece of software -- but righ
 for keeping the modeling code and figure-making scripts well organized. So, with that in mind, the
 README is going to just be a map of figures and how to make them. 
 
-## Figure STDP Predictions
+## Figure on STDP Predictions
 This figure is meant to serve as a link between our experimental data, biophysical modeling, and
 the predictions that motivate our STDP models. They start with the biophysical conductance model
 from Figure 8 of the experimental paper (https://elifesciences.org/articles/76993). We argue that
@@ -26,3 +26,17 @@ to demonstrate that we did a good job (you have to compare by eye with the paper
 - ``show_estimated_plasticity``: will build transfer functions from the simulations and the model
 derived from Nevian & Sakmann to demonstrate our estimate of how varying AP amplitude affects the 
 amount of plasticity evoked by positive pairings (LTP) or negative pairings (LTD).
+
+## Figure(s) on Hofer Reconstructions
+These aren't ready but I'll describe notes on progress here. 
+Key point: the circularBasalApical1 directory probably has the main code source for replicating
+the Hofer reconstructions that I used in my thesis. 
+
+## Current Progress:
+- I'm working on the IaF implementations to make it clear / efficient / flexible / etc.
+- Right now the synapse_group module is implemented and probably "complete"
+- The iaf_neuron module needs to be implemented (I started). 
+  - It essentially needs to wrap the SynapseGroup objects and orchestrate them. 
+  - Also needs to compute homeostasis computations...
+- Then work on run model probably!
+- (And also design some nice default parameters of factory methods for making IaF neurons)
