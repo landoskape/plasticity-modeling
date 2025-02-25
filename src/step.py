@@ -45,11 +45,19 @@ def step_iaf(iaf: IafNeuron, input_rates: np.ndarray) -> IafNeuron:
         # Use in-place clipping
         clip_weights(iaf.basalWeight, 0, iaf.maxBasalWeight)
         clip_weights(iaf.apicalWeight, 0, iaf.maxApicalWeight)
+
     else:
         iaf.spike = False
         # Update membrane voltage using JIT-compiled function
         iaf.vm = update_membrane_voltage(
-            iaf.vm, iaf.rest, iaf.dt, iaf.tau, iaf.basalConductance + iaf.apicalConductance, iaf.gabaConductance, iaf.exRev, iaf.resistance
+            iaf.vm,
+            iaf.rest,
+            iaf.dt,
+            iaf.tau,
+            iaf.basalConductance + iaf.apicalConductance,
+            iaf.gabaConductance,
+            iaf.exRev,
+            iaf.resistance,
         )
 
     # Generate all spikes at once using pre-allocated arrays

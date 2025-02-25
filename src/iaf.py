@@ -1,37 +1,43 @@
 import numpy as np
-from typing import Dict, Any, Optional, Tuple
+from numba import njit
+from typing import Dict, Any, Optional, Tuple, Union
 from dataclasses import dataclass
+
+
+@njit
+def generate_spikes_numba(random_values, rate, dt):
+    """JIT-compiled function to generate spikes."""
+    return random_values < (rate * dt)
 
 
 @dataclass
 class SpikeGenerator:
-    """Manages batched spike generation for efficient random number generation."""
-
     num_neurons: int
     dt: float
     max_batch: int = 10
 
     def __post_init__(self):
+        self.rng = np.random.Generator(np.random.PCG64())
         self.batch_idx = 0
         self.current_batch = None
         self.batch_size = 0
 
-    def initialize_batch(self, steps_remaining: Optional[int] = None):
-        """Initialize a new batch of random numbers."""
-        if steps_remaining is not None:
-            batch_size = min(self.max_batch, steps_remaining)
-        else:
-            batch_size = self.max_batch
-        self.current_batch = np.random.rand(batch_size, self.num_neurons)
+        # Warmup the numba function
+        generate_spikes_numba(np.random.rand(self.num_neurons), 1.0, self.dt)
+
+    def initialize_batch(self, steps_remaining=None):
+        """Create a batch of random numbers for reuse in poisson spike generation."""
+        batch_size = min(self.max_batch, steps_remaining or self.max_batch)
+        self.current_batch = self.rng.random((batch_size, self.num_neurons))
         self.batch_idx = 0
         self.batch_size = batch_size
 
-    def get_spikes(self, rate: float, steps_remaining: Optional[int] = None) -> np.ndarray:
-        """Get spikes for current timestep and advance batch index."""
+    def get_spikes(self, rate, steps_remaining=None):
+        """Generate spikes for the current timestep."""
         if self.batch_idx >= self.batch_size:
             self.initialize_batch(steps_remaining)
 
-        spikes = self.current_batch[self.batch_idx] < (rate * self.dt)
+        spikes = generate_spikes_numba(self.current_batch[self.batch_idx], rate, self.dt)
         self.batch_idx += 1
         return spikes
 
@@ -138,15 +144,9 @@ class IafNeuron:
         """Initialize optimization arrays and spike generators."""
         # Initialize spike generators if we have the required parameters
         self._spike_generators = {}
-
-        if hasattr(self, "basalWeight"):
-            self._spike_generators["basal"] = SpikeGenerator(len(self.basalWeight), self.dt)
-
-        if hasattr(self, "apicalWeight"):
-            self._spike_generators["apical"] = SpikeGenerator(len(self.apicalWeight), self.dt)
-
-        if self.numInhibitory:
-            self._spike_generators["inhibitory"] = SpikeGenerator(self.numInhibitory, self.dt)
+        self._spike_generators["basal"] = SpikeGenerator(len(self.basalWeight), self.dt)
+        self._spike_generators["apical"] = SpikeGenerator(len(self.apicalWeight), self.dt)
+        self._spike_generators["inhibitory"] = SpikeGenerator(self.numInhibitory, self.dt)
 
         # Pre-compute time constants
         self._dt_tau = self.dt / self.tau
@@ -156,7 +156,9 @@ class IafNeuron:
         self._dt_dep_tau = self.dt / self.depTau
         self._dt_hom_tau = self.dt / self.homTau if hasattr(self, "homTau") else None
 
-    def get_spikes(self, location: str, input_rates: np.ndarray, steps_remaining: Optional[int] = None) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def get_spikes(
+        self, location: str, input_rates: np.ndarray, steps_remaining: Optional[int] = None
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         if location not in self._spike_generators:
             raise ValueError(f"Invalid location: {location}")
         return self._spike_generators[location].get_spikes(input_rates, steps_remaining)

@@ -11,10 +11,16 @@ profiler = LineProfiler()
 step_iaf = profiler(step_iaf)
 
 
-def run_iaf(ap_dep_idx: int, num_state_idx: int, basal_dep_follow: int, T: int = 19200) -> Tuple[IafNeuron, List[int], np.ndarray, np.ndarray]:
+def run_iaf(
+    ap_dep_idx: int,
+    num_state_idx: int,
+    basal_dep_follow: int,
+    T: int = 19200,
+    use_old: bool = False,
+) -> Tuple[IafNeuron, List[int], np.ndarray, np.ndarray]:
     """Run the IAF neuron simulation."""
     # Set random seed
-    np.random.seed()  # equivalent to MATLAB's rng('shuffle')
+    np.random.seed()
 
     # Initialize parameters
     apic_dep_array = [1.1, 1.05, 1.025, 1.0]  # apical depression parameters
@@ -101,7 +107,7 @@ def run_iaf(ap_dep_idx: int, num_state_idx: int, basal_dep_follow: int, T: int =
     small_apical_weight = np.zeros((options["numInputs"], T))
 
     # Build the model
-    iaf = IafNeuron(options)
+    iaf = IafNeuron(options, use_old=use_old)
 
     # Run simulation
     need_input = True
@@ -113,9 +119,10 @@ def run_iaf(ap_dep_idx: int, num_state_idx: int, basal_dep_follow: int, T: int =
             # Generate Input
             if need_input:
                 interval = int(np.random.exponential(tau_stim)) + 1
-                input_vec = (np.random.randn(options["numInputs"]) + np.random.randn(options["numSignals"]).dot(options["sourceLoading"])) / options[
-                    "varAdjustment"
-                ]
+                input_vec = (
+                    np.random.randn(options["numInputs"])
+                    + np.random.randn(options["numSignals"]).dot(options["sourceLoading"])
+                ) / options["varAdjustment"]
                 rate = options["rateStd"] * input_vec + options["rateMean"]
                 rate = np.maximum(rate, 0)  # No negative rates
                 track_interval = interval - 1
