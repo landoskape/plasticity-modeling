@@ -544,7 +544,6 @@ for ex = 1:2
 end
 
 %% Plot D/P Ratio Schematic
-
 dpXPos = [69 8 3];
 dpYPos = [4 4.6];
 dpXTitle = dpXPos(1) + dpXPos(2) + dpXPos(3)/2;

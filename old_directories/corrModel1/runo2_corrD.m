@@ -20,7 +20,7 @@ if basalDepFollow==1
 end
 
 runsInEach = 1;
-T = 5000*1000; % as I've shared it, the model stablizes around T=10000*1000, but isn't at equilibrium yet 
+T = 1000*1000; % as I've shared it, the model stablizes around T=10000*1000, but isn't at equilibrium yet 
 
 options.dt = 0.001; % time step
 options.T = T; % number of time steps
