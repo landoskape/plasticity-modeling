@@ -1,253 +1,162 @@
-from copy import copy
 import numpy as np
-import torch
-from torch import nn
+from typing import Dict, Any, Optional, Tuple
+from dataclasses import dataclass
 
 
-class Oja(nn.Module):
-    pass
+@dataclass
+class SpikeGenerator:
+    """Manages batched spike generation for efficient random number generation."""
 
+    num_neurons: int
+    dt: float
+    max_batch: int = 10
 
-class IaF:
-    """
-    This is a basic integrate and fire neuron for running conductance models of STDP.
-    """
+    def __post_init__(self):
+        self.batch_idx = 0
+        self.current_batch = None
+        self.batch_size = 0
 
-    def __init__(
-        self,
-        num_inputs,
-        basal_depression_ratio,
-        apical_depression_ratio,
-        num_basal=300,
-        num_apical=100,
-    ):
-        # basic parameters
-        self.dt = 0.001  # s
-        self.tau = 20e-3  # s
-        self.r_m = 100e6  # Ohm
-        self.v_rest = -70e-3  # Volts
-        self.v_thresh = -50e-3  # Volts
-        self.exc_rev = 0e-3  # Volts
-        self.exc_tau = 20e-3  # seconds
-        self.vm = copy(self.v_rest)  # initial membrane potential (Volts)
-
-        self.lose_synapse_ratio = 0.01
-        self.new_synapse_ratio = 0.01
-        self.cond_threshold = 0.1
-
-        # NOTE had a note saying that I'll "make this slow from recurrent excitatory"
-        self.num_inhibitory = 200
-        self.inh_rate = 20
-        self.inh_weight = 100e-12  # Amps
-        self.inh_tau = 20e-3
-        self.inh_conductance = 0
-
-        self.num_inputs = num_inputs
-
-        # basal synaptic structure
-        self.num_basal = num_basal
-        self.max_basal_weight = 300e-12  # pS
-        self.min_basal_weight = self.max_basal_weight * self.lose_synapse_ratio
-        self.basal_start_weight = self.max_basal_weight * self.new_synapse_ratio
-        self.basal_cond_threshold = self.max_basal_weight * self.cond_threshold
-        self.basal_weights = self.max_basal_weight * np.random.rand(self.num_basal)
-        self.basal_conductance = 0
-        self.basal_tune_index = np.random.randint(0, self.num_inputs, self.num_basal)
-
-        self.num_apical = num_apical
-        self.max_apical_weight = 100e-12  # pS
-        self.min_apical_weight = self.max_apical_weight * self.lose_synapse_ratio
-        self.apical_start_weight = self.max_apical_weight * self.new_synapse_ratio
-        self.apical_cond_threshold = self.max_apical_weight * self.cond_threshold
-        self.apical_weights = self.max_apical_weight * np.random.rand(self.num_apical)
-        self.apical_conductance = 0
-        self.apical_tune_index = np.random.randint(0, self.num_inputs, self.num_apical)
-
-        # STDP Parameters
-        self.plasticity_rate = 0.01
-        self.potentiation_tau = 0.02  # seconds
-        self.depression_tau = 0.02  # seconds
-        self.basal_depression_ratio = basal_depression_ratio
-        self.apical_depression_ratio = apical_depression_ratio
-
-        self.basal_potentiation = np.zeros(num_basal)
-        self.basal_depression = 0
-        self.basal_pot_value = self.plasticity_rate * self.max_basal_weight
-        self.basal_dep_value = self.plasticity_rate * self.max_basal_weight * self.basal_depression_ratio
-
-        self.apical_potentiation = np.zeros(num_apical)
-        self.apical_depression = 0
-        self.apical_pot_value = self.plasticity_rate * self.max_apical_weight
-        self.apical_dep_value = self.plasticity_rate * self.max_apical_weight * self.apical_depression_ratio
-
-        # Homeostasis Parameters
-        self.homeo_tau = 20  # seconds
-        self.homeo_rate = 20  # spikes / second
-        self.homeo_rate_estimate = copy(self.homeo_rate)
-
-    def step(self, input):
-        if self.vm > self.v_thresh:
-            self.spike = True
-            self.vm = self.v_rest  # reset to rest
-
-            # Implement plasticity on basal synapses
-            self.basal_depression -= self.basal_dep_value
-            self.basal_weights += self.basal_potentiation
-            self.basal_weights = np.minimum(self.basal_weights, self.max_basal_weight)
-            self.basal_weights = np.maximum(self.basal_weights, 0)
-
-            # Implement plasticity on apical synapses
-            self.apical_depression -= self.apical_dep_value
-            self.apical_weights += self.apical_potentiation
-            self.apical_weights = np.minimum(self.apical_weights, self.max_apical_weight)
-            self.apical_weights = np.maximum(self.apical_weights, 0)
-
+    def initialize_batch(self, steps_remaining: Optional[int] = None):
+        """Initialize a new batch of random numbers."""
+        if steps_remaining is not None:
+            batch_size = min(self.max_batch, steps_remaining)
         else:
-            self.spike = False
+            batch_size = self.max_batch
+        self.current_batch = np.random.rand(batch_size, self.num_neurons)
+        self.batch_idx = 0
+        self.batch_size = batch_size
 
-            # Vm is current vm - leak + conductance*DF*Resistance/tau --
-            # --- -which is effectively conductance*DF/capacitance (which is fine)
-            leak_term = (self.v_rest - self.vm) * self.dt / self.tau
-            exc_df = self.exc_rev - self.vm
-            inh_df = self.v_rest - self.vm
-            exc_dv = (self.basal_conductance + self.apical_conductance) * exc_df * self.r_m * self.dt / self.tau
-            inh_dv = self.inh_conductance * inh_df * self.r_m * self.dt / self.tau
-            self.vm = self.vm + leak_term + exc_dv + inh_dv
+    def get_spikes(self, rate: float, steps_remaining: Optional[int] = None) -> np.ndarray:
+        """Get spikes for current timestep and advance batch index."""
+        if self.batch_idx >= self.batch_size:
+            self.initialize_batch(steps_remaining)
 
-        # Generate Basal Input Conductances
-        basal_rate = input[self.basal_tune_index]
-        basal_spikes = np.random.rand(*self.basal_weights.shape) < (basal_rate * self.dt)
-        c_basal_conductance = np.sum(basal_spikes * self.basal_weights * (self.basal_weights > self.basal_cond_threshold))
-        self.basal_conductance = c_basal_conductance - self.basal_conductance * self.dt / self.exc_tau
-
-        # Generate Apical Input Conductances
-        apical_rate = input[self.apical_tune_index]
-        apical_spikes = np.random.rand(*self.apical_weights.shape) < (apical_rate * self.dt)
-        c_apical_conductance = np.sum(apical_spikes * self.apical_weights * (self.apical_weights > self.apical_cond_threshold))
-        self.apical_conductance += c_apical_conductance - self.apical_conductance * self.dt / self.exc_tau
-
-        # Generate Inhibitory Conductances
-        inh_pre_spikes = np.random.rand(self.num_inhibitory) < (self.inh_rate * self.dt)
-        inh_conductance = self.inh_weight * np.sum(inh_pre_spikes)
-        self.inh_conductance += inh_conductance - self.inh_conductance * self.dt / self.inh_tau
-
-        # Do depression and replacement with basal inputs
-        self.basal_weights += basal_spikes * self.basal_depression
-        basal_replace = self.basal_weights < self.min_basal_weight
-        self.basal_tune_index[basal_replace] = np.random.randint(0, self.num_inputs, np.sum(basal_replace))
-        self.basal_weights[basal_replace] = self.basal_start_weight
-
-        # Do depression and replacement with apical inputs
-        self.apical_weights += apical_spikes * self.apical_depression
-        apical_replace = self.apical_weights < self.min_apical_weight
-        self.apical_tune_index[apical_replace] = np.random.randint(0, self.num_inputs, np.sum(apical_replace))
-        self.apical_weights[apical_replace] = self.apical_start_weight
-
-        # Update Potentiation/Depression Terms BASAL
-        self.basal_potentiation += self.basal_pot_value * basal_spikes - self.basal_potentiation * self.dt / self.potentiation_tau
-        self.basal_depression -= self.basal_depression * self.dt / self.depression_tau
-
-        # Update Potentiation/Depression Terms APICAL
-        self.apical_potentiation += self.apical_pot_value * apical_spikes - self.apical_potentiation * self.dt / self.potentiation_tau
-        self.apical_depression -= self.apical_depression * self.dt / self.depression_tau
-
-        # Do Homeostasis
-        self.homeo_rate_estimate += (1 * self.spike / self.dt - self.homeo_rate_estimate) * self.dt / self.homeo_tau
-        self.homeo_scale = self.homeo_rate / max(0.1, self.homeo_rate_estimate) - 1  # fraction change
-        self.basal_weights += self.homeo_scale * self.basal_weights * self.dt / self.homeo_tau
-        self.apical_weights += self.homeo_scale * self.apical_weights * self.dt / self.homeo_tau
-
-        # Prevent weights from leaving range
-        self.basal_weights = np.minimum(self.basal_weights, self.max_basal_weight)
-        self.basal_weights = np.maximum(self.basal_weights, 0)
-        self.apical_weights = np.minimum(self.apical_weights, self.max_apical_weight)
-        self.apical_weights = np.maximum(self.apical_weights, 0)
+        spikes = self.current_batch[self.batch_idx] < (rate * self.dt)
+        self.batch_idx += 1
+        return spikes
 
 
-class StimulusICA:
-    """
-    A class to store / generate information about the stimuli.
+class IafNeuron:
+    def __init__(self, options: Dict[str, Any]):
+        # Time parameters with defaults
+        self.dt = options.get("dt", 0.001)  # in seconds
+        self.T = options.get("T", 1.0)  # total time
+        self.tau = options.get("tau", 20e-3)  # membrane time constant (s)
 
-    Will probably refactor to have a base stimulus class that I fill out for different stim types.
-    """
+        # Basic neuron parameters with defaults
+        self.resistance = options.get("resistance", 100e6)  # Ohm
+        self.rest = options.get("rest", -70e-3)  # V
+        self.thresh = options.get("thresh", -50e-3)  # V
+        self.vm = options.get("vm", -70e-3)  # initial membrane voltage
+        self.spike = False
 
-    def __init__(
-        self,
-        num_inputs=99,
-        num_latent=3,
-        source_method="gaussian",
-        source_fraction_variance=0.5,
-        rate_std=10,
-        rate_mean=20,
-        update_tau=10, # in samples -- use the dt to convert to seconds
-    ):
-        self.num_inputs = num_inputs
-        self.num_latent = num_latent
-        self.source_method = source_method
-        self.source_fraction_variance = source_fraction_variance
-        self.rate_std = rate_std
-        self.rate_mean = rate_mean
-        self.update_tau = update_tau
+        # Reversal potentials with defaults
+        self.exRev = options.get("exRev", 0)  # V
+        self.excTau = options.get("excTau", 20e-3)  # s
 
-        self.source_loading = self._build_source_loading()
-        source_variance = np.sum(self.source_loading**2, axis=0)
-        self.noise_variance = (1 - self.source_fraction_variance) * source_variance
-        self.variance_rescale = 1.0 / (source_variance + self.noise_variance)
+        # Synaptic structure
+        self.numBasal = options.get("numBasal")
+        self.numApical = options.get("numApical")
 
-        # Sum of source and noise variance
-        self.var_adjustment = np.sqrt(np.sum(self.source_loading **2, axis=0) + 1)
+        # Stimulus structure
+        self.numInputs = options.get("numInputs")
+        self.numSignals = options.get("numSignals")
+        self.sourceMethod = options.get("sourceMethod")
+        self.sourceStrength = options.get("sourceStrength")
+        self.sourceLoading = options.get("sourceLoading")
+        self.varAdjustment = options.get("varAdjustment")
+        self.rateStd = options.get("rateStd")
+        self.rateMean = options.get("rateMean")
 
-        self.need_input = True
-        self.update_buffer = 0
-        self.rate = None
+        # Basal parameters
+        self.maxBasalWeight = options.get("maxBasalWeight")
+        if self.maxBasalWeight is not None:
+            lose_synapse_ratio = options.get("loseSynapseRatio", 0.01)
+            new_synapse_ratio = options.get("newSynapseRatio", 0.01)
+            conductance_threshold = options.get("conductanceThreshold", 0.1)
 
-    def step(self):
+            self.minBasalWeight = self.maxBasalWeight * lose_synapse_ratio
+            self.basalStartWeight = self.maxBasalWeight * new_synapse_ratio
+            self.basalCondThresh = self.maxBasalWeight * conductance_threshold
+            self.basalWeight = self.maxBasalWeight * np.random.rand(self.numBasal)
+            self.basalTuneIdx = np.random.randint(0, self.numInputs, size=self.numBasal)
 
-        if self.need_input or self.rate is None:
-            input_changed = True
-            interval = np.ceil(np.random.exponential(self.update_tau)) + 1  # duration of interval for current rates
-            #noise = np.sqrt(self.noise_variance) * np.random.randn(self.num_inputs)
-            # source_signal = np.random.randn(self.num_latent).reshape(-1, 1)
-            # self.signal = np.sum(self.source_loading * source_signal, axis=0)
-            # self.input = (noise + self.signal) * np.sqrt(self.variance_rescale)
-            
-            noise = np.random.randn(self.num_inputs)
-            signal = np.random.randn(self.num_latent) @ self.source_loading
-            self.input = (noise + signal) / self.var_adjustment
-            self.rate = self.rate_std * self.input + self.rate_mean
-            self.rate[self.rate < 0] = 0
-            self.update_buffer = interval - 1
+        self.basalConductance = 0
 
-        else:
-            input_changed = False
-            # noise = np.sqrt(self.noise_variance) * np.random.randn(self.num_inputs)
-            # self.input = (noise + self.signal) * np.sqrt(self.variance_rescale)
-            # self.rate = self.rate_std * self.input + self.rate_mean
-            # self.rate[self.rate < 0] = 0
-            self.update_buffer = self.update_buffer - 1
+        # Apical parameters
+        self.maxApicalWeight = options.get("maxApicalWeight")
+        if self.maxApicalWeight is not None:
+            lose_synapse_ratio = options.get("loseSynapseRatio", 0.01)
+            new_synapse_ratio = options.get("newSynapseRatio", 0.01)
+            conductance_threshold = options.get("conductanceThreshold", 0.1)
 
-        self.need_input = self.update_buffer == 0
-        return self.rate, input_changed
+            self.minApicalWeight = self.maxApicalWeight * lose_synapse_ratio
+            self.apicalStartWeight = self.maxApicalWeight * new_synapse_ratio
+            self.apicalCondThresh = self.maxApicalWeight * conductance_threshold
+            self.apicalWeight = self.maxApicalWeight * np.random.rand(self.numApical)
+            self.apicalTuneIdx = np.random.randint(0, self.numInputs, size=self.numApical)
 
-    def _build_source_loading(self):
+        self.apicalConductance = 0
 
-        # always use an even number for symmetry
-        num_input_per_signal = int(np.floor(self.num_inputs / self.num_latent))
+        # STDP parameters
+        plasticity_rate = options.get("plasticityRate", 0.01)
 
-        if self.source_method == "divide":
-            loading_base = np.concatenate(
-                (np.ones(num_input_per_signal), np.zeros((self.num_latent - 1) * num_input_per_signal)),
-            )
+        if self.maxBasalWeight is not None:
+            self.basalPotentiation = np.zeros_like(self.basalWeight)
+            self.basalPotValue = plasticity_rate * self.maxBasalWeight
+            self.basalDepValue = plasticity_rate * options.get("basalDepression", 1.1) * self.maxBasalWeight
 
-        elif self.source_method == "gaussian":
-            centered_x = np.arange(self.num_inputs)
-            centered_x = centered_x - np.mean(centered_x)
-            width_gaussian = 2 / 5 * num_input_per_signal
-            loading_base = np.roll(np.exp(-(centered_x**2) / (2 * width_gaussian**2)), -num_input_per_signal)
+        if self.maxApicalWeight is not None:
+            self.apicalPotentiation = np.zeros_like(self.apicalWeight)
+            self.apicalPotValue = plasticity_rate * self.maxApicalWeight
+            self.apicalDepValue = plasticity_rate * options.get("apicalDepression", 1.0) * self.maxApicalWeight
 
-        source_loading = np.stack([np.roll(loading_base, ilatent * num_input_per_signal) for ilatent in range(self.num_latent)])
+        self.basalDepression = 0
+        self.apicalDepression = 0
 
-        extra_inputs = self.num_inputs - num_input_per_signal * self.num_latent
-        source_loading = np.concatenate((source_loading, np.zeros((self.num_latent, extra_inputs))), axis=1)
+        # Time constants for plasticity
+        self.potTau = options.get("potTau", 0.02)
+        self.depTau = options.get("depTau", 0.02)
 
-        return source_loading
+        # Homeostasis parameters
+        self.homTau = options.get("homeostasisTau")
+        self.homRate = options.get("homeostasisRate")
+        self.homRateEstimate = self.homRate if self.homRate is not None else None
+        self.homScale = 0
+
+        # Inhibitory parameters with defaults
+        self.numInhibitory = options.get("numInhibitory", 200)
+        self.inhRate = options.get("inhRate", 20)
+        self.inhWeight = options.get("inhWeight", 100e-12)
+        self.gabaTau = options.get("gabaTau", 20e-3)
+        self.gabaConductance = 0
+
+        # Initialize optimization fields
+        self._init_optimization_fields()
+
+    def _init_optimization_fields(self):
+        """Initialize optimization arrays and spike generators."""
+        # Initialize spike generators if we have the required parameters
+        self._spike_generators = {}
+
+        if hasattr(self, "basalWeight"):
+            self._spike_generators["basal"] = SpikeGenerator(len(self.basalWeight), self.dt)
+
+        if hasattr(self, "apicalWeight"):
+            self._spike_generators["apical"] = SpikeGenerator(len(self.apicalWeight), self.dt)
+
+        if self.numInhibitory:
+            self._spike_generators["inhibitory"] = SpikeGenerator(self.numInhibitory, self.dt)
+
+        # Pre-compute time constants
+        self._dt_tau = self.dt / self.tau
+        self._dt_exc_tau = self.dt / self.excTau
+        self._dt_gaba_tau = self.dt / self.gabaTau
+        self._dt_pot_tau = self.dt / self.potTau
+        self._dt_dep_tau = self.dt / self.depTau
+        self._dt_hom_tau = self.dt / self.homTau if hasattr(self, "homTau") else None
+
+    def get_spikes(self, location: str, input_rates: np.ndarray, steps_remaining: Optional[int] = None) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        if location not in self._spike_generators:
+            raise ValueError(f"Invalid location: {location}")
+        return self._spike_generators[location].get_spikes(input_rates, steps_remaining)
