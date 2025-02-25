@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "plasticity-modeling"
+dynamic = ["version"]
+description = "Code to generate STDP models."
+authors = [
+    { name = "Andrew Landau" }
+]
+
+[tool.hatch.version]
+path = "src/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
