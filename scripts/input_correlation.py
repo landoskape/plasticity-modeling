@@ -7,10 +7,10 @@ from matplotlib import pyplot as plt
 from matplotlib.gridspec import GridSpec
 from tqdm import tqdm
 import torch
-from src.models import Oja, BCM, SparseNet
-from src.datasets import NatPatchDataset
-from src.plotting import beeswarm, make_rf_display, save_figure
-from src.files import get_figure_dir
+from old_src.models import Oja, BCM, SparseNet
+from old_src.datasets import NatPatchDataset
+from old_src.plotting import beeswarm, make_rf_display, save_figure
+from old_src.files import get_figure_dir
 
 
 if __name__ == "__main__":
@@ -19,7 +19,9 @@ if __name__ == "__main__":
     L = 10
     batch_size = 2000
     dataset = NatPatchDataset(num_patches, L)
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    dataloader = torch.utils.data.DataLoader(
+        dataset, batch_size=batch_size, shuffle=True
+    )
 
     num_units = 144
     num_inputs = L**2
@@ -80,9 +82,24 @@ if __name__ == "__main__":
 
     disp_buffer = 1
     num_to_show = 49
-    ojarf = make_rf_display(oja.W.detach()[:, :num_to_show], disp_buffer=disp_buffer, flip_sign=False, background_value=1.0)
-    bcmrf = make_rf_display(bcm.W.detach()[:, :num_to_show], disp_buffer=disp_buffer, flip_sign=False, background_value=1.0)
-    snetrf = make_rf_display(snetw[:, :num_to_show], disp_buffer=disp_buffer, flip_sign=False, background_value=1.0)
+    ojarf = make_rf_display(
+        oja.W.detach()[:, :num_to_show],
+        disp_buffer=disp_buffer,
+        flip_sign=False,
+        background_value=1.0,
+    )
+    bcmrf = make_rf_display(
+        bcm.W.detach()[:, :num_to_show],
+        disp_buffer=disp_buffer,
+        flip_sign=False,
+        background_value=1.0,
+    )
+    snetrf = make_rf_display(
+        snetw[:, :num_to_show],
+        disp_buffer=disp_buffer,
+        flip_sign=False,
+        background_value=1.0,
+    )
 
     plt.rcParams.update({"font.size": 16})
 
@@ -111,9 +128,30 @@ if __name__ == "__main__":
     ax2.imshow(bcmrf, cmap="gray", interpolation="none")
     ax3.imshow(snetrf, cmap="gray", interpolation="none")
     extent = [-2, Q.shape[1] + 1, 0, num_units]
-    ax4.imshow(torch.abs(Q.T @ oja.W.detach().numpy()).T, vmin=0, vmax=1, cmap="pink", aspect="auto", extent=extent)
-    ax5.imshow(torch.abs(Q.T @ bcm.W.detach().numpy()).T, vmin=0, vmax=1, cmap="pink", aspect="auto", extent=extent)
-    ax6.imshow(torch.abs(Q.T @ snetw.numpy()).T, vmin=0, vmax=1, cmap="pink", aspect="auto", extent=extent)
+    ax4.imshow(
+        torch.abs(Q.T @ oja.W.detach().numpy()).T,
+        vmin=0,
+        vmax=1,
+        cmap="pink",
+        aspect="auto",
+        extent=extent,
+    )
+    ax5.imshow(
+        torch.abs(Q.T @ bcm.W.detach().numpy()).T,
+        vmin=0,
+        vmax=1,
+        cmap="pink",
+        aspect="auto",
+        extent=extent,
+    )
+    ax6.imshow(
+        torch.abs(Q.T @ snetw.numpy()).T,
+        vmin=0,
+        vmax=1,
+        cmap="pink",
+        aspect="auto",
+        extent=extent,
+    )
     ax7.plot(torch.mean(torch.abs(Q.T @ oja.W.detach().numpy()).T, dim=0), color="k")
     ax8.plot(torch.mean(torch.abs(Q.T @ bcm.W.detach().numpy()).T, dim=0), color="k")
     ax9.plot(torch.mean(torch.abs(Q.T @ snetw.numpy()).T, dim=0), color="k")
@@ -147,7 +185,9 @@ if __name__ == "__main__":
     save_figure(fig, figdir / "RFs")
 
     fig = plt.figure(figsize=(3, 6.2), layout="constrained")
-    for i, (x, y, name) in enumerate(zip([xoja, xbcm, xsnet], [ojarq, bcmrq, snetrq], names)):
+    for i, (x, y, name) in enumerate(
+        zip([xoja, xbcm, xsnet], [ojarq, bcmrq, snetrq], names)
+    ):
         plt.scatter(i + x / 3, y, c="k", alpha=0.3)
     plt.xticks(range(len(names)), names)
     plt.xticks(rotation=45)
