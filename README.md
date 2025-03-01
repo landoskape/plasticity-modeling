@@ -33,10 +33,6 @@ Key point: the circularBasalApical1 directory probably has the main code source 
 the Hofer reconstructions that I used in my thesis. 
 
 ## Current Progress:
-- I'm working on the IaF implementations to make it clear / efficient / flexible / etc.
-- Right now the synapse_group module is implemented and probably "complete"
-- The iaf_neuron module needs to be implemented (I started). 
-  - It essentially needs to wrap the SynapseGroup objects and orchestrate them. 
-  - Also needs to compute homeostasis computations...
-- Then work on run model probably!
-- (And also design some nice default parameters of factory methods for making IaF neurons)
+- IaF Implementation works and recovers the ICA result. The parameter control is a bit rough right
+now though, so it needs to be designed better for more streamlined and clearer parameter choices.
+- Gotta use it to make a single source example and also prep the real Hofer model!!!
