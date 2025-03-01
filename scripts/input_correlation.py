@@ -1,16 +1,11 @@
-import os, sys
-
-repo_path = os.path.dirname(os.path.dirname(__file__))
-sys.path.append(repo_path)
-
-from matplotlib import pyplot as plt
-from matplotlib.gridspec import GridSpec
 from tqdm import tqdm
 import torch
-from old_src.models import Oja, BCM, SparseNet
-from old_src.datasets import NatPatchDataset
-from old_src.plotting import beeswarm, make_rf_display, save_figure
-from old_src.files import get_figure_dir
+from matplotlib import pyplot as plt
+from matplotlib.gridspec import GridSpec
+from src.classical_hebbian.models import Oja, BCM, SparseNet
+from src.classical_hebbian.datasets import NatPatchDataset
+from src.plotting import beeswarm, make_rf_display, save_figure
+from src.files import get_figure_dir
 
 
 if __name__ == "__main__":
@@ -19,9 +14,7 @@ if __name__ == "__main__":
     L = 10
     batch_size = 2000
     dataset = NatPatchDataset(num_patches, L)
-    dataloader = torch.utils.data.DataLoader(
-        dataset, batch_size=batch_size, shuffle=True
-    )
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     num_units = 144
     num_inputs = L**2
@@ -185,9 +178,7 @@ if __name__ == "__main__":
     save_figure(fig, figdir / "RFs")
 
     fig = plt.figure(figsize=(3, 6.2), layout="constrained")
-    for i, (x, y, name) in enumerate(
-        zip([xoja, xbcm, xsnet], [ojarq, bcmrq, snetrq], names)
-    ):
+    for i, (x, y, name) in enumerate(zip([xoja, xbcm, xsnet], [ojarq, bcmrq, snetrq], names)):
         plt.scatter(i + x / 3, y, c="k", alpha=0.3)
     plt.xticks(range(len(names)), names)
     plt.xticks(rotation=45)
