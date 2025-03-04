@@ -59,7 +59,7 @@ class IaF:
             self._min_allowed_rate_estimate = self.homeostasis_set_point / 100
             self._dt_homeostasis_tau = self.dt / self.homeostasis_tau
 
-        self.synapse_groups: list[SynapseGroup] = []
+        self.synapse_groups: dict[str, SynapseGroup] = {}
 
     def initialize(self, include_synapses: bool = True, reset_weights: bool = False):
         """Method for returning the neuron and synapses to resting state."""
@@ -67,43 +67,35 @@ class IaF:
         if self.use_homeostasis:
             self.homeostasis_rate_estimate = self.homeostasis_set_point
         if include_synapses:
-            for synapse_group in self.synapse_groups:
+            for synapse_group in self.synapse_groups.values():
                 synapse_group.initialize(reset_weights=reset_weights)
 
-    def add_synapse_group(
-        self,
-        name: str,
-        num_synapses: int,
-        max_weight: float,
-        reversal: float,
-        tau: float,
-        **plasticity_params: Dict[str, Any],
-    ):
-        synapse_group = SynapseGroup(name, num_synapses, max_weight, reversal, tau, **plasticity_params)
-        self.synapse_groups.append(synapse_group)
+    def add_synapse_group(self, synapse_group: SynapseGroup, name: str | None = None):
+        """Add a synapse group to the neuron.
 
-    def step(
-        self,
-        input_rates: np.ndarray | List[np.ndarray],
-        same_input_rates: bool = True,
-    ):
+        Args:
+            synapse_group: The synapse group to add.
+            name: The name of the synapse group.
+        """
+        if name is None:
+            name = f"synapse_group_{len(self.synapse_groups)}"
+        self.synapse_groups[name] = synapse_group
+
+    def step(self, input_rates: List[np.ndarray]):
         """Implement a step of the IaF neuron.
 
         Args:
-            input_rates: The input rates to the neuron.
-            same_input_rates: Whether the input rates are the same for all synapse groups.
-                If True, then input_rates should be a single numpy array.
-                If False, then input_rates should be a list of numpy arrays, one for each synapse group.
+            input_rates: The input rates to each synapse group.
         """
         if self.vm > self.spike_threshold:
             self.spike = True
             self.vm = self.reset_voltage
-            for synapse_group in self.synapse_groups:
+            for synapse_group in self.synapse_groups.values():
                 synapse_group.postsynaptic_spike()
 
         else:
             self.spike = False
-            input_current = [synapse_group.get_current(self.vm) for synapse_group in self.synapse_groups]
+            input_current = [synapse_group.get_current(self.vm) for synapse_group in self.synapse_groups.values()]
             input_current = np.sum(input_current)
             self.vm = update_membrane_voltage(
                 self.vm,
@@ -114,15 +106,11 @@ class IaF:
                 self.dt,
             )
 
-        if same_input_rates:
-            if not isinstance(input_rates, np.ndarray):
-                raise ValueError("input_rates must be a numpy array if same_input_rates is True")
-            input_rates = repeat(input_rates)
-        else:
-            if not isinstance(input_rates, list) and len(input_rates) != len(self.synapse_groups):
-                raise ValueError(
-                    "input_rates must be a list of numpy arrays (one for each synapse group) if same_input_rates is False"
-                )
+        # Check that the input rates are a list of numpy arrays
+        if not isinstance(input_rates, list) and len(input_rates) != len(self.synapse_groups):
+            raise ValueError(
+                "input_rates must be a list of numpy arrays (one for each synapse group) if same_input_rates is False"
+            )
 
         if self.use_homeostasis:
             # We acquire an estimate of the homeostatic firing rate by the difference method
@@ -136,5 +124,5 @@ class IaF:
         else:
             homeostatic_drive = None
 
-        for synapse_group, input_rate in zip(self.synapse_groups, input_rates):
+        for synapse_group, input_rate in zip(self.synapse_groups.values(), input_rates):
             synapse_group.step(input_rate, homeostasis=homeostatic_drive)
