@@ -36,3 +36,5 @@ the Hofer reconstructions that I used in my thesis.
 - IaF Implementation works and recovers the ICA result. The parameter control is a bit rough right
 now though, so it needs to be designed better for more streamlined and clearer parameter choices.
 - Gotta use it to make a single source example and also prep the real Hofer model!!!
+
+- Let's get OmegaConf working for good model construction!!!
