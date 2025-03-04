@@ -4,7 +4,7 @@ import numpy as np
 from ..utils import create_rng
 
 
-class SourcePopulationBase(ABC):
+class SourcePopulation(ABC):
     @abstractmethod
     def generate_rates(self, dt: float, tau_stim: float = 0.01) -> tuple[np.ndarray, int]:
         """
@@ -13,7 +13,7 @@ class SourcePopulationBase(ABC):
         pass
 
 
-class SourcePopulationICA(SourcePopulationBase):
+class SourcePopulationICA(SourcePopulation):
     """
     A population of input sources with shared properties.
 
@@ -81,6 +81,7 @@ class SourcePopulationICA(SourcePopulationBase):
         self.rate_std = rate_std
         self.rate_mean = rate_mean
         self.gauss_source_width = gauss_source_width
+
         # Initialize random number generator
         self.rng = create_rng(seed)
 
