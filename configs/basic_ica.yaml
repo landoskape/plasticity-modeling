@@ -1,0 +1,128 @@
+# Simulation parameters
+duration: 200
+dt: 1e-3
+seed: null 
+
+# Source population configuration
+sources:
+  excitatory: 
+    type: ica  # Type discriminator for source population (ica, poisson, etc.)
+    num_inputs: 100
+    num_signals: 3
+    source_method: gauss  # One of: divide, gauss, correlated
+    source_strength: 3.0
+    rate_std: 10.0
+    rate_mean: 20.0
+    gauss_source_width: 0.4
+    seed: null
+
+  inhibitory: 
+    type: poisson
+    num_inputs: 200
+    rates: 20.0
+    seed: null
+
+# Neuron configuration
+neuron:
+  time_constant: 20e-3  # 20ms
+  resistance: 100e6  # 100 MOhm
+  reset_voltage: -70e-3  # -70 mV
+  spike_threshold: -50e-3  # -55 mV
+  dt: 1e-3  # 1ms
+  use_homeostasis: true
+  homeostasis_tau: 20.0
+  homeostasis_set_point: 20.0  # 20 Hz target firing rate
+
+# Synapse group configurations
+synapses:
+  basal:
+    type: sourced  # Type discriminator for synapse group (sourced or direct)
+    plastic: true
+    num_synapses: 300
+    max_weight: 300e-12  # 300 pS
+    reversal: 0.0  # 0 mV (excitatory)
+    tau: 20e-3  # 20 ms
+    conductance_threshold: 0.1
+    dt: 1e-3
+    source_population: excitatory
+    num_presynaptic_neurons: 100
+    presynaptic_source: null
+
+    initialization:
+      min_weight: 0.0
+      max_weight: 1.0
+
+    # Plasticity configuration for basal synapses
+    plasticity:
+      use_stdp: true
+      stdp_rate: 0.01
+      depression_potentiation_ratio: 1.1
+      potentiation_tau: 20e-3
+      depression_tau: 20e-3
+      use_homeostasis: true
+      homeostasis_tau: 20.0
+      homeostasis_scale: 1.0
+
+    # Replacement configuration for basal synapses
+    replacement:
+      use_replacement: true
+      lose_synapse_ratio: 0.01
+      new_synapse_ratio: 0.01
+  
+  # Apical synapses (excitatory with different plasticity)
+  apical:
+    type: sourced  # Type discriminator for synapse group (sourced or direct)
+    plastic: true
+    num_synapses: 100
+    max_weight: 100e-12  # 100 pS
+    reversal: 0.0  # 0 mV (excitatory)
+    tau: 20e-3  # 20 ms
+    conductance_threshold: 0.1
+    dt: 1e-3
+    source_population: excitatory
+    num_presynaptic_neurons: 100  # Must match source.num_inputs
+    presynaptic_source: null
+
+    initialization:
+      min_weight: 0.0
+      max_weight: 1.0
+    
+    # Plasticity configuration for apical synapses
+    plasticity:
+      use_stdp: true
+      stdp_rate: 0.01
+      depression_potentiation_ratio: 1.0  # Different from basal
+      potentiation_tau: 20e-3
+      depression_tau: 20e-3
+      use_homeostasis: true
+      homeostasis_tau: 20.0
+      homeostasis_scale: 1.0
+
+    # Replacement configuration for apical synapses
+    replacement:
+      use_replacement: true
+      lose_synapse_ratio: 0.01
+      new_synapse_ratio: 0.01
+  
+  # Inhibitory synapses
+  inhibitory:
+    type: direct  # Type discriminator for synapse group (sourced or direct)
+    plastic: false
+    num_synapses: 200
+    max_weight: 100e-12  # 100 pS
+    reversal: -70e-3 # -70 mV (inhibitory)
+    tau: 20e-3  # 20 ms
+    conductance_threshold: 0.0
+    dt: 1e-3
+    source_population: inhibitory
+
+    initialization:
+      min_weight: 1.0
+      max_weight: 1.0
+
+    # Plasticity configuration for inhibitory synapses
+    plasticity:
+      use_stdp: false
+      use_homeostasis: false
+
+    # No replacement configs for direct synapse groups!
