@@ -1,7 +1,19 @@
-from typing import Literal, Optional
+from typing import Literal, Optional, List
+from pathlib import Path
+import yaml
 from abc import ABC, abstractmethod
 import numpy as np
 from ..utils import create_rng
+from .config import SourcePopulationConfig, SourceICAConfig, SourcePoissonConfig
+
+
+def create_source_population(config: SourcePopulationConfig) -> "SourcePopulation":
+    if isinstance(config, SourceICAConfig):
+        return SourcePopulationICA.from_config(config)
+    elif isinstance(config, SourcePoissonConfig):
+        return SourcePopulationPoisson.from_config(config)
+    else:
+        raise ValueError(f"Invalid source population config: {config}")
 
 
 class SourcePopulation(ABC):
@@ -11,6 +23,28 @@ class SourcePopulation(ABC):
         Generate input rates and an interval for how long to keep them.
         """
         pass
+
+    @classmethod
+    @abstractmethod
+    def from_config(cls, config):
+        """Create a source population from a configuration object.
+
+        Args:
+            config: The configuration for the source population.
+
+        Returns:
+            A new source population instance.
+        """
+        pass
+
+    @classmethod
+    @abstractmethod
+    def from_yaml(cls, fpath: Path):
+        """Create a source population from a YAML configuration file.
+
+        Args:
+            fpath: The path to the YAML configuration file.
+        """
 
 
 class SourcePopulationICA(SourcePopulation):
@@ -39,6 +73,10 @@ class SourcePopulationICA(SourcePopulation):
         The loading matrix of shape (num_signals, num_inputs).
     var_adjustment : np.ndarray
         The variance adjustment factor for each input.
+    tau_stim : float
+        The time constant for the stimulus in seconds.
+    dt : float
+        The time step in seconds.
     """
 
     def __init__(
@@ -50,6 +88,8 @@ class SourcePopulationICA(SourcePopulation):
         rate_std: float = 10.0,
         rate_mean: float = 20.0,
         gauss_source_width: float = 2 / 5,
+        tau_stim: float = 0.01,
+        dt: float = 0.001,
         seed: Optional[int] = None,
     ):
         """
@@ -71,6 +111,10 @@ class SourcePopulationICA(SourcePopulation):
             The mean of the input rates.
         gauss_source_width : float
             The width of the Gaussian source.
+        tau_stim : float
+            The time constant for the stimulus in seconds.
+        dt : float
+            The time step in seconds.
         seed : int, optional
             Random seed for reproducibility.
         """
@@ -81,6 +125,8 @@ class SourcePopulationICA(SourcePopulation):
         self.rate_std = rate_std
         self.rate_mean = rate_mean
         self.gauss_source_width = gauss_source_width
+        self.tau_stim = tau_stim
+        self.dt = dt
 
         # Initialize random number generator
         self.rng = create_rng(seed)
@@ -90,6 +136,43 @@ class SourcePopulationICA(SourcePopulation):
 
         # Calculate variance adjustment
         self.var_adjustment = np.sqrt(np.sum(self.source_loading**2, axis=0) + 1)
+
+        # Precompute the number of samples that the rates persist for (on average)
+        self._rates_samples_mean = round(self.tau_stim / self.dt)
+
+    @classmethod
+    def from_yaml(cls, fpath: Path):
+        """Create a source population from a YAML configuration file.
+
+        Args:
+            fpath: The path to the YAML configuration file.
+        """
+        with open(fpath, "r") as f:
+            config = yaml.safe_load(f)
+        return cls.from_config(SourceICAConfig.model_validate(config))
+
+    @classmethod
+    def from_config(cls, config: SourceICAConfig):
+        """Create a source population from a configuration object.
+
+        Args:
+            config: The configuration for the source population.
+
+        Returns:
+            A new source population instance.
+        """
+        return cls(
+            num_inputs=config.num_inputs,
+            num_signals=config.num_signals,
+            source_method=config.source_method,
+            source_strength=config.source_strength,
+            rate_std=config.rate_std,
+            rate_mean=config.rate_mean,
+            gauss_source_width=config.gauss_source_width,
+            tau_stim=config.tau_stim,
+            dt=config.dt,
+            seed=config.seed,
+        )
 
     @classmethod
     def estimate_correlation(cls, source_loading: np.ndarray) -> np.ndarray:
@@ -211,29 +294,125 @@ class SourcePopulationICA(SourcePopulation):
 
         return rate
 
-    def generate_rates(self, dt: float, tau_stim: float = 0.01) -> tuple[np.ndarray, int]:
+    def generate_rates(self) -> tuple[np.ndarray, int]:
         """
         Generate input rates and an interval for how long to keep them.
-
-        Parameters
-        ----------
-        dt : float
-            The time step in seconds.
-        tau_stim : float
-            Time constant for stimulus in seconds.
 
         Returns
         -------
         tuple[np.ndarray, int]
             The input rates and the number of time steps to keep them.
         """
-        # Convert time constant to number of samples
-        tau_stim_samples = round(tau_stim / dt)
-
         # Generate exponential interval (minimum 1)
-        interval = int(self.rng.exponential(tau_stim_samples)) + 1
+        interval = int(self.rng.exponential(self._rates_samples_mean)) + 1
 
         # Generate rates
         rates = self._generate_new_rates()
 
         return rates, interval
+
+
+class SourcePopulationPoisson(SourcePopulation):
+    """
+    A population of input sources with independent Poisson firing rates.
+
+    This class represents a simpler source population where each input
+    neuron has a fixed firing rate which represents the mean rate of the
+    Poisson process governing each inputs spike generation.
+
+    Attributes
+    ----------
+    num_inputs : int
+        The number of input neurons.
+    rates : np.ndarray | float | List[float]
+        The firing rates for each input neuron.
+    """
+
+    def __init__(
+        self,
+        num_inputs: int,
+        rates: float | List[float] | np.ndarray,
+        tau_stim: float = 0.01,
+        dt: float = 0.001,
+        seed: Optional[int] = None,
+    ):
+        """
+        Initialize the Poisson source population.
+
+        Parameters
+        ----------
+        num_inputs : int
+            The number of input neurons.
+        rates : List[float], optional
+            The base firing rates for each input neuron. If None, all inputs
+            will have a default rate of 20 Hz.
+        tau_stim : float
+            The time constant for the stimulus in seconds.
+        dt : float
+            The time step in seconds.
+        seed : int, optional
+            Random seed for reproducibility.
+        """
+        self.num_inputs = num_inputs
+        self.rates = self._validate_rates(rates)
+        self.tau_stim = tau_stim
+        self.dt = dt
+
+        # Precompute the number of samples that the rates persist for (on average)
+        self._rates_samples_mean = round(self.tau_stim / self.dt)
+
+        # Initialize random number generator
+        self.rng = create_rng(seed)
+
+    @classmethod
+    def from_yaml(cls, fpath: Path):
+        """Create a source population from a YAML configuration file.
+
+        Args:
+            fpath: The path to the YAML configuration file.
+        """
+        with open(fpath, "r") as f:
+            config = yaml.safe_load(f)
+        return cls.from_config(SourcePoissonConfig.model_validate(config))
+
+    @classmethod
+    def from_config(cls, config: SourcePoissonConfig):
+        """Create a Poisson source population from a configuration object.
+
+        Args:
+            config: The configuration for the source population.
+
+        Returns:
+            A new source population instance.
+        """
+        return cls(
+            num_inputs=config.num_inputs,
+            rates=config.rates,
+            tau_stim=config.tau_stim,
+            dt=config.dt,
+            seed=config.seed,
+        )
+
+    def _validate_rates(self, rates: float | List[float] | np.ndarray) -> np.ndarray:
+        if isinstance(rates, (float, int)):
+            return np.ones(self.num_inputs) * rates
+        elif isinstance(rates, list):
+            return np.array(rates)
+        elif isinstance(rates, np.ndarray):
+            return rates
+        else:
+            raise ValueError(f"Invalid rates: {rates}")
+
+    def generate_rates(self) -> tuple[np.ndarray, int]:
+        """
+        Generate input rates and an interval for how long to keep them.
+
+        Returns
+        -------
+        tuple[np.ndarray, int]
+            The input rates and the number of time steps to keep them.
+        """
+        # Generate exponential interval (minimum 1)
+        interval = int(self.rng.exponential(self._rates_samples_mean)) + 1
+
+        return self.rates, interval

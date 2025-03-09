@@ -1,10 +1,14 @@
 import numpy as np
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Tuple, Optional
 import time
 from tqdm import tqdm
-
+from pathlib import Path
+import yaml
+from ..utils import create_rng
 from .iaf_neuron import IaF
-from .source_population import SourcePopulationICA
+from .source_population import SourcePopulation, create_source_population
+from .synapse_group import SynapseGroup, create_synapse_group, SourcedSynapseGroup, DirectSynapseGroup
+from .config import SimulationConfig
 
 
 class Simulation:
@@ -16,342 +20,229 @@ class Simulation:
 
     Attributes
     ----------
+    source_populations : Dict[str, SourcePopulation]
+        The source populations providing inputs to the neuron's synapse groups.
     neuron : IaF
         The integrate-and-fire neuron.
-    source_population : SourcePopulation
-        The source population providing inputs to the neuron.
-    duration : float
-        The duration of the simulation in seconds.
+    synapses : Dict[str, SynapseGroup]
+        The synapse groups providing inputs to the neuron.
     dt : float
         The time step of the simulation in seconds.
     """
 
     def __init__(
         self,
-        duration: float = 20.0,  # seconds
-        dt: float = 0.001,  # seconds
+        source_populations: Dict[str, SourcePopulation],
+        neuron: IaF,
+        synapses: Dict[str, SynapseGroup],
+        dt: float = 0.001,
         seed: Optional[int] = None,
-        **kwargs,
     ):
         """
         Initialize the simulation.
 
         Parameters
         ----------
-        duration : float
-            The duration of the simulation in seconds.
+        source_populations : Dict[str, SourcePopulation]
+            The source populations providing inputs to the neuron's synapse groups.
+        neuron : IaF
+            The neuron to simulate.
+        synapses : Dict[str, SourcedSynapseGroup | DirectSynapseGroup]
+            The synapse groups providing inputs to the neuron.
         dt : float
-            The time step of the simulation in seconds.
+            The time step of the simulation in seconds (default: 0.001)
         seed : int, optional
             Random seed for reproducibility.
-        **kwargs
-            Additional keyword arguments to pass to the neuron and source population.
         """
-        self.duration = duration
         self.dt = dt
-        self.steps_per_second = int(1 / dt)
-        self.num_steps = int(duration * self.steps_per_second)
-        self.rng = np.random.RandomState(seed)
+        self.rng = create_rng(seed)
+        self.neuron = neuron
+        self.source_populations: Dict[str, SourcePopulation] = {}
 
-        # Extract parameters for different components
-        self._setup_parameters(kwargs)
+        for name, source_population in source_populations.items():
+            self.add_source_population(source_population=source_population, name=name)
 
-        # Create the source population
-        self.source_population = SourcePopulationICA(
-            num_inputs=self.source_params["num_inputs"],
-            num_signals=self.source_params["num_signals"],
-            source_method=self.source_params["source_method"],
-            source_strength=self.source_params["source_strength"],
-            rate_std=self.source_params["rate_std"],
-            rate_mean=self.source_params["rate_mean"],
-            gauss_source_width=self.source_params["gauss_source_width"],
-            seed=seed,
-        )
+        for name, synapse_group in synapses.items():
+            self.add_synapse_group(synapse_group=synapse_group, name=name)
 
-        # Create the neuron
-        self.neuron = IaF(
-            time_constant=self.neuron_params["time_constant"],
-            resistance=self.neuron_params["resistance"],
-            reset_voltage=self.neuron_params["reset_voltage"],
-            spike_threshold=self.neuron_params["spike_threshold"],
-            dt=dt,
-            use_homeostasis=self.neuron_params["use_homeostasis"],
-            homeostasis_tau=self.neuron_params["homeostasis_tau"],
-            homeostasis_set_point=self.neuron_params["homeostasis_set_point"],
-        )
+        self._validate_dt_consistency()
 
-        # Add basal synapses
-        self.neuron.add_synapse_group(
-            name="basal",
-            num_synapses=self.basal_params["num_synapses"],
-            max_weight=self.basal_params["max_weight"],
-            reversal=self.basal_params["reversal"],
-            tau=self.basal_params["tau"],
-            dt=dt,
-            use_replacement=self.basal_params["use_replacement"],
-            num_presynaptic_neurons=self.source_params["num_inputs"],
-            lose_synapse_ratio=self.basal_params["lose_synapse_ratio"],
-            new_synapse_ratio=self.basal_params["new_synapse_ratio"],
-            conductance_threshold=self.basal_params["conductance_threshold"],
-            use_stdp=True,
-            stdp_rate=self.basal_params["stdp_rate"],
-            depression_potentiation_ratio=self.basal_params["depression_potentiation_ratio"],
-            potentiation_tau=self.basal_params["potentiation_tau"],
-            depression_tau=self.basal_params["depression_tau"],
-            use_homeostasis=self.neuron_params["use_homeostasis"],
-            homeostasis_tau=self.neuron_params["homeostasis_tau"],
-            homeostasis_scale=1.0,
-        )
+    def _validate_dt_consistency(self):
+        """Validate dt consistency across all components."""
+        if self.dt != self.neuron.dt:
+            raise ValueError(f"dt ({self.dt}) does not match neuron dt ({self.neuron.dt})")
+        for name, synapse_group in self.neuron.synapse_groups.items():
+            if self.dt != synapse_group.dt:
+                raise ValueError(f"dt ({self.dt}) does not match synapse group dt ({name}:{synapse_group.dt})")
+        for name, source_population in self.source_populations.items():
+            if self.dt != source_population.dt:
+                raise ValueError(f"dt ({self.dt}) does not match source population dt ({name}:{source_population.dt})")
 
-        # Add apical synapses
-        self.neuron.add_synapse_group(
-            name="apical",
-            num_synapses=self.apical_params["num_synapses"],
-            max_weight=self.apical_params["max_weight"],
-            reversal=self.apical_params["reversal"],
-            tau=self.apical_params["tau"],
-            dt=dt,
-            use_replacement=self.apical_params["use_replacement"],
-            num_presynaptic_neurons=self.source_params["num_inputs"],
-            lose_synapse_ratio=self.apical_params["lose_synapse_ratio"],
-            new_synapse_ratio=self.apical_params["new_synapse_ratio"],
-            conductance_threshold=self.apical_params["conductance_threshold"],
-            use_stdp=True,
-            stdp_rate=self.apical_params["stdp_rate"],
-            depression_potentiation_ratio=self.apical_params["depression_potentiation_ratio"],
-            potentiation_tau=self.apical_params["potentiation_tau"],
-            depression_tau=self.apical_params["depression_tau"],
-            use_homeostasis=self.neuron_params["use_homeostasis"],
-            homeostasis_tau=self.neuron_params["homeostasis_tau"],
-            homeostasis_scale=1.0,
-        )
+    @classmethod
+    def from_yaml(cls, fpath: Path):
+        """Create a simulation from a YAML configuration file.
 
-        # Add inhibitory synapses
-        self.neuron.add_synapse_group(
-            name="inhibitory",
-            num_synapses=self.inhibitory_params["num_synapses"],
-            max_weight=self.inhibitory_params["max_weight"],
-            reversal=self.inhibitory_params["reversal"],
-            tau=self.inhibitory_params["tau"],
-            dt=dt,
-            use_replacement=False,
-            use_stdp=False,
-            use_homeostasis=False,
-        )
-
-        # Initialize storage for results
-        self.spikes = np.zeros(self.num_steps, dtype=bool)
-        self.basal_weights = np.zeros((self.source_params["num_inputs"], int(self.duration)))
-        self.apical_weights = np.zeros((self.source_params["num_inputs"], int(self.duration)))
-
-    def _setup_parameters(self, kwargs: Dict[str, Any]):
+        Args:
+            fpath: The path to the YAML configuration file.
         """
-        Set up parameters for the simulation components.
+        with open(fpath, "r") as f:
+            config = yaml.safe_load(f)
+        return cls.from_config(SimulationConfig.model_validate(config))
 
-        Parameters
-        ----------
-        kwargs : Dict[str, Any]
-            Keyword arguments to override default parameters.
+    @classmethod
+    def from_config(cls, config: SimulationConfig):
+        """Create a simulation from a configuration object.
+
+        Args:
+            config: The configuration for the simulation.
+
+        Returns:
+            A new simulation instance.
         """
-        # Default parameters for the source population
-        self.source_params = {
-            "num_inputs": 100,
-            "num_signals": 3,
-            "source_method": "gauss",
-            "source_strength": 3.0,
-            "rate_std": 10.0,
-            "rate_mean": 20.0,
-            "gauss_source_width": 2 / 5,
+        # Create a new instance with base parameters
+        source_populations = {
+            name: create_source_population(source_config) for name, source_config in config.sources.items()
         }
+        synapses = {name: create_synapse_group(synapse_config) for name, synapse_config in config.synapses.items()}
+        sim = cls(
+            source_populations=source_populations,
+            neuron=IaF.from_config(config.neuron),
+            synapses=synapses,
+            dt=config.dt,
+            seed=config.seed,
+        )
+        return sim
 
-        # Default parameters for the neuron
-        self.neuron_params = {
-            "time_constant": 20e-3,  # seconds
-            "resistance": 100e6,  # Ohms
-            "reset_voltage": -70e-3,  # Volts
-            "spike_threshold": -50e-3,  # Volts
-            "use_homeostasis": True,
-            "homeostasis_tau": 20.0,  # seconds
-            "homeostasis_set_point": 20.0,  # Hz
-        }
+    def add_source_population(self, source_population: SourcePopulation, name: str | None = None):
+        """Add a source population to the simulation.
 
-        # Default parameters for basal synapses
-        self.basal_params = {
-            "num_synapses": 300,
-            "max_weight": 300e-12,  # Siemens
-            "reversal": 0.0,  # Volts
-            "tau": 20e-3,  # seconds
-            "use_replacement": True,
-            "lose_synapse_ratio": 0.01,
-            "new_synapse_ratio": 0.01,
-            "conductance_threshold": 0.1,
-            "stdp_rate": 0.01,
-            "depression_potentiation_ratio": 1.1,
-            "potentiation_tau": 0.02,  # seconds
-            "depression_tau": 0.02,  # seconds
-        }
+        Args:
+            source_population: The source population to add.
+            name: The name of the source population.
+        """
+        if name is None:
+            name = f"source_population_{len(self.source_populations)}"
+        self.source_populations[name] = source_population
 
-        # Default parameters for apical synapses
-        self.apical_params = {
-            "num_synapses": 100,
-            "max_weight": 100e-12,  # Siemens
-            "reversal": 0.0,  # Volts
-            "tau": 20e-3,  # seconds
-            "use_replacement": True,
-            "lose_synapse_ratio": 0.01,
-            "new_synapse_ratio": 0.01,
-            "conductance_threshold": 0.1,
-            "stdp_rate": 0.01,
-            "depression_potentiation_ratio": 1.0,  # This can be varied
-            "potentiation_tau": 0.02,  # seconds
-            "depression_tau": 0.02,  # seconds
-        }
+    def add_synapse_group(self, synapse_group: SynapseGroup, name: str | None = None):
+        """Add a synapse group to the simulation.
 
-        # Default parameters for inhibitory synapses
-        self.inhibitory_params = {
-            "num_synapses": 200,
-            "max_weight": 100e-12,  # Siemens
-            "reversal": -70e-3,  # Volts (same as reset)
-            "tau": 20e-3,  # seconds
-        }
+        Args:
+            synapse_group: The synapse group to add.
+            name: The name of the synapse group (if None, will be generated by the neuron)
+        """
+        if synapse_group.source_population not in self.source_populations:
+            raise ValueError(f"Source population {synapse_group.source_population} not found")
+        self.neuron.add_synapse_group(synapse_group=synapse_group, name=name)
 
-        # Override defaults with provided kwargs
-        for key, value in kwargs.items():
-            if key in self.source_params:
-                self.source_params[key] = value
-            elif key in self.neuron_params:
-                self.neuron_params[key] = value
-            elif key.startswith("basal_") and key[6:] in self.basal_params:
-                self.basal_params[key[6:]] = value
-            elif key.startswith("apical_") and key[7:] in self.apical_params:
-                self.apical_params[key[7:]] = value
-            elif key.startswith("inhibitory_") and key[11:] in self.inhibitory_params:
-                self.inhibitory_params[key[11:]] = value
+    def _prepare_weights(self, duration: int) -> dict:
+        """Prepare the weights for the simulation."""
+        # First figure out which synapse groups have plasticity activated
+        plastic_synapse_groups = []
+        for name in self.neuron.synapse_groups:
+            if self.neuron.synapse_groups[name].plastic:
+                plastic_synapse_groups.append(name)
 
-    def run(self, progress_bar: bool = True) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        weights = {}
+        for name in plastic_synapse_groups:
+            if isinstance(self.neuron.synapse_groups[name], SourcedSynapseGroup):
+                num_weights = self.neuron.synapse_groups[name].num_presynaptic_neurons
+                weights[name] = np.zeros((duration, num_weights))
+            elif isinstance(self.neuron.synapse_groups[name], DirectSynapseGroup):
+                weights[name] = np.zeros((duration, self.neuron.synapse_groups[name].num_synapses))
+            else:
+                raise ValueError(f"Unknown synapse group type: {type(self.neuron.synapse_groups[name])}")
+
+        return weights
+
+    def _gather_weights(self, plastic_synapse_groups: list[str]) -> dict:
+        """Gather the weights for the simulation."""
+        weights = {}
+        for name in plastic_synapse_groups:
+            if isinstance(self.neuron.synapse_groups[name], SourcedSynapseGroup):
+                synapse_weights = self.neuron.synapse_groups[name].weights
+                idx_to_source = self.neuron.synapse_groups[name].presynaptic_source
+                synapse_source = self.neuron.synapse_groups[name].source_population
+                weights[name] = np.zeros(self.source_populations[synapse_source].num_inputs)
+                for input_idx in range(self.source_populations[synapse_source].num_inputs):
+                    weights[name][input_idx] = np.sum(synapse_weights[idx_to_source == input_idx])
+            elif isinstance(self.neuron.synapse_groups[name], DirectSynapseGroup):
+                weights[name] = self.neuron.synapse_groups[name].weights
+            else:
+                raise ValueError(f"Unknown synapse group type: {type(self.neuron.synapse_groups[name])}")
+        return weights
+
+    def run(self, duration: int, progress_bar: bool = True) -> dict:
         """
         Run the simulation.
 
         Parameters
         ----------
+        duration : int
+            The duration of the simulation in seconds.
         progress_bar : bool
             Whether to show a progress bar.
 
         Returns
         -------
-        Tuple[np.ndarray, np.ndarray, np.ndarray]
-            The spike times, basal weights, and apical weights.
+        dict
+            A dictionary containing the results of the simulation including the spike times,
+            and the weights of each synapse group (at every second in the simulation).
         """
+        steps_per_second = int(1 / self.dt)
+        num_steps = int(duration * steps_per_second)
+
+        spikes = np.zeros(num_steps, dtype=bool)
+        weights = self._prepare_weights(duration=duration)
+
         # Initialize the neuron
         self.neuron.initialize()
 
-        # Set up stimulus parameters
-        tau_stim = 0.01  # seconds
-        need_input = True
-        track_interval = 0
+        # Manage source populations
+        sources_router = [synapse_group.source_population for synapse_group in self.neuron.synapse_groups.values()]
+        sources_to_update = list(set(sources_router))
+        source_needs_input = {source_name: True for source_name in sources_to_update}
+        source_track_interval = {source_name: 0 for source_name in sources_to_update}
+        source_rates = {source_name: None for source_name in sources_to_update}
 
         # Run the simulation
-        seconds_progress = tqdm(range(self.duration)) if progress_bar else range(self.duration)
+        seconds_progress = tqdm(range(duration)) if progress_bar else range(duration)
 
         for second in seconds_progress:
-            for subsecond in range(self.steps_per_second):
-                current_step = second * self.steps_per_second + subsecond
+            for subsecond in range(steps_per_second):
+                current_step = second * steps_per_second + subsecond
 
-                # Generate input if needed
-                if need_input:
-                    rates, interval = self.source_population.generate_rates(self.dt, tau_stim)
-                    track_interval = interval - 1
-                    if track_interval > 0:
-                        need_input = False
-                else:
-                    track_interval -= 1
-                    if track_interval == 0:
-                        need_input = True
+                # Update source populations
+                for source_name in sources_to_update:
+                    if source_needs_input[source_name]:
+                        rates, interval = self.source_populations[source_name].generate_rates()
+                        source_rates[source_name] = rates
+                        source_track_interval[source_name] = interval - 1
 
-                # Create inhibitory input (constant rate independent of source)
-                inhibitory_rate = np.ones(self.inhibitory_params["num_synapses"]) * 20.0  # Hz
+                    else:
+                        source_track_interval[source_name] -= 1
+
+                    # Figure out if this source needs new input next time
+                    source_needs_input[source_name] = source_track_interval[source_name] == 0
+
+                rates = [source_rates[source_name] for source_name in sources_router]
 
                 # Step the neuron with the given rates
-                self.neuron.step([rates, rates, inhibitory_rate], same_input_rates=False)
+                self.neuron.step(rates)
 
                 # Record spike
-                self.spikes[current_step] = self.neuron.spike
+                spikes[current_step] = self.neuron.spike
 
-            # Record weights for each input (once per second)
-            for input_idx in range(self.source_params["num_inputs"]):
-                # Sum weights for each input across all synapses
-                basal_group = self.neuron.synapse_groups[0]
-                apical_group = self.neuron.synapse_groups[1]
-
-                # For basal synapses
-                if self.basal_params["use_replacement"]:
-                    basal_mask = basal_group.presynaptic_source == input_idx
-                else:
-                    basal_mask = input_idx
-                self.basal_weights[input_idx, second] = np.sum(basal_group.weights[basal_mask])
-
-                # For apical synapses
-                if self.apical_params["use_replacement"]:
-                    apical_mask = apical_group.presynaptic_source == input_idx
-                else:
-                    apical_mask = input_idx
-                self.apical_weights[input_idx, second] = np.sum(apical_group.weights[apical_mask])
+            current_weights = self._gather_weights(list(weights.keys()))
+            for name in weights:
+                weights[name][second] = current_weights[name]
 
         # Get spike times
-        spike_times = np.where(self.spikes)[0]
+        spike_times = np.where(spikes)[0]
 
-        return spike_times, self.basal_weights, self.apical_weights
-
-
-def run_simulation(
-    duration: float = 20.0,
-    apical_depression_ratio: float = 1.0,
-    num_signals: int = 3,
-    seed: Optional[int] = None,
-    **kwargs,
-) -> Tuple[Simulation, np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Run a simulation with the specified parameters.
-
-    Parameters
-    ----------
-    duration : float
-        The duration of the simulation in seconds.
-    apical_depression_ratio : float
-        The ratio of depression to potentiation for apical synapses.
-    num_signals : int
-        The number of independent signals in the source population.
-    seed : int, optional
-        Random seed for reproducibility.
-    **kwargs
-        Additional keyword arguments to pass to the simulation.
-
-    Returns
-    -------
-    Tuple[Simulation, np.ndarray, np.ndarray, np.ndarray]
-        The simulation, spike times, basal weights, and apical weights.
-    """
-    # Set up parameters
-    params = {
-        "num_signals": num_signals,
-        "apical_depression_potentiation_ratio": apical_depression_ratio,
-    }
-    params.update(kwargs)
-
-    # Create and run the simulation
-    sim = Simulation(duration=duration, seed=seed, **params)
-    start_time = time.time()
-    spike_times, basal_weights, apical_weights = sim.run()
-    end_time = time.time()
-
-    print(f"Simulation completed in {end_time - start_time:.2f} seconds")
-    print(f"Number of spikes: {len(spike_times)}")
-    print(f"Average firing rate: {len(spike_times) / duration:.2f} Hz")
-
-    results = dict(
-        sim=sim,
-        spike_times=spike_times,
-        basal_weights=basal_weights,
-        apical_weights=apical_weights,
-    )
-    return results
+        # Return results
+        results = dict(
+            spike_times=spike_times,
+            weights=weights,
+        )
+        return results

@@ -1,42 +1,21 @@
 from typing import Dict, Any
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
+from pathlib import Path
+import yaml
 import numpy as np
 from numba import njit
 from ..utils import create_rng, resolve_dataclass
+from .config import BaseSynapseConfig, SourcedSynapseConfig, DirectSynapseConfig, PlasticityConfig, ReplacementConfig
 
 
-@njit
-def generate_spikes_numba(random_values, rate, dt):
-    """JIT-compiled function to generate spikes."""
-    return random_values < (rate * dt)
-
-
-@njit
-def compute_conductance(spikes, weights, threshold):
-    """Compute conductance from spikes and weights with threshold."""
-    return np.sum(spikes * weights * (weights > threshold))
-
-
-@njit
-def clip_weights(weights, min_val, max_val):
-    """Clip weights to range [min_val, max_val] in-place."""
-    np.clip(weights, min_val, max_val, out=weights)
-    return weights
-
-
-@njit
-def stdp_step(
-    weights,
-    spikes,
-    depression_eligibility,
-    potentiation_eligibility,
-    potentiation_increment,
-    potentiation_decay_factor,
-):
-    weights += spikes * depression_eligibility
-    potentiation_eligibility += spikes * potentiation_increment - potentiation_eligibility * potentiation_decay_factor
-    return weights, potentiation_eligibility
+def create_synapse_group(config: BaseSynapseConfig) -> "SynapseGroup":
+    if isinstance(config, SourcedSynapseConfig):
+        return SourcedSynapseGroup.from_config(config)
+    elif isinstance(config, DirectSynapseConfig):
+        return DirectSynapseGroup.from_config(config)
+    else:
+        raise ValueError(f"Invalid synapse group config: {config}")
 
 
 @dataclass
@@ -73,21 +52,27 @@ class SpikeGenerator:
 
 @dataclass
 class PlasticityParams:
-    use_stdp: bool = True  # Whether to use STDP
+    use_stdp: bool = False  # Whether to use STDP
     stdp_rate: float = 0.01  # The rate of potentiation/depression
     depression_potentiation_ratio: float = 1.1  # The ratio of depression to potentiation
     potentiation_tau: float = 0.02  # The time constant of potentiation
     depression_tau: float = 0.02  # The time constant of depression
-    use_homeostasis: bool = True  # Whether to use homeostasis
+    use_homeostasis: bool = False  # Whether to use homeostasis
     homeostasis_tau: float = 20  # The time constant of homeostasis
     homeostasis_scale: float = 1.0  # The scale of homeostasis
 
 
 @dataclass
 class ReplacementParams:
-    use_replacement: bool = True  # Whether to use replacement
+    use_replacement: bool = False  # Whether to use replacement
     lose_synapse_ratio: float = 0.01  # The ratio of maximum weight that causes a synapse to be lost
     new_synapse_ratio: float = 0.01  # The ratio of maximum weight that new synapses are initialized to
+
+
+@dataclass
+class InitializationParams:
+    min_weight: float = 0.1  # Minimum fraction of max_weight for initialization
+    max_weight: float = 1.0  # Maximum fraction of max_weight for initialization
 
 
 class SynapseGroup(ABC):
@@ -105,10 +90,13 @@ class SynapseGroup(ABC):
     reversal: float  # in V
     tau: float  # in seconds
     dt: float  # in seconds
+    source_population: str  # The name of the source population of the synapse group
     conductance_threshold: float  # in relative units of max_weight
     min_conductance: float  # in units of conductance
+    initialization_params: InitializationParams
 
     # Plasticity related properties
+    plastic: bool = False
     plasticity_params: PlasticityParams
 
     # State variables
@@ -125,8 +113,11 @@ class SynapseGroup(ABC):
         reversal: float,
         tau: float,
         dt: float,
+        plastic: bool,
+        source_population: str,
         conductance_threshold: float | None = None,
         plasticity_params: PlasticityParams | Dict[str, Any] | None = None,
+        initialization_params: InitializationParams | Dict[str, Any] | None = None,
     ):
         """
         Initialize the synapse group with common parameters.
@@ -143,31 +134,47 @@ class SynapseGroup(ABC):
             Time constant (in seconds)
         dt : float
             Time step (in seconds)
+        plastic : bool
+            Whether the weights are plastic
+        source_population : str
+            The name of the source population of the synapse group. Will be used by a
+            simulation to determine which input rates to pass to the synapse group.
         conductance_threshold : float, optional
             Threshold for conductance activation (in relative units of max_weight)
         plasticity_params : PlasticityParams or dict, optional
             Parameters for plasticity mechanisms
+        initialization_params : InitializationParams or dict, optional
+            Parameters for weight initialization
         """
+        # Create RNG
+        self.rng = create_rng()
+
+        # Create base parameters
         self.num_synapses = num_synapses
         self.max_weight = max_weight
         self.reversal = reversal
         self.tau = tau
         self.dt = dt
+        self.plastic = plastic
         self.conductance_threshold: float = conductance_threshold or 0.0
         self.min_conductance = self.conductance_threshold * self.max_weight
+        self.source_population = source_population
 
-        # Initialize state variables
-        self.weights: np.ndarray = self.rng.random(num_synapses) * self.max_weight
+        # Set up initialization parameters
+        self.initialization_params = resolve_dataclass(initialization_params, InitializationParams)
+
+        # Initialize state variables with random weights between min_weight and max_weight
+        self._generate_weights()
         self.conductance = 0.0
 
         # Create a spike generator for the group
-        self._spike_generator = SpikeGenerator(num_synapses, dt)
+        self._spike_generator = SpikeGenerator(num_neurons=self.num_synapses, dt=self.dt)
 
         # Set up plasticity parameters
         self.plasticity_params = resolve_dataclass(plasticity_params, PlasticityParams)
 
-        # Set up STDP parameters
-        if self.plasticity_params.use_stdp:
+        # Set up STDP parameters if weights are plastic
+        if self.plastic and self.plasticity_params.use_stdp:
             # This determines how much the weight can change for a single pre/post pairing
             self.potentiation_increment = self.plasticity_params.stdp_rate
             self.depression_increment = (
@@ -180,29 +187,33 @@ class SynapseGroup(ABC):
 
         # Precompute dt / tau divisions for optimization
         self._dt_tau = self.dt / self.tau
-        if self.plasticity_params.use_stdp:
-            self._dt_potentiation_tau = self.dt / self.plasticity_params.potentiation_tau
-            self._dt_depression_tau = self.dt / self.plasticity_params.depression_tau
-        if self.plasticity_params.use_homeostasis:
-            self._dt_homeostasis_tau = self.dt / self.plasticity_params.homeostasis_tau
+        if self.plastic:
+            if self.plasticity_params.use_stdp:
+                self._dt_potentiation_tau = self.dt / self.plasticity_params.potentiation_tau
+                self._dt_depression_tau = self.dt / self.plasticity_params.depression_tau
+            if self.plasticity_params.use_homeostasis:
+                self._dt_homeostasis_tau = self.dt / self.plasticity_params.homeostasis_tau
 
-        # Create RNG
-        self.rng = create_rng()
+    def _generate_weights(self):
+        weight_fractions = self.rng.uniform(
+            self.initialization_params.min_weight, self.initialization_params.max_weight, self.num_synapses
+        )
+        self.weights = weight_fractions * self.max_weight
 
     def initialize(self, reset_weights: bool = False, reset_sources: bool = False):
         """Initialize the synapse group."""
         self.conductance = 0.0
-        if self.plasticity_params.use_stdp:
+        if self.plastic and self.plasticity_params.use_stdp:
             self.potentiation_eligibility = np.zeros(self.num_synapses)
             self.depression_eligibility = 0.0
         if reset_weights:
-            self.weights = self.rng.random(self.num_synapses) * self.max_weight
+            self._generate_weights()
         if reset_sources and isinstance(self, SourcedSynapseGroup):
             self.presynaptic_source = self.rng.integers(0, self.num_presynaptic_neurons, self.num_synapses)
 
     def postsynaptic_spike(self):
         """Implement STDP updates in the case of a postsynaptic spike."""
-        if self.plasticity_params.use_stdp:
+        if self.plastic and self.plasticity_params.use_stdp:
             # Whenever a postsynaptic spike occurs, the depression eligibility trace is incremented
             # We make it negative because we want to depress the synapse (and it's a linear STDP model so it's additive)
             self.depression_eligibility -= self.depression_increment
@@ -227,26 +238,21 @@ class SynapseGroup(ABC):
         self.conductance += new_conductance - self.conductance * self._dt_tau
 
         # Implement STDP
-        if self.plasticity_params.use_stdp:
-            self.weights, self.potentiation_eligibility = stdp_step(
+        pre_stdp_average = np.mean(self.weights)
+        if self.plastic and self.plasticity_params.use_stdp:
+            self.weights, self.potentiation_eligibility, self.depression_eligibility = stdp_step(
                 self.weights,
                 spikes,
                 self.depression_eligibility,
                 self.potentiation_eligibility,
                 self.potentiation_increment,
                 self._dt_potentiation_tau,
+                self._dt_depression_tau,
             )
-
-            # Presynaptic spikes evoke a change in potentiation eligibility traces (it also decays over time)
-            self.potentiation_eligibility += (
-                spikes * self.potentiation_increment - self.potentiation_eligibility * self._dt_potentiation_tau
-            )
-
-            # The depression eligibility trace decays over time
-            self.depression_eligibility -= self.depression_eligibility * self._dt_depression_tau
+        post_stdp_average = np.mean(self.weights)
 
         # Implement homeostasis
-        if self.plasticity_params.use_homeostasis and homeostasis is not None:
+        if self.plastic and self.plasticity_params.use_homeostasis and homeostasis is not None:
             # <homeostasis> is the postsynaptic neuron's estimate of the ratio between the
             # current firing rate and the set point firing rate.
             # Neurons scale their synaptic weight by this factor at a given time constant,
@@ -254,11 +260,17 @@ class SynapseGroup(ABC):
             homeostasis_factor = homeostasis * self.plasticity_params.homeostasis_scale * self._dt_homeostasis_tau
             self.weights += homeostasis_factor * self.weights
 
-        # Implement replacement
-        self.handle_replacement()
+        post_homeostasis_average = np.mean(self.weights)
+
+        print(post_homeostasis_average, post_stdp_average, pre_stdp_average)
+
+        # Implement replacement only if weights are plastic
+        if self.plastic:
+            self.handle_replacement()
 
         # Clip the weights to the range [0, self.max_weight]
-        clip_weights(self.weights, 0, self.max_weight)
+        if self.plastic:
+            clip_weights(self.weights, 0, self.max_weight)
 
     def get_current(self, vm: float):
         """
@@ -302,6 +314,28 @@ class SynapseGroup(ABC):
         """
         pass
 
+    @classmethod
+    @abstractmethod
+    def from_config(cls, config: BaseSynapseConfig):
+        """Create a synapse group from a configuration object.
+
+        Args:
+            config: The configuration for the synapse group.
+
+        Returns:
+            A new synapse group instance.
+        """
+        pass
+
+    @classmethod
+    @abstractmethod
+    def from_yaml(cls, fpath: Path):
+        """Create a synapse group from a YAML configuration file.
+
+        Args:
+            fpath: The path to the YAML configuration file.
+        """
+
 
 class SourcedSynapseGroup(SynapseGroup):
     """
@@ -321,11 +355,14 @@ class SourcedSynapseGroup(SynapseGroup):
         reversal: float,
         tau: float,
         dt: float,
+        source_population: str,
         conductance_threshold: float | None = None,
         num_presynaptic_neurons: int | None = None,
         presynaptic_source: np.ndarray | None = None,
+        plastic: bool = True,
         plasticity_params: PlasticityParams | Dict[str, Any] | None = None,
         replacement_params: ReplacementParams | Dict[str, Any] | None = None,
+        initialization_params: InitializationParams | Dict[str, Any] | None = None,
     ):
         """
         Initialize the synapse group with common parameters.
@@ -342,18 +379,36 @@ class SourcedSynapseGroup(SynapseGroup):
             Time constant (in seconds)
         dt : float
             Time step (in seconds)
+        source_population : str
+            The name of the source population of the synapse group. Will be used by a
+            simulation to determine which input rates to pass to the synapse group.
         conductance_threshold : float, optional
             Threshold for conductance activation (in relative units of max_weight)
         num_presynaptic_neurons : int, optional
             Number of presynaptic neurons
-        presynaptic_source : np.ndarray, optional
-            Array of presynaptic neuron indices for each synapse
+        presynaptic_source : ndarray, optional
+            The source indices of the presynaptic neurons
+        plastic : bool, optional
+            Whether the weights are plastic
         plasticity_params : PlasticityParams or dict, optional
             Parameters for plasticity mechanisms
         replacement_params : ReplacementParams or dict, optional
             Parameters for synapse replacement
+        initialization_params : dict, optional
+            Parameters for weight initialization
         """
-        self._init_base_params(num_synapses, max_weight, reversal, tau, dt, conductance_threshold, plasticity_params)
+        self._init_base_params(
+            num_synapses=num_synapses,
+            max_weight=max_weight,
+            reversal=reversal,
+            tau=tau,
+            dt=dt,
+            plastic=plastic,
+            source_population=source_population,
+            conductance_threshold=conductance_threshold,
+            plasticity_params=plasticity_params,
+            initialization_params=initialization_params,
+        )
 
         # Set up presynaptic source parameters
         if num_presynaptic_neurons is None:
@@ -373,11 +428,60 @@ class SourcedSynapseGroup(SynapseGroup):
             self.min_weight = self.replacement_params.lose_synapse_ratio * self.max_weight
             self.new_weight = self.replacement_params.new_synapse_ratio * self.max_weight
 
+        # Set up initialization parameters
+        self.initialization_params = initialization_params
+
+    @classmethod
+    def from_yaml(cls, fpath: Path):
+        """Create a synapse group from a YAML configuration file.
+
+        Args:
+            fpath: The path to the YAML configuration file.
+        """
+        with open(fpath, "r") as f:
+            config = yaml.safe_load(f)
+        return cls.from_config(SourcedSynapseConfig.model_validate(config))
+
+    @classmethod
+    def from_config(cls, config: SourcedSynapseConfig):
+        """Create a sourced synapse group from a configuration object."""
+        plasticity_params = None
+        if config.plasticity is not None:
+            plasticity_params = PlasticityParams(**config.plasticity.model_dump())
+
+        replacement_params = None
+        if config.replacement is not None:
+            replacement_params = ReplacementParams(**config.replacement.model_dump())
+
+        initialization_params = None
+        if config.initialization is not None:
+            initialization_params = InitializationParams(**config.initialization.model_dump())
+
+        presynaptic_source = None
+        if config.presynaptic_source is not None:
+            presynaptic_source = np.array(config.presynaptic_source)
+
+        return cls(
+            num_synapses=config.num_synapses,
+            max_weight=config.max_weight,
+            reversal=config.reversal,
+            tau=config.tau,
+            dt=config.dt,
+            plastic=config.plastic,
+            source_population=config.source_population,
+            conductance_threshold=config.conductance_threshold,
+            num_presynaptic_neurons=config.num_presynaptic_neurons,
+            presynaptic_source=presynaptic_source,
+            plasticity_params=plasticity_params,
+            replacement_params=replacement_params,
+            initialization_params=initialization_params,
+        )
+
     def handle_replacement(self):
         """
         Implement synapse replacement: remove weak synapses and create new ones.
         """
-        if self.replacement_params.use_replacement:
+        if self.plastic and self.replacement_params.use_replacement:
             synapses_to_replace = self.weights < self.min_weight
             n_synapses_to_replace = np.sum(synapses_to_replace)
             if n_synapses_to_replace > 0:
@@ -386,7 +490,7 @@ class SourcedSynapseGroup(SynapseGroup):
                     0, self.num_presynaptic_neurons, n_synapses_to_replace
                 )
 
-    def validate_input_rates(self, input_rates: np.ndarray):
+    def transform_input_rates(self, input_rates: np.ndarray):
         """
         Validate that the input rates match the number of presynaptic neurons.
 
@@ -410,7 +514,10 @@ class SourcedSynapseGroup(SynapseGroup):
 
 class DirectSynapseGroup(SynapseGroup):
     """
-    A synapse group that receives inputs directly from a matched set of input rates.
+    A synapse group that receives direct inputs to each synapse.
+
+    This group maps inputs to synapses in a 1:1 manner, so the number of inputs
+    must match the number of synapses.
     """
 
     def __init__(
@@ -420,8 +527,11 @@ class DirectSynapseGroup(SynapseGroup):
         reversal: float,
         tau: float,
         dt: float,
+        source_population: str,
         conductance_threshold: float | None = None,
+        plastic: bool = True,
         plasticity_params: PlasticityParams | Dict[str, Any] | None = None,
+        initialization_params: InitializationParams | Dict[str, Any] | None = None,
     ):
         """
         Initialize the synapse group with common parameters.
@@ -438,14 +548,67 @@ class DirectSynapseGroup(SynapseGroup):
             Time constant (in seconds)
         dt : float
             Time step (in seconds)
+        source_population : str
+            The name of the source population of the synapse group. Will be used by a
+            simulation to determine which input rates to pass to the synapse group.
         conductance_threshold : float, optional
             Threshold for conductance activation (in relative units of max_weight)
+        plastic : bool, optional
+            Whether the weights are plastic
         plasticity_params : PlasticityParams or dict, optional
             Parameters for plasticity mechanisms
+        initialization_params : dict, optional
+            Parameters for weight initialization
         """
-        self._init_base_params(num_synapses, max_weight, reversal, tau, dt, conductance_threshold, plasticity_params)
+        self._init_base_params(
+            num_synapses=num_synapses,
+            max_weight=max_weight,
+            reversal=reversal,
+            tau=tau,
+            dt=dt,
+            plastic=plastic,
+            source_population=source_population,
+            conductance_threshold=conductance_threshold,
+            plasticity_params=plasticity_params,
+            initialization_params=initialization_params,
+        )
 
-    def validate_input_rates(self, input_rates: np.ndarray):
+    @classmethod
+    def from_yaml(cls, fpath: Path):
+        """Create a synapse group from a YAML configuration file.
+
+        Args:
+            fpath: The path to the YAML configuration file.
+        """
+        with open(fpath, "r") as f:
+            config = yaml.safe_load(f)
+        return cls.from_config(DirectSynapseConfig.model_validate(config))
+
+    @classmethod
+    def from_config(cls, config: DirectSynapseConfig):
+        """Create a direct synapse group from a configuration object."""
+        plasticity_params = None
+        if config.plasticity is not None:
+            plasticity_params = PlasticityParams(**config.plasticity.model_dump())
+
+        initialization_params = None
+        if config.initialization is not None:
+            initialization_params = InitializationParams(**config.initialization.model_dump())
+
+        return cls(
+            num_synapses=config.num_synapses,
+            max_weight=config.max_weight,
+            reversal=config.reversal,
+            tau=config.tau,
+            dt=config.dt,
+            source_population=config.source_population,
+            conductance_threshold=config.conductance_threshold,
+            plastic=config.plastic,
+            plasticity_params=plasticity_params,
+            initialization_params=initialization_params,
+        )
+
+    def transform_input_rates(self, input_rates: np.ndarray):
         """
         Validate that the input rates match the number of synapses.
 
@@ -465,3 +628,38 @@ class DirectSynapseGroup(SynapseGroup):
                 f"number of synapses ({self.num_synapses})."
             )
         return input_rates
+
+
+@njit
+def generate_spikes_numba(random_values, rate, dt):
+    """JIT-compiled function to generate spikes."""
+    return random_values < (rate * dt)
+
+
+@njit
+def compute_conductance(spikes, weights, threshold):
+    """Compute conductance from spikes and weights with threshold."""
+    return np.sum(spikes * weights * (weights > threshold))
+
+
+@njit
+def clip_weights(weights, min_val, max_val):
+    """Clip weights to range [min_val, max_val] in-place."""
+    np.clip(weights, min_val, max_val, out=weights)
+    return weights
+
+
+@njit
+def stdp_step(
+    weights,
+    spikes,
+    depression_eligibility,
+    potentiation_eligibility,
+    potentiation_increment,
+    potentiation_decay_factor,
+    depression_decay_factor,
+):
+    weights += spikes * depression_eligibility
+    potentiation_eligibility += spikes * potentiation_increment - potentiation_eligibility * potentiation_decay_factor
+    depression_eligibility -= depression_eligibility * depression_decay_factor
+    return weights, potentiation_eligibility, depression_eligibility

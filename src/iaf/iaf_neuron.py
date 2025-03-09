@@ -1,32 +1,10 @@
-from typing import Dict, Any, List
-from itertools import repeat
+from pathlib import Path
+from typing import List
+import yaml
 import numpy as np
 from numba import njit
 from .synapse_group import SynapseGroup
-
-
-@njit
-def update_membrane_voltage(vm, vrest, tau, resistance, current, dt):
-    """Update membrane voltage.
-
-    Parameters
-    ----------
-    vm: float
-        The membrane voltage.
-    vrest: float
-        The resting membrane voltage.
-    tau: float
-        The time constant of the membrane.
-    resistance: float
-        The resistance of the membrane.
-    current: float
-        Total membrane current not from the leak current (e.g. synaptic input)
-    dt: float
-        The time step.
-    """
-    leak_term = (vrest - vm) * dt / tau
-    synapse_term = current * resistance * dt / tau
-    return vm + leak_term + synapse_term
+from .config import NeuronConfig
 
 
 class IaF:
@@ -60,6 +38,53 @@ class IaF:
             self._dt_homeostasis_tau = self.dt / self.homeostasis_tau
 
         self.synapse_groups: dict[str, SynapseGroup] = {}
+
+    def __repr__(self):
+        attrs_to_show = [
+            "time_constant",
+            "resistance",
+            "reset_voltage",
+            "spike_threshold",
+            "dt",
+            "use_homeostasis",
+            "homeostasis_tau",
+            "homeostasis_set_point",
+            "synapse_groups",
+        ]
+        attrs = "\n    ".join([f"{attr}={getattr(self, attr)}" for attr in attrs_to_show])
+        return f"IaF(\n    {attrs}\n)"
+
+    @classmethod
+    def from_yaml(cls, fpath: Path):
+        """Create an IaF neuron from a YAML configuration file.
+
+        Args:
+            fpath: The path to the YAML configuration file.
+        """
+        with open(fpath, "r") as f:
+            config = yaml.safe_load(f)
+        return cls.from_config(NeuronConfig.model_validate(config))
+
+    @classmethod
+    def from_config(cls, config: NeuronConfig):
+        """Create an IaF neuron from a configuration object.
+
+        Args:
+            config: The configuration for the neuron.
+
+        Returns:
+            A new IaF neuron instance.
+        """
+        return cls(
+            time_constant=config.time_constant,
+            resistance=config.resistance,
+            reset_voltage=config.reset_voltage,
+            spike_threshold=config.spike_threshold,
+            dt=config.dt,
+            use_homeostasis=config.use_homeostasis,
+            homeostasis_tau=config.homeostasis_tau,
+            homeostasis_set_point=config.homeostasis_set_point,
+        )
 
     def initialize(self, include_synapses: bool = True, reset_weights: bool = False):
         """Method for returning the neuron and synapses to resting state."""
@@ -96,6 +121,8 @@ class IaF:
         else:
             self.spike = False
             input_current = [synapse_group.get_current(self.vm) for synapse_group in self.synapse_groups.values()]
+            # print(f"{1e12*np.sum(input_current):.2f}", [f"{1e12*ic:.2f}" for ic in input_current])
+            print({name: np.mean(sg.weights) / sg.max_weight for name, sg in self.synapse_groups.items()})
             input_current = np.sum(input_current)
             self.vm = update_membrane_voltage(
                 self.vm,
@@ -126,3 +153,27 @@ class IaF:
 
         for synapse_group, input_rate in zip(self.synapse_groups.values(), input_rates):
             synapse_group.step(input_rate, homeostasis=homeostatic_drive)
+
+
+@njit
+def update_membrane_voltage(vm, vrest, tau, resistance, current, dt):
+    """Update membrane voltage.
+
+    Parameters
+    ----------
+    vm: float
+        The membrane voltage.
+    vrest: float
+        The resting membrane voltage.
+    tau: float
+        The time constant of the membrane.
+    resistance: float
+        The resistance of the membrane.
+    current: float
+        Total membrane current not from the leak current (e.g. synaptic input)
+    dt: float
+        The time step.
+    """
+    leak_term = (vrest - vm) * dt / tau
+    synapse_term = current * resistance * dt / tau
+    return vm + leak_term + synapse_term
