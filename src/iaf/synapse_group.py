@@ -31,10 +31,12 @@ def stdp_step(
     potentiation_eligibility,
     potentiation_increment,
     potentiation_decay_factor,
+    depression_decay_factor,
 ):
     weights += spikes * depression_eligibility
     potentiation_eligibility += spikes * potentiation_increment - potentiation_eligibility * potentiation_decay_factor
-    return weights, potentiation_eligibility
+    depression_eligibility -= depression_eligibility * depression_decay_factor
+    return weights, potentiation_eligibility, depression_eligibility
 
 
 @dataclass
@@ -224,6 +226,7 @@ class SynapseGroup:
 
         # Get the spikes for each synapse
         spikes = self._spike_generator.get_spikes(input_rates)
+        print(np.mean(spikes))
 
         # Compute the conductance added from the synapses with spikes
         new_conductance = compute_conductance(spikes, self.weights, self.min_conductance)
@@ -236,22 +239,15 @@ class SynapseGroup:
 
         # Implement STDP
         if self.use_stdp:
-            self.weights, self.potentiation_eligibility = stdp_step(
+            self.weights, self.potentiation_eligibility, self.depression_eligibility = stdp_step(
                 self.weights,
                 spikes,
                 self.depression_eligibility,
                 self.potentiation_eligibility,
                 self.potentiation_increment,
                 self._dt_potentiation_tau,
+                self._dt_depression_tau,
             )
-
-            # Presynaptic spikes evoke a change in potentiation eligibility traces (it also decays over time)
-            self.potentiation_eligibility += (
-                spikes * self.potentiation_increment - self.potentiation_eligibility * self._dt_potentiation_tau
-            )
-
-            # The depression eligibility trace decays over time
-            self.depression_eligibility -= self.depression_eligibility * self._dt_depression_tau
 
         # Implement homeostasis
         if self.use_homeostasis:
