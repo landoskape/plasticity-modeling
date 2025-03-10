@@ -40,5 +40,6 @@ now though, so it needs to be designed better for more streamlined and clearer p
   - Test it!
   - Go through carefully and make sure everything is routed as expected....
   - In source_population, rearrange things to bring shared elements at least as attributes to base ABC
-  - Everything is broken :(
-  - The "previous" branch is working so I can check and compare from there
+  - Make initialization settings exposed in run method of simulation
+  - Create system for updating specific parameters based on an otherwise completed config (or maybe just after?)
+  - Implement the dendrite groupings thingy from the old directories and the correlation model...
