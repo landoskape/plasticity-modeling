@@ -196,7 +196,7 @@ class Simulation:
         weights = self._prepare_weights(duration=duration)
 
         # Initialize the neuron
-        self.neuron.initialize()
+        self.neuron.initialize(include_synapses=True, reset_weights=False)
 
         # Manage source populations
         sources_router = [synapse_group.source_population for synapse_group in self.neuron.synapse_groups.values()]
