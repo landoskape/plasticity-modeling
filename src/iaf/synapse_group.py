@@ -176,9 +176,11 @@ class SynapseGroup(ABC):
         # Set up STDP parameters if weights are plastic
         if self.plastic and self.plasticity_params.use_stdp:
             # This determines how much the weight can change for a single pre/post pairing
-            self.potentiation_increment = self.plasticity_params.stdp_rate
+            self.potentiation_increment = self.plasticity_params.stdp_rate * self.max_weight
             self.depression_increment = (
-                self.plasticity_params.stdp_rate * self.plasticity_params.depression_potentiation_ratio
+                self.plasticity_params.stdp_rate
+                * self.plasticity_params.depression_potentiation_ratio
+                * self.max_weight
             )
 
             # Buffers to store the potentiation/depression for the current timestep
@@ -238,7 +240,6 @@ class SynapseGroup(ABC):
         self.conductance += new_conductance - self.conductance * self._dt_tau
 
         # Implement STDP
-        pre_stdp_average = np.mean(self.weights)
         if self.plastic and self.plasticity_params.use_stdp:
             self.weights, self.potentiation_eligibility, self.depression_eligibility = stdp_step(
                 self.weights,
@@ -249,12 +250,6 @@ class SynapseGroup(ABC):
                 self._dt_potentiation_tau,
                 self._dt_depression_tau,
             )
-            print(
-                f"{np.mean(self.weights) / self.max_weight:.2f}",
-                f"{np.mean(self.potentiation_eligibility / self.potentiation_increment):.2f}",
-                f"{self.depression_eligibility / self.depression_increment:.2f}",
-            )
-        post_stdp_average = np.mean(self.weights)
 
         # Implement homeostasis
         if self.plastic and self.plasticity_params.use_homeostasis and homeostasis is not None:
@@ -264,10 +259,6 @@ class SynapseGroup(ABC):
             # and each synapse group can vary the amount of homeostasis with self.homeostasis_scale
             homeostasis_factor = homeostasis * self.plasticity_params.homeostasis_scale * self._dt_homeostasis_tau
             self.weights += homeostasis_factor * self.weights
-
-        post_homeostasis_average = np.mean(self.weights)
-
-        # print(post_homeostasis_average, post_stdp_average, pre_stdp_average)
 
         # Implement replacement only if weights are plastic
         if self.plastic:
