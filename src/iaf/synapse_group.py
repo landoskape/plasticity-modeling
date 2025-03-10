@@ -226,7 +226,7 @@ class SynapseGroup:
 
         # Get the spikes for each synapse
         spikes = self._spike_generator.get_spikes(input_rates)
-        print(np.mean(spikes))
+        # print(np.mean(spikes))
 
         # Compute the conductance added from the synapses with spikes
         new_conductance = compute_conductance(spikes, self.weights, self.min_conductance)
@@ -247,6 +247,13 @@ class SynapseGroup:
                 self.potentiation_increment,
                 self._dt_potentiation_tau,
                 self._dt_depression_tau,
+            )
+
+            print(
+                self.name,
+                f"{np.mean(self.weights) / self.max_weight:.2f}",
+                f"{np.mean(self.potentiation_eligibility / self.potentiation_increment):.2f}",
+                f"{self.depression_eligibility / self.depression_increment:.2f}",
             )
 
         # Implement homeostasis
