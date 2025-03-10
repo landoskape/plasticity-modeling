@@ -249,6 +249,11 @@ class SynapseGroup(ABC):
                 self._dt_potentiation_tau,
                 self._dt_depression_tau,
             )
+            print(
+                f"{np.mean(self.weights) / self.max_weight:.2f}",
+                f"{np.mean(self.potentiation_eligibility / self.potentiation_increment):.2f}",
+                f"{self.depression_eligibility / self.depression_increment:.2f}",
+            )
         post_stdp_average = np.mean(self.weights)
 
         # Implement homeostasis
@@ -262,7 +267,7 @@ class SynapseGroup(ABC):
 
         post_homeostasis_average = np.mean(self.weights)
 
-        print(post_homeostasis_average, post_stdp_average, pre_stdp_average)
+        # print(post_homeostasis_average, post_stdp_average, pre_stdp_average)
 
         # Implement replacement only if weights are plastic
         if self.plastic:

@@ -122,7 +122,7 @@ class IaF:
             self.spike = False
             input_current = [synapse_group.get_current(self.vm) for synapse_group in self.synapse_groups.values()]
             # print(f"{1e12*np.sum(input_current):.2f}", [f"{1e12*ic:.2f}" for ic in input_current])
-            print({name: np.mean(sg.weights) / sg.max_weight for name, sg in self.synapse_groups.items()})
+            # print({name: np.mean(sg.weights) / sg.max_weight for name, sg in self.synapse_groups.items()})
             input_current = np.sum(input_current)
             self.vm = update_membrane_voltage(
                 self.vm,
