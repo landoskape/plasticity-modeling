@@ -7,13 +7,13 @@ seed: null
 sources:
   excitatory: 
     type: ica  # Type discriminator for source population (ica, poisson, etc.)
-    num_inputs: 100
-    num_signals: 3
+    num_inputs: 1000
+    num_signals: 1
     source_method: gauss  # One of: divide, gauss, correlated
-    source_strength: 3.0
+    source_strength: 0.33333
     rate_std: 10.0
     rate_mean: 20.0
-    gauss_source_width: 0.4
+    gauss_source_width: 0.142857
     seed: null
 
   inhibitory: 
@@ -36,18 +36,16 @@ neuron:
 # Synapse group configurations
 synapses:
   basal:
-    type: sourced  # Type discriminator for synapse group (sourced or direct)
+    type: direct  # Type discriminator for synapse group (sourced or direct)
     plastic: true
-    num_synapses: 300
+    num_synapses: 1000
     max_weight: 300e-12  # 300 pS
     reversal: 0.0  # 0 mV (excitatory)
     tau: 20e-3  # 20 ms
     conductance_threshold: 0.1
     dt: 1e-3
     source_population: excitatory
-    num_presynaptic_neurons: 100
-    presynaptic_source: null
-
+    
     initialization:
       min_weight: 0.0
       max_weight: 1.0
@@ -62,26 +60,18 @@ synapses:
       use_homeostasis: true
       homeostasis_tau: 20.0
       homeostasis_scale: 1.0
-
-    # Replacement configuration for basal synapses
-    replacement:
-      use_replacement: true
-      lose_synapse_ratio: 0.01
-      new_synapse_ratio: 0.01
   
   # Apical synapses (excitatory with different plasticity)
   apical:
-    type: sourced  # Type discriminator for synapse group (sourced or direct)
+    type: direct  # Type discriminator for synapse group (sourced or direct)
     plastic: true
-    num_synapses: 100
+    num_synapses: 1000
     max_weight: 100e-12  # 100 pS
     reversal: 0.0  # 0 mV (excitatory)
     tau: 20e-3  # 20 ms
     conductance_threshold: 0.1
     dt: 1e-3
     source_population: excitatory
-    num_presynaptic_neurons: 100  # Must match source.num_inputs
-    presynaptic_source: null
 
     initialization:
       min_weight: 0.0
@@ -91,18 +81,13 @@ synapses:
     plasticity:
       use_stdp: true
       stdp_rate: 0.01
-      depression_potentiation_ratio: 1.1
+      depression_potentiation_ratio: 1.0  # Different from basal
       potentiation_tau: 20e-3
       depression_tau: 20e-3
       use_homeostasis: true
       homeostasis_tau: 20.0
       homeostasis_scale: 1.0
 
-    # Replacement configuration for apical synapses
-    replacement:
-      use_replacement: true
-      lose_synapse_ratio: 0.01
-      new_synapse_ratio: 0.01
   
   # Inhibitory synapses
   inhibitory:
@@ -124,5 +109,3 @@ synapses:
     plasticity:
       use_stdp: false
       use_homeostasis: false
-
-    # No replacement configs for direct synapse groups!
