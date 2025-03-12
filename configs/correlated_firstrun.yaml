@@ -65,46 +65,12 @@ synapses:
     replacement:
       use_replacement: false
   
-  # Apical synapses with "simple branching patterns"
-  apical-simple:
+  # Apical synapses (excitatory with different plasticity)
+  apical:
     type: sourced
     plastic: true
     num_synapses: 40
-    max_weight: 10e-12
-    reversal: 0.0
-    tau: 10e-3
-    dt: 1e-3
-    source_population: excitatory
-    conductance_threshold: 0.1
-    source: 
-      num_presynaptic_neurons: 40
-      num_synapses: 40
-      source_rule: divided
-
-    initialization:
-      min_weight: 0.0
-      max_weight: 1.0
-    
-    # Plasticity configuration for apical synapses
-    plasticity:
-      use_stdp: true
-      stdp_rate: 0.01
-      depression_potentiation_ratio: 1.1
-      potentiation_tau: 20e-3
-      depression_tau: 20e-3
-      use_homeostasis: true
-      homeostasis_tau: 20.0
-      homeostasis_scale: 1.0
-
-    replacement:
-      use_replacement: false
-      
-  # Apical synapses with "complex branching patterns"
-  apical-complex:
-    type: sourced
-    plastic: true
-    num_synapses: 40
-    max_weight: 10e-12
+    max_weight: 1e-12
     reversal: 0.0
     tau: 10e-3
     dt: 1e-3
