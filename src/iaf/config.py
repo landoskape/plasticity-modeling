@@ -1,8 +1,18 @@
 from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional, Dict, List, Literal, Union
+from pathlib import Path
+import yaml
 
 
-class SourcePopulationConfig(BaseModel):
+class BaseConfig(BaseModel):
+    @classmethod
+    def from_yaml(cls, fpath: Path):
+        with open(fpath, "r") as f:
+            config = yaml.safe_load(f)
+        return cls.model_validate(config)
+
+
+class SourcePopulationConfig(BaseConfig):
     """Base configuration for source populations."""
 
     type: str = Field(..., description="Type of source population")
@@ -25,8 +35,19 @@ class SourceICAConfig(SourcePopulationConfig):
     dt: float = Field(0.001, gt=0, description="Time step in seconds")
     seed: Optional[int] = Field(None, description="Random seed for reproducibility")
 
-    class Config:
-        use_enum_values = True
+
+class SourceCorrelationConfig(SourcePopulationConfig):
+    """Configuration for correlation source population."""
+
+    type: Literal["correlation"] = Field("correlation", description="Type of source population (correlation)")
+    num_inputs: int = Field(100, ge=1, description="Number of input neurons")
+    max_correlation: float = Field(0.4, gt=0, le=1, description="Maximum correlation")
+    decay_function: Literal["linear"] = Field("linear", description="Decay function")
+    rate_std: float = Field(10.0, gt=0, description="Standard deviation of input rates")
+    rate_mean: float = Field(20.0, gt=0, description="Mean of input rates")
+    tau_stim: float = Field(0.01, gt=0, description="Time constant for the stimulus in seconds")
+    dt: float = Field(0.001, gt=0, description="Time step in seconds")
+    seed: Optional[int] = Field(None, description="Random seed for reproducibility")
 
 
 class SourcePoissonConfig(SourcePopulationConfig):
@@ -40,22 +61,7 @@ class SourcePoissonConfig(SourcePopulationConfig):
     seed: Optional[int] = Field(None, description="Random seed for reproducibility")
 
 
-class ReplacementConfig(BaseModel):
-    """Configuration for synapse replacement."""
-
-    use_replacement: bool = Field(True, description="Whether to use replacement")
-    lose_synapse_ratio: float = Field(0.01, ge=0, le=1, description="Ratio of max weight that causes synapse loss")
-    new_synapse_ratio: float = Field(0.01, ge=0, le=1, description="Ratio of max weight for new synapses")
-
-
-class InitializationConfig(BaseModel):
-    """Configuration for synapse weight initialization."""
-
-    min_weight: float = Field(0.1, ge=0, le=1, description="Minimum fraction of max_weight for initialization")
-    max_weight: float = Field(1.0, ge=0, le=1, description="Maximum fraction of max_weight for initialization")
-
-
-class PlasticityConfig(BaseModel):
+class PlasticityConfig(BaseConfig):
     """Configuration for synaptic plasticity."""
 
     use_stdp: bool = Field(True, description="Whether to use STDP")
@@ -68,7 +74,30 @@ class PlasticityConfig(BaseModel):
     homeostasis_scale: float = Field(1.0, gt=0, description="Scale of homeostasis")
 
 
-class BaseSynapseConfig(BaseModel):
+class InitializationConfig(BaseConfig):
+    """Configuration for synapse weight initialization."""
+
+    min_weight: float = Field(0.1, ge=0, le=1, description="Minimum fraction of max_weight for initialization")
+    max_weight: float = Field(1.0, ge=0, le=1, description="Maximum fraction of max_weight for initialization")
+
+
+class ReplacementConfig(BaseConfig):
+    """Configuration for synapse replacement."""
+
+    use_replacement: bool = Field(True, description="Whether to use replacement")
+    lose_synapse_ratio: float = Field(0.01, ge=0, le=1, description="Ratio of max weight that causes synapse loss")
+    new_synapse_ratio: float = Field(0.01, ge=0, le=1, description="Ratio of max weight for new synapses")
+
+
+class SourceConfig(BaseConfig):
+    """Configuration for source populations."""
+
+    num_synapses: int = Field(..., ge=1, description="Number of synapses")
+    num_presynaptic_neurons: int = Field(..., ge=1, description="Number of presynaptic neurons")
+    source_rule: Literal["random", "divided"] = Field(..., description="Rule for generating presynaptic source indices")
+
+
+class BaseSynapseConfig(BaseConfig):
     """Base configuration for synapse groups."""
 
     type: str = Field(..., description="Type of synapse group")
@@ -99,29 +128,8 @@ class SourcedSynapseConfig(BaseSynapseConfig):
     """Configuration for sourced synapse groups."""
 
     type: Literal["sourced"] = Field("sourced", description="Type of synapse group (sourced)")
-    num_presynaptic_neurons: int = Field(..., ge=1, description="Number of presynaptic neurons")
+    source: Optional[SourceConfig] = Field(None, description="Source configuration")
     replacement: Optional[ReplacementConfig] = Field(None, description="Replacement configuration")
-    presynaptic_source: Optional[List[int]] = Field(None, description="Presynaptic source indices")
-
-    @field_validator("presynaptic_source")
-    def validate_presynaptic_source(cls, v, info):
-        """Validate presynaptic source indices are within range."""
-        if v is not None:
-            values = info.data
-            if "num_presynaptic_neurons" not in values:
-                raise ValueError("num_presynaptic_neurons must be set before presynaptic_source")
-
-            if len(v) != values["num_synapses"]:
-                raise ValueError(
-                    f"presynaptic_source length ({len(v)}) must match num_synapses ({values['num_synapses']})"
-                )
-
-            if min(v) < 0 or max(v) >= values["num_presynaptic_neurons"]:
-                raise ValueError(
-                    f"presynaptic_source indices must be in range [0, {values['num_presynaptic_neurons']-1}]"
-                )
-
-        return v
 
 
 class DirectSynapseConfig(BaseSynapseConfig):
@@ -130,7 +138,7 @@ class DirectSynapseConfig(BaseSynapseConfig):
     type: Literal["direct"] = Field("direct", description="Type of synapse group (direct)")
 
 
-class NeuronConfig(BaseModel):
+class NeuronConfig(BaseConfig):
     """Configuration for integrate-and-fire neuron."""
 
     time_constant: float = Field(20e-3, gt=0, description="Membrane time constant in seconds")
@@ -159,7 +167,7 @@ class NeuronConfig(BaseModel):
         return v
 
 
-class SpikeGeneratorConfig(BaseModel):
+class SpikeGeneratorConfig(BaseConfig):
     """Configuration for spike generator."""
 
     num_neurons: int = Field(..., ge=1, description="Number of neurons")
@@ -167,11 +175,11 @@ class SpikeGeneratorConfig(BaseModel):
     max_batch: int = Field(10, ge=1, description="Maximum batch size")
 
 
-class SimulationConfig(BaseModel):
+class SimulationConfig(BaseConfig):
     """Configuration for simulation."""
 
     neuron: NeuronConfig = Field(..., description="Neuron configuration")
-    sources: Dict[str, Union[SourceICAConfig, SourcePoissonConfig]] = Field(
+    sources: Dict[str, Union[SourceICAConfig, SourceCorrelationConfig, SourcePoissonConfig]] = Field(
         ..., discriminator="type", description="Source population configurations"
     )
     synapses: Dict[str, Union[SourcedSynapseConfig, DirectSynapseConfig]] = Field(
