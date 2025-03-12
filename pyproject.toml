@@ -5,10 +5,25 @@ build-backend = "hatchling.build"
 [project]
 name = "plasticity-modeling"
 dynamic = ["version"]
-description = "Code to generate STDP models."
+description = "Code to generate and analyze plasticity models."
 authors = [
     { name = "Andrew Landau" }
 ]
+dependencies = [
+    "numpy",
+    "numba",
+    "pandas",
+    "scipy",
+    "tqdm",
+    "pyyaml",
+    "pydantic",
+    "freezedry",
+    "matplotlib",
+]
+requires-python = ">=3.9"
+
+[project.optional-dependencies]
+cpu = ["torch"]
 
 [tool.hatch.version]
 path = "src/__init__.py"
