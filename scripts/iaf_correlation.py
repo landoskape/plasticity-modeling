@@ -40,7 +40,7 @@ def get_args():
     parser.add_argument(
         "--duration",
         type=int,
-        default=10000,
+        default=2400,
         help="The duration of the simulation in seconds.",
     )
     return parser.parse_args()
