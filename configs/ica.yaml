@@ -44,9 +44,11 @@ synapses:
     tau: 20e-3  # 20 ms
     conductance_threshold: 0.1
     dt: 1e-3
-    source_population: excitatory
-    num_presynaptic_neurons: 100
-    presynaptic_source: null
+    source:
+      source_population: excitatory
+      num_presynaptic_neurons: 100  # Must match source.num_inputs
+      num_synapses: 300
+      source_rule: random
 
     initialization:
       min_weight: 0.0
@@ -79,9 +81,11 @@ synapses:
     tau: 20e-3  # 20 ms
     conductance_threshold: 0.1
     dt: 1e-3
-    source_population: excitatory
-    num_presynaptic_neurons: 100  # Must match source.num_inputs
-    presynaptic_source: null
+    source:
+      source_population: excitatory
+      num_presynaptic_neurons: 100  # Must match source.num_inputs
+      num_synapses: 100
+      source_rule: random
 
     initialization:
       min_weight: 0.0
