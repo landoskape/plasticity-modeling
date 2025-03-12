@@ -1,5 +1,5 @@
-from typing import Dict, Any
-from dataclasses import dataclass
+from typing import Dict, Any, Literal
+from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from pathlib import Path
 import yaml
@@ -70,6 +70,34 @@ class ReplacementParams:
 
 
 @dataclass
+class SourceParams:
+    num_synapses: int
+    num_presynaptic_neurons: int
+    source_rule: Literal["random", "divided"]
+    presynaptic_source: np.ndarray = field(init=False, repr=False)
+
+    def __post_init__(self):
+        self._generate_presynaptic_source()
+
+    def _generate_presynaptic_source(self):
+        if self.source_rule == "random":
+            source = np.random.randint(0, self.num_presynaptic_neurons, self.num_synapses)
+        elif self.source_rule == "divided":
+            if self.num_synapses % self.num_presynaptic_neurons != 0:
+                raise ValueError(
+                    f"num_synapses must be divisible by num_presynaptic_neurons for source_rule == 'divided'"
+                )
+            num_source_per_input = int(self.num_synapses / self.num_presynaptic_neurons)
+            source_array = np.repeat(
+                np.arange(self.num_presynaptic_neurons).reshape(-1, 1), num_source_per_input, axis=1
+            )
+            source = source_array.flatten()
+        else:
+            raise ValueError(f"Invalid source rule: {self.source_rule}")
+        self.presynaptic_source = source
+
+
+@dataclass
 class InitializationParams:
     min_weight: float = 0.1  # Minimum fraction of max_weight for initialization
     max_weight: float = 1.0  # Maximum fraction of max_weight for initialization
@@ -105,6 +133,10 @@ class SynapseGroup(ABC):
 
     # RNG for random processes
     rng: np.random.Generator
+
+    def __repr__(self):
+        group_type = type(self).__name__
+        return f"{group_type}(num_synapses={self.num_synapses}, plastic={self.plastic})"
 
     def _init_base_params(
         self,
@@ -211,7 +243,7 @@ class SynapseGroup(ABC):
         if reset_weights:
             self._generate_weights()
         if reset_sources and isinstance(self, SourcedSynapseGroup):
-            self.presynaptic_source = self.rng.integers(0, self.num_presynaptic_neurons, self.num_synapses)
+            self.source_params._generate_presynaptic_source()
 
     def postsynaptic_spike(self):
         """Implement STDP updates in the case of a postsynaptic spike."""
@@ -340,8 +372,7 @@ class SourcedSynapseGroup(SynapseGroup):
     This group internally manages which synapse is connected to which source.
     """
 
-    num_presynaptic_neurons: int
-    presynaptic_source: np.ndarray
+    source_params: SourceParams
     replacement_params: ReplacementParams
 
     def __init__(
@@ -353,12 +384,11 @@ class SourcedSynapseGroup(SynapseGroup):
         dt: float,
         source_population: str,
         conductance_threshold: float | None = None,
-        num_presynaptic_neurons: int | None = None,
-        presynaptic_source: np.ndarray | None = None,
         plastic: bool = True,
         plasticity_params: PlasticityParams | Dict[str, Any] | None = None,
-        replacement_params: ReplacementParams | Dict[str, Any] | None = None,
         initialization_params: InitializationParams | Dict[str, Any] | None = None,
+        source_params: SourceParams | Dict[str, Any] | None = None,
+        replacement_params: ReplacementParams | Dict[str, Any] | None = None,
     ):
         """
         Initialize the synapse group with common parameters.
@@ -380,18 +410,16 @@ class SourcedSynapseGroup(SynapseGroup):
             simulation to determine which input rates to pass to the synapse group.
         conductance_threshold : float, optional
             Threshold for conductance activation (in relative units of max_weight)
-        num_presynaptic_neurons : int, optional
-            Number of presynaptic neurons
-        presynaptic_source : ndarray, optional
-            The source indices of the presynaptic neurons
         plastic : bool, optional
             Whether the weights are plastic
         plasticity_params : PlasticityParams or dict, optional
             Parameters for plasticity mechanisms
-        replacement_params : ReplacementParams or dict, optional
-            Parameters for synapse replacement
         initialization_params : dict, optional
             Parameters for weight initialization
+        source_params : SourceParams or dict, optional
+            Parameters for the source population
+        replacement_params : ReplacementParams or dict, optional
+            Parameters for synapse replacement
         """
         self._init_base_params(
             num_synapses=num_synapses,
@@ -406,16 +434,15 @@ class SourcedSynapseGroup(SynapseGroup):
             initialization_params=initialization_params,
         )
 
-        # Set up presynaptic source parameters
-        if num_presynaptic_neurons is None:
-            raise ValueError("num_presynaptic_neurons must be provided")
-        self.num_presynaptic_neurons = num_presynaptic_neurons
-        if presynaptic_source is not None:
-            if np.any(presynaptic_source < 0) or np.any(presynaptic_source >= num_presynaptic_neurons):
-                raise ValueError("initial_source must be an array of integers between 0 and num_presynaptic_neurons")
-            self.presynaptic_source: np.ndarray = presynaptic_source
-        else:
-            self.presynaptic_source: np.ndarray = self.rng.integers(0, num_presynaptic_neurons, num_synapses)
+        # Set up source parameters for routing source inputs to these synapses
+        self.source_params = resolve_dataclass(source_params, SourceParams)
+
+        # Check if num_synapses match
+        if self.num_synapses != self.source_params.num_synapses:
+            raise ValueError(
+                f"Number of synapses ({self.num_synapses}) does not match "
+                f"number of synapses in source population ({self.source_params.num_synapses})."
+            )
 
         # Set up replacement parameters
         self.replacement_params = resolve_dataclass(replacement_params, ReplacementParams)
@@ -441,6 +468,10 @@ class SourcedSynapseGroup(SynapseGroup):
     @classmethod
     def from_config(cls, config: SourcedSynapseConfig):
         """Create a sourced synapse group from a configuration object."""
+        source_params = None
+        if config.source is not None:
+            source_params = SourceParams(**config.source.model_dump())
+
         plasticity_params = None
         if config.plasticity is not None:
             plasticity_params = PlasticityParams(**config.plasticity.model_dump())
@@ -453,24 +484,19 @@ class SourcedSynapseGroup(SynapseGroup):
         if config.initialization is not None:
             initialization_params = InitializationParams(**config.initialization.model_dump())
 
-        presynaptic_source = None
-        if config.presynaptic_source is not None:
-            presynaptic_source = np.array(config.presynaptic_source)
-
         return cls(
             num_synapses=config.num_synapses,
             max_weight=config.max_weight,
             reversal=config.reversal,
             tau=config.tau,
             dt=config.dt,
-            plastic=config.plastic,
             source_population=config.source_population,
             conductance_threshold=config.conductance_threshold,
-            num_presynaptic_neurons=config.num_presynaptic_neurons,
-            presynaptic_source=presynaptic_source,
+            plastic=config.plastic,
             plasticity_params=plasticity_params,
-            replacement_params=replacement_params,
             initialization_params=initialization_params,
+            source_params=source_params,
+            replacement_params=replacement_params,
         )
 
     def handle_replacement(self):
@@ -482,8 +508,8 @@ class SourcedSynapseGroup(SynapseGroup):
             n_synapses_to_replace = np.sum(synapses_to_replace)
             if n_synapses_to_replace > 0:
                 self.weights[synapses_to_replace] = self.new_weight
-                self.presynaptic_source[synapses_to_replace] = self.rng.integers(
-                    0, self.num_presynaptic_neurons, n_synapses_to_replace
+                self.source_params.presynaptic_source[synapses_to_replace] = self.rng.integers(
+                    0, self.source_params.num_presynaptic_neurons, n_synapses_to_replace
                 )
 
     def transform_input_rates(self, input_rates: np.ndarray):
@@ -500,12 +526,12 @@ class SourcedSynapseGroup(SynapseGroup):
         ValueError
             If the input rates length doesn't match the number of presynaptic neurons
         """
-        if len(input_rates) != self.num_presynaptic_neurons:
+        if len(input_rates) != self.source_params.num_presynaptic_neurons:
             raise ValueError(
                 f"Number of input rates provided ({len(input_rates)}) does not match "
-                f"number of presynaptic neurons ({self.num_presynaptic_neurons})."
+                f"number of presynaptic neurons ({self.source_params.num_presynaptic_neurons})."
             )
-        return input_rates[self.presynaptic_source]
+        return input_rates[self.source_params.presynaptic_source]
 
 
 class DirectSynapseGroup(SynapseGroup):
