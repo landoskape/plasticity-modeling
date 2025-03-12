@@ -177,10 +177,10 @@ class SimulationConfig(BaseConfig):
 
     neuron: NeuronConfig = Field(..., description="Neuron configuration")
     sources: Dict[str, Union[SourceICAConfig, SourceCorrelationConfig, SourcePoissonConfig]] = Field(
-        ..., discriminator="type", description="Source population configurations"
+        ..., description="Source population configurations"
     )
     synapses: Dict[str, Union[SourcedSynapseConfig, DirectSynapseConfig]] = Field(
-        ..., discriminator="type", description="Synapse group configurations"
+        ..., description="Synapse group configurations"
     )
     num_simulations: int = Field(1, ge=1, description="Number of simulations to run with the given configuration")
     dt: float = Field(0.001, gt=0, description="Time step in seconds")
