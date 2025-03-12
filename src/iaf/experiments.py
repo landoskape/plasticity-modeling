@@ -1,22 +1,24 @@
 from src.iaf.config import SimulationConfig
-from src.iaf.simulation import Simulation, Simulations
+from src.iaf.simulation import Simulation
 from src.files import config_dir
 from typing import Dict, Any, List, Callable, Iterator, Tuple
 import itertools
 import copy
 
 
-def get_correlated_experiment(apical_dp_ratio: float = 1.1):
+def get_correlated_experiment(apical_dp_ratio: float = 1.1, num_simulations: int = 1):
     fpath = config_dir() / f"correlated.yaml"
     config = SimulationConfig.from_yaml(fpath)
     config.synapses["apical"].plasticity.depression_potentiation_ratio = apical_dp_ratio
+    config.num_simulations = num_simulations
     return Simulation.from_config(config)
 
 
-def get_ica_experiment(apical_dp_ratio: float = 1.1):
+def get_ica_experiment(apical_dp_ratio: float = 1.1, num_simulations: int = 1):
     fpath = config_dir() / f"ica.yaml"
     config = SimulationConfig.from_yaml(fpath)
     config.synapses["apical"].plasticity.depression_potentiation_ratio = apical_dp_ratio
+    config.num_simulations = num_simulations
     return Simulation.from_config(config)
 
 
