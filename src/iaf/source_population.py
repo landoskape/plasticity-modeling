@@ -3,7 +3,7 @@ from pathlib import Path
 import yaml
 from abc import ABC, abstractmethod
 import numpy as np
-from ..utils import create_rng
+from ..utils import rng
 from .config import SourcePopulationConfig, SourceICAConfig, SourceCorrelationConfig, SourcePoissonConfig
 
 
@@ -24,7 +24,6 @@ class SourcePopulation(ABC):
     """
 
     num_inputs: int
-    rng: np.random.Generator
     dt: float
     _rates_samples_mean: int
 
@@ -38,7 +37,7 @@ class SourcePopulation(ABC):
             The input rates and the number of time steps to keep them.
         """
         # Generate exponential interval (minimum 1)
-        interval = int(self.rng.exponential(self._rates_samples_mean)) + 1
+        interval = int(rng.exponential(self._rates_samples_mean)) + 1
 
         # Generate rates
         rates = self._generate_new_rates()
@@ -104,10 +103,10 @@ class SourceFromLoadingMixin:
             The input rates for each input neuron in the source population.
         """
         # Generate random signal components
-        signal_components = self.rng.standard_normal(self.num_signals)
+        signal_components = rng.standard_normal(self.num_signals)
 
         # Generate random noise components
-        noise_components = self.rng.standard_normal(self.num_inputs)
+        noise_components = rng.standard_normal(self.num_inputs)
 
         # Combine signal and noise
         input_vec = (noise_components + signal_components.dot(self.source_loading)) / self.var_adjustment
@@ -188,7 +187,6 @@ class SourcePopulationICA(SourceFromLoadingMixin, SourcePopulation):
         gauss_source_width: float = 2 / 5,
         tau_stim: float = 0.01,
         dt: float = 0.001,
-        seed: Optional[int] = None,
     ):
         """
         Initialize the source population.
@@ -213,8 +211,6 @@ class SourcePopulationICA(SourceFromLoadingMixin, SourcePopulation):
             The time constant for the stimulus in seconds.
         dt : float
             The time step in seconds.
-        seed : int, optional
-            Random seed for reproducibility.
         """
         self.num_inputs = num_inputs
         self.num_signals = num_signals
@@ -225,9 +221,6 @@ class SourcePopulationICA(SourceFromLoadingMixin, SourcePopulation):
         self.gauss_source_width = gauss_source_width
         self.tau_stim = tau_stim
         self.dt = dt
-
-        # Initialize random number generator
-        self.rng = create_rng(seed)
 
         # Create source loading based on method
         self._generate_source_loading()
@@ -266,7 +259,6 @@ class SourcePopulationICA(SourceFromLoadingMixin, SourcePopulation):
             gauss_source_width=config.gauss_source_width,
             tau_stim=config.tau_stim,
             dt=config.dt,
-            seed=config.seed,
         )
 
     def _generate_source_loading(self) -> None:
@@ -372,7 +364,6 @@ class SourcePopulationCorrelation(SourceFromLoadingMixin, SourcePopulation):
         rate_mean: float = 20.0,
         tau_stim: float = 0.01,
         dt: float = 0.001,
-        seed: Optional[int] = None,
     ):
         """
         Initialize the Poisson source population.
@@ -394,8 +385,6 @@ class SourcePopulationCorrelation(SourceFromLoadingMixin, SourcePopulation):
             The time constant for the stimulus in seconds.
         dt : float
             The time step in seconds.
-        seed : int, optional
-            Random seed for reproducibility.
         """
         self.num_inputs = num_inputs
         self.max_correlation = max_correlation
@@ -409,9 +398,6 @@ class SourcePopulationCorrelation(SourceFromLoadingMixin, SourcePopulation):
 
         # Precompute the number of samples that the rates persist for (on average)
         self._rates_samples_mean = round(self.tau_stim / self.dt)
-
-        # Initialize random number generator
-        self.rng = create_rng(seed)
 
     def _generate_source_loading(self) -> None:
         """
@@ -455,7 +441,6 @@ class SourcePopulationCorrelation(SourceFromLoadingMixin, SourcePopulation):
             rate_mean=config.rate_mean,
             tau_stim=config.tau_stim,
             dt=config.dt,
-            seed=config.seed,
         )
 
 
@@ -481,7 +466,6 @@ class SourcePopulationPoisson(SourcePopulation):
         rates: float | List[float] | np.ndarray,
         tau_stim: float = 0.01,
         dt: float = 0.001,
-        seed: Optional[int] = None,
     ):
         """
         Initialize the Poisson source population.
@@ -497,8 +481,6 @@ class SourcePopulationPoisson(SourcePopulation):
             The time constant for the stimulus in seconds.
         dt : float
             The time step in seconds.
-        seed : int, optional
-            Random seed for reproducibility.
         """
         self.num_inputs = num_inputs
         self.rates = self._validate_rates(rates)
@@ -507,9 +489,6 @@ class SourcePopulationPoisson(SourcePopulation):
 
         # Precompute the number of samples that the rates persist for (on average)
         self._rates_samples_mean = round(self.tau_stim / self.dt)
-
-        # Initialize random number generator
-        self.rng = create_rng(seed)
 
     @classmethod
     def from_yaml(cls, fpath: Path):
@@ -537,7 +516,6 @@ class SourcePopulationPoisson(SourcePopulation):
             rates=config.rates,
             tau_stim=config.tau_stim,
             dt=config.dt,
-            seed=config.seed,
         )
 
     def _validate_rates(self, rates: float | List[float] | np.ndarray) -> np.ndarray:

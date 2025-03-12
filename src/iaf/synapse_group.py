@@ -5,7 +5,7 @@ from pathlib import Path
 import yaml
 import numpy as np
 from numba import njit
-from ..utils import create_rng, resolve_dataclass
+from ..utils import rng, resolve_dataclass
 from .config import BaseSynapseConfig, SourcedSynapseConfig, DirectSynapseConfig, PlasticityConfig, ReplacementConfig
 
 
@@ -25,18 +25,17 @@ class SpikeGenerator:
     max_batch: int = 10
 
     def __post_init__(self):
-        self.rng = create_rng()
         self.batch_idx = 0
         self.current_batch = None
         self.batch_size = 0
 
         # Warmup the numba function
-        generate_spikes_numba(self.rng.random(self.num_neurons), 1.0, self.dt)
+        generate_spikes_numba(rng.random(self.num_neurons), 1.0, self.dt)
 
     def initialize_batch(self, steps_remaining=None):
         """Create a batch of random numbers for reuse in poisson spike generation."""
         batch_size = min(self.max_batch, steps_remaining or self.max_batch)
-        self.current_batch = self.rng.random((batch_size, self.num_neurons))
+        self.current_batch = rng.random((batch_size, self.num_neurons))
         self.batch_idx = 0
         self.batch_size = batch_size
 
@@ -178,9 +177,6 @@ class SynapseGroup(ABC):
         initialization_params : InitializationParams or dict, optional
             Parameters for weight initialization
         """
-        # Create RNG
-        self.rng = create_rng()
-
         # Create base parameters
         self.num_synapses = num_synapses
         self.max_weight = max_weight
@@ -229,7 +225,7 @@ class SynapseGroup(ABC):
                 self._dt_homeostasis_tau = self.dt / self.plasticity_params.homeostasis_tau
 
     def _generate_weights(self):
-        weight_fractions = self.rng.uniform(
+        weight_fractions = rng.uniform(
             self.initialization_params.min_weight, self.initialization_params.max_weight, self.num_synapses
         )
         self.weights = weight_fractions * self.max_weight
@@ -508,7 +504,7 @@ class SourcedSynapseGroup(SynapseGroup):
             n_synapses_to_replace = np.sum(synapses_to_replace)
             if n_synapses_to_replace > 0:
                 self.weights[synapses_to_replace] = self.new_weight
-                self.source_params.presynaptic_source[synapses_to_replace] = self.rng.integers(
+                self.source_params.presynaptic_source[synapses_to_replace] = rng.integers(
                     0, self.source_params.num_presynaptic_neurons, n_synapses_to_replace
                 )
 
