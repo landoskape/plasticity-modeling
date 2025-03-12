@@ -15,18 +15,7 @@ def create_rng(seed: int | None = None) -> np.random.Generator:
     return np.random.Generator(np.random.PCG64(seed))
 
 
-class RNG:
-    def __init__(self, seed: int | None = None):
-        self.rng = create_rng(seed)
-
-    def set_seed(self, seed: int | None = None):
-        self.rng = create_rng(seed)
-
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        return self.rng(*args, **kwargs)
-
-
-rng = RNG()
+rng = create_rng()
 
 T = TypeVar("T")
 
