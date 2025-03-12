@@ -33,7 +33,6 @@ class SourceICAConfig(SourcePopulationConfig):
     gauss_source_width: float = Field(2 / 5, gt=0, description="Width of the Gaussian source")
     tau_stim: float = Field(0.01, gt=0, description="Time constant for the stimulus in seconds")
     dt: float = Field(0.001, gt=0, description="Time step in seconds")
-    seed: Optional[int] = Field(None, description="Random seed for reproducibility")
 
 
 class SourceCorrelationConfig(SourcePopulationConfig):
@@ -47,7 +46,6 @@ class SourceCorrelationConfig(SourcePopulationConfig):
     rate_mean: float = Field(20.0, gt=0, description="Mean of input rates")
     tau_stim: float = Field(0.01, gt=0, description="Time constant for the stimulus in seconds")
     dt: float = Field(0.001, gt=0, description="Time step in seconds")
-    seed: Optional[int] = Field(None, description="Random seed for reproducibility")
 
 
 class SourcePoissonConfig(SourcePopulationConfig):
@@ -58,7 +56,6 @@ class SourcePoissonConfig(SourcePopulationConfig):
     rates: List[float] | float = Field(..., description="Base firing rates for each input")
     tau_stim: float = Field(0.01, gt=0, description="Time constant for the stimulus in seconds")
     dt: float = Field(0.001, gt=0, description="Time step in seconds")
-    seed: Optional[int] = Field(None, description="Random seed for reproducibility")
 
 
 class PlasticityConfig(BaseConfig):
@@ -185,8 +182,8 @@ class SimulationConfig(BaseConfig):
     synapses: Dict[str, Union[SourcedSynapseConfig, DirectSynapseConfig]] = Field(
         ..., discriminator="type", description="Synapse group configurations"
     )
+    num_simulations: int = Field(1, ge=1, description="Number of simulations to run with the given configuration")
     dt: float = Field(0.001, gt=0, description="Time step in seconds")
-    seed: Optional[int] = Field(None, description="Random seed for reproducibility")
 
     @model_validator(mode="after")
     def validate_dt_consistency(cls, model: "SimulationConfig"):

@@ -1,7 +1,6 @@
 # Simulation parameters
-duration: 200
+num_simulations: 1
 dt: 1e-3
-seed: null 
 
 # Source population configuration
 sources:
@@ -14,13 +13,11 @@ sources:
     rate_std: 10.0
     rate_mean: 20.0
     gauss_source_width: 0.4
-    seed: null
 
   inhibitory: 
     type: poisson
     num_inputs: 200
     rates: 20.0
-    seed: null
 
 # Neuron configuration
 neuron:
