@@ -1,28 +1,99 @@
-from time import perf_counter as tic
-from src.files import get_config_path
-from src.iaf.config import SimulationConfig
-from src.iaf.simulation import SimulationArray, Simulation
+from argparse import ArgumentParser
+from datetime import datetime
+import joblib
+from src.files import results_dir, save_repo_snapshot
+from src.iaf.experiments import get_correlated_experiment, get_ica_experiment
 
-config = SimulationConfig.from_yaml(get_config_path("correlated.yaml"))
 
-from copy import deepcopy
-from src.iaf.source_population import SourcePopulationCorrelation, SourcePopulationPoisson
-from src.iaf.iaf_neuron import IaF
-from src.iaf.synapse_group import SourcedSynapseGroup, DirectSynapseGroup
+def get_args():
+    parser = ArgumentParser(description="Run an experiment varying the apical depression-potentiation ratio.")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="correlated",
+        choices=["correlated", "ica"],
+        help="Which configuration to use for the experiment",
+    )
+    parser.add_argument(
+        "--apical_dp_ratios",
+        type=float,
+        nargs="+",
+        default=[1.0, 1.025, 1.05, 1.075, 1.1],
+        help="The apical depression-potentiation ratios to simulate.",
+    )
+    parser.add_argument(
+        "--num_neurons",
+        type=int,
+        default=3,
+        help=(
+            "The number of neurons to simulate for each simulation instance.\n"
+            "Each simulation will use the same source populations but "
+            "randomized neurons and synapses (all with the same metaparameters)."
+        ),
+    )
+    parser.add_argument(
+        "--repeats",
+        type=int,
+        default=10,
+        help="The number of times to repeat the experiment for each ratio.",
+    )
+    parser.add_argument(
+        "--duration",
+        type=int,
+        default=10000,
+        help="The duration of the simulation in seconds.",
+    )
+    return parser.parse_args()
 
-source_populations = {
-    "excitatory": SourcePopulationCorrelation.from_config(config.sources["excitatory"]),
-    "inhibitory": SourcePopulationPoisson.from_config(config.sources["inhibitory"]),
-}
 
-neuron = IaF.from_config(config.neuron)
-neuron_for_array = deepcopy(neuron)
+def get_experiment_folder(args):
+    timestamp = datetime.now().strftime("%Y%m%d")
+    exp_folder = results_dir("iaf_runs") / args.config / timestamp
+    if exp_folder.exists():
+        # Add a _# to the folder name until we find a unique name
+        i = 1
+        while exp_folder.exists():
+            exp_folder = results_dir("iaf_runs") / args.config / f"{timestamp}_{i}"
+            i += 1
+    if not exp_folder.exists():
+        exp_folder.mkdir(parents=True, exist_ok=True)
+    return exp_folder
 
-synapses = {
-    "basal": SourcedSynapseGroup.from_config(config.synapses["basal"]),
-    "apical": SourcedSynapseGroup.from_config(config.synapses["apical"]),
-    "inhibitory": DirectSynapseGroup.from_config(config.synapses["inhibitory"]),
-}
 
-sim = Simulation(source_populations, neuron, synapses)
-sims = SimulationArray(source_populations, neuron_for_array, synapses, num_simulations=3)
+def run_experiment(args):
+    if args.config == "correlated":
+        sim_builder = get_correlated_experiment
+    elif args.config == "ica":
+        sim_builder = get_ica_experiment
+    else:
+        raise ValueError(f"Invalid configuration: {args.config}")
+
+    experiment_folder = get_experiment_folder(args)
+
+    # Get parameters for easier access
+    apical_dp_ratios = args.apical_dp_ratios
+    num_neurons = args.num_neurons
+    repeats = args.repeats
+    duration = args.duration
+
+    # Save the parameters
+    joblib.dump(args, experiment_folder / "args.joblib")
+
+    # Save the state of the repo
+    save_repo_snapshot(experiment_folder / "repo.zip", verbose=False)
+
+    # Run all the requested experiments
+    for iratio, apical_dp_ratio in enumerate(apical_dp_ratios):
+        for repeat in range(repeats):
+            sim = sim_builder(apical_dp_ratio=apical_dp_ratio, num_simulations=num_neurons)
+            results = sim.run(duration=duration)
+            results["sim"] = sim
+
+            # Save the results
+            results_path = experiment_folder / f"ratio_{iratio}_repeat_{repeat}.joblib"
+            joblib.dump(results, results_path)
+
+
+if __name__ == "__main__":
+    args = get_args()
+    run_experiment(args)
