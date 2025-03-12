@@ -1,10 +1,12 @@
 from pathlib import Path
-from typing import List
+from typing import List, Union
 import yaml
 import numpy as np
 from numba import njit
-from .synapse_group import SynapseGroup
+from .synapse_group import SynapseGroup, SourcedSynapseGroup, DirectSynapseGroup
 from .config import NeuronConfig
+
+SynapseGroupTypes = Union[SourcedSynapseGroup, DirectSynapseGroup]
 
 
 class IaF:
@@ -37,7 +39,7 @@ class IaF:
             self._min_allowed_rate_estimate = self.homeostasis_set_point / 100
             self._dt_homeostasis_tau = self.dt / self.homeostasis_tau
 
-        self.synapse_groups: dict[str, SynapseGroup] = {}
+        self.synapse_groups: dict[str, SynapseGroupTypes] = {}
 
     def __repr__(self):
         attrs_to_show = [
