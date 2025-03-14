@@ -13,7 +13,7 @@ def get_correlated_experiment(*, base_dp_ratio: float = 1.1, apical_dp_ratio: fl
     config.synapses["apical-simple"].plasticity.depression_potentiation_ratio = base_dp_ratio
     config.synapses["apical-complex"].plasticity.depression_potentiation_ratio = apical_dp_ratio
     config.num_simulations = num_simulations
-    return Simulation.from_config(config)
+    return Simulation.from_config(config), config
 
 
 def get_ica_experiment(*, base_dp_ratio: float = 1.1, apical_dp_ratio: float = 1.1, num_simulations: int = 1):
@@ -23,7 +23,7 @@ def get_ica_experiment(*, base_dp_ratio: float = 1.1, apical_dp_ratio: float = 1
     config.synapses["apical-simple"].plasticity.depression_potentiation_ratio = base_dp_ratio
     config.synapses["apical-complex"].plasticity.depression_potentiation_ratio = apical_dp_ratio
     config.num_simulations = num_simulations
-    return Simulation.from_config(config)
+    return Simulation.from_config(config), config
 
 
 def parameter_grid_search(

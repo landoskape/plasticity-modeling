@@ -85,9 +85,10 @@ def run_experiment(args):
     # Run all the requested experiments
     for iratio, apical_dp_ratio in enumerate(apical_dp_ratios):
         for repeat in range(repeats):
-            sim = sim_builder(apical_dp_ratio=apical_dp_ratio, num_simulations=num_neurons)
+            sim, cfg = sim_builder(apical_dp_ratio=apical_dp_ratio, num_simulations=num_neurons)
             results = sim.run(duration=duration)
             results["sim"] = sim
+            results["cfg"] = cfg
 
             # Save the results
             results_path = experiment_folder / f"ratio_{iratio}_repeat_{repeat}.joblib"
