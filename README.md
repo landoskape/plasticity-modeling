@@ -33,27 +33,18 @@ Key points:
 - the circularBasalApical1 directory probably has the main code source for replicating the Hofer reconstructions that I used in my thesis. 
 - the stdp_cModel1 has the source code for replicating the correlation tuning for a single source
 
+## Figure(s) on IaF Correlation
+- In iaf_correlation.ipynb the main result is in the second figure, showing the weight as a function of input correlation for different
+d/p ratios and locations on the branch. It works!!!
+- Need to add the single example figure and a summary plot and a good illustration of the correlated source modell...
+
 ## Current Progress:
 - IaF Implementation works and recovers the ICA result. The parameter control is a bit rough right
 now though, so it needs to be designed better for more streamlined and clearer parameter choices.
 - Gotta use it to make a single source example and also prep the real Hofer model!!!
 - Massive progress on configuration. Got some finishing touches I think, then ready. 
-  - Test it!
-  - Go through carefully and make sure everything is routed as expected....
-  - In source_population, rearrange things to bring shared elements at least as attributes to base ABC
-  - Make initialization settings exposed in run method of simulation
   - Create system for updating specific parameters based on an otherwise completed config (or maybe just after?)
-  - Implement the dendrite groupings thingy from the old directories and the correlation model...
-- Parameterization plan:
-  - When making a config that should have an array of parameters...
-  - Build an "experiment" situation where it accepts a config yaml as input and then converts that to an array
-    of configs using a hard-coded abnd very simple method... (so we can keep a base config.yaml file the same and
-    just update it where we need to)
+    - The hints of this system are in the _preparing_grid_search directory
 - Parallelization plan:
-  - Make a "simulation array" where the source populations are the same and we repeat neurons / synapse groups...
-  - Then we can reuse the source generation and test different inititalizations...
   - Also check if concatenating synapse groups makes them faster... (e.g. 10x100 synapses vs 1x1000...)
   - If so might be good to add a "concatenate" and "chunk" method that can be used to speed up parallel simulations
-
-
-- Set it up with basal and apical-active / apical-silent
