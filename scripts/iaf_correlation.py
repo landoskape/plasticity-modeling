@@ -43,6 +43,15 @@ def get_args():
         default=2400,
         help="The duration of the simulation in seconds.",
     )
+    parser.add_argument(
+        "--no_apical",
+        action="store_true",
+        help=(
+            "Whether to run the experiment without apical dendrites.\n"
+            "If used, then the apical_dp_ratios will be used to set the "
+            "dp_ratio of basal synapses."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -64,10 +73,12 @@ def run_experiment(args):
     experiment_folder = get_experiment_folder(args)
 
     # Get parameters for easier access
+    config = args.config
     apical_dp_ratios = args.apical_dp_ratios
     num_neurons = args.num_neurons
     repeats = args.repeats
     duration = args.duration
+    no_apical = args.no_apical
 
     # Save the parameters
     joblib.dump(args, experiment_folder / "args.joblib")
@@ -78,7 +89,21 @@ def run_experiment(args):
     # Run all the requested experiments
     for iratio, apical_dp_ratio in enumerate(apical_dp_ratios):
         for repeat in range(repeats):
-            sim, cfg = get_experiment(config=args.config, apical_dp_ratio=apical_dp_ratio, num_simulations=num_neurons)
+            if not no_apical:
+                sim, cfg = get_experiment(
+                    config,
+                    apical_dp_ratio=apical_dp_ratio,
+                    num_simulations=num_neurons,
+                    no_apical=no_apical,
+                )
+            else:
+                sim, cfg = get_experiment(
+                    config,
+                    base_dp_ratio=apical_dp_ratio,
+                    num_simulations=num_neurons,
+                    no_apical=no_apical,
+                )
+
             results = sim.run(duration=duration)
             results["sim"] = sim
             results["cfg"] = cfg
