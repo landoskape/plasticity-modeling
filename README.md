@@ -40,7 +40,7 @@ d/p ratios and locations on the branch. It works!!!
 - Now I need to confirm it works as expected by:
   1. running a few to see the edge combos for each pairing
   2. making plotting code (classmethods of the source probably) to check the orientations etc
-
+- Results / iaf_runs / hofer / 20250319 has the results for the hofer experiment (first run -- need to check if it is behaving well)
 
 ## Software Development Goals
 - Massive progress on configuration. Got some finishing touches I think, then ready. 
