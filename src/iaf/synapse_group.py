@@ -72,15 +72,20 @@ class ReplacementParams:
 class SourceParams:
     num_synapses: int
     num_presynaptic_neurons: int
-    source_rule: Literal["random", "divided"]
+    source_rule: Literal["random", "divided", "random-restricted"]
+    valid_sources: np.ndarray | None = field(repr=False)
     presynaptic_source: np.ndarray = field(init=False, repr=False)
 
     def __post_init__(self):
+        if self.valid_sources is not None:
+            self.valid_sources = np.array(self.valid_sources)
         self._generate_presynaptic_source()
 
     def _generate_presynaptic_source(self):
         if self.source_rule == "random":
-            source = np.random.randint(0, self.num_presynaptic_neurons, self.num_synapses)
+            source = rng.integers(0, self.num_presynaptic_neurons, self.num_synapses)
+        elif self.source_rule == "random-restricted":
+            source = self.valid_sources[rng.integers(0, len(self.valid_sources), self.num_synapses)]
         elif self.source_rule == "divided":
             if self.num_synapses % self.num_presynaptic_neurons != 0:
                 raise ValueError(
@@ -223,6 +228,15 @@ class SynapseGroup(ABC):
                 self._dt_depression_tau = self.dt / self.plasticity_params.depression_tau
             if self.plasticity_params.use_homeostasis:
                 self._dt_homeostasis_tau = self.dt / self.plasticity_params.homeostasis_tau
+
+    def update_depression_potention_ratio(self, dp_ratio: float):
+        self.plasticity_params.depression_potentiation_ratio = dp_ratio
+        if self.plastic and self.plasticity_params.use_stdp:
+            self.depression_increment = (
+                self.plasticity_params.stdp_rate
+                * self.plasticity_params.depression_potentiation_ratio
+                * self.max_weight
+            )
 
     def _generate_weights(self):
         weight_fractions = rng.uniform(
@@ -504,9 +518,17 @@ class SourcedSynapseGroup(SynapseGroup):
             n_synapses_to_replace = np.sum(synapses_to_replace)
             if n_synapses_to_replace > 0:
                 self.weights[synapses_to_replace] = self.new_weight
-                self.source_params.presynaptic_source[synapses_to_replace] = rng.integers(
-                    0, self.source_params.num_presynaptic_neurons, n_synapses_to_replace
-                )
+                if self.source_params.source_rule == "random":
+                    new_sources = rng.integers(0, self.source_params.num_presynaptic_neurons, n_synapses_to_replace)
+                elif self.source_params.source_rule == "random-restricted":
+                    new_sources = self.source_params.valid_sources[
+                        rng.integers(0, len(self.source_params.valid_sources), n_synapses_to_replace)
+                    ]
+                elif self.source_params.source_rule == "divided":
+                    raise ValueError("Replacement plasticity cannot be used with source rule == 'divided'")
+                else:
+                    raise ValueError(f"Invalid source rule: {self.source_params.source_rule}")
+                self.source_params.presynaptic_source[synapses_to_replace] = new_sources
 
     def transform_input_rates(self, input_rates: np.ndarray):
         """

@@ -4,11 +4,19 @@ import yaml
 from abc import ABC, abstractmethod
 import numpy as np
 from ..utils import rng
-from .config import SourcePopulationConfig, SourceICAConfig, SourceCorrelationConfig, SourcePoissonConfig
+from .config import (
+    SourcePopulationConfig,
+    SourceGaborConfig,
+    SourceICAConfig,
+    SourceCorrelationConfig,
+    SourcePoissonConfig,
+)
 
 
 def create_source_population(config: SourcePopulationConfig) -> "SourcePopulation":
-    if isinstance(config, SourceICAConfig):
+    if isinstance(config, SourceGaborConfig):
+        return SourcePopulationGabor.from_config(config)
+    elif isinstance(config, SourceICAConfig):
         return SourcePopulationICA.from_config(config)
     elif isinstance(config, SourceCorrelationConfig):
         return SourcePopulationCorrelation.from_config(config)
@@ -25,6 +33,7 @@ class SourcePopulation(ABC):
 
     num_inputs: int
     dt: float
+    tau_stim: float
     _rates_samples_mean: int
 
     def generate_rates(self) -> tuple[np.ndarray, int]:
@@ -72,6 +81,74 @@ class SourcePopulation(ABC):
         Args:
             fpath: The path to the YAML configuration file.
         """
+
+
+class SourcePopulationGabor(SourcePopulation):
+    edge_probability: float
+    concentration: float
+    baseline_rate: float
+    driven_rate: float
+    orientations: np.ndarray
+    num_orientations: int = 4
+    num_inputs: int = 36
+    tau_stim: float
+    dt: float
+
+    def __init__(
+        self,
+        edge_probability: float,
+        concentration: float,
+        baseline_rate: float,
+        driven_rate: float,
+        tau_stim: float,
+        dt: float,
+    ):
+        self.edge_probability = edge_probability
+        self.orientations = np.arange(self.num_orientations) / self.num_orientations * np.pi
+        self.orientation_preference = self.orientations.reshape(1, -1)
+        self.concentration = concentration
+        self.baseline_rate = baseline_rate
+        self.driven_rate = driven_rate
+        self.tau_stim = tau_stim
+        self.dt = dt
+
+        # Precompute the number of samples that the rates persist for (on average)
+        self._rates_samples_mean = round(self.tau_stim / self.dt)
+
+    def _generate_stimulus(self) -> np.ndarray:
+        stimulus_orientation = np.random.randint(0, 4, size=(3, 3))
+        if np.random.rand() < self.edge_probability:
+            edge_orientation = stimulus_orientation[1, 1]
+            x_outer = edge_orientation % 3
+            y_outer = int(edge_orientation // 3)
+            stimulus_orientation[x_outer, y_outer] = edge_orientation
+            stimulus_orientation[-x_outer - 1, -y_outer - 1] = edge_orientation
+        return stimulus_orientation
+
+    def _generate_new_rates(self) -> np.ndarray:
+        stimori = self._generate_stimulus()
+        stimulus = self.orientations[stimori]
+        offsets = self.orientation_preference - np.reshape(stimulus, (-1, 1))
+        drive = np.exp(self.concentration * np.cos(2 * offsets)) / (2 * np.pi * np.i0(self.concentration))
+        rates = self.baseline_rate + self.driven_rate * drive
+        return np.reshape(rates, -1)
+
+    @classmethod
+    def from_yaml(cls, fpath: Path):
+        with open(fpath, "r") as f:
+            config = yaml.safe_load(f)
+        return cls.from_config(SourceGaborConfig.model_validate(config))
+
+    @classmethod
+    def from_config(cls, config: SourceGaborConfig):
+        return cls(
+            edge_probability=config.edge_probability,
+            concentration=config.concentration,
+            baseline_rate=config.baseline_rate,
+            driven_rate=config.driven_rate,
+            tau_stim=config.tau_stim,
+            dt=config.dt,
+        )
 
 
 class SourceFromLoadingMixin:

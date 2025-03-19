@@ -1,12 +1,15 @@
 from pydantic import BaseModel, Field, field_validator, model_validator
-from typing import Optional, Dict, List, Literal, Union
+from typing import Optional, Dict, List, Literal, Union, TypeVar, Type
 from pathlib import Path
 import yaml
 
 
+ConfigT = TypeVar("ConfigT", bound="BaseConfig")
+
+
 class BaseConfig(BaseModel):
     @classmethod
-    def from_yaml(cls, fpath: Path):
+    def from_yaml(cls: Type[ConfigT], fpath: Path) -> ConfigT:
         with open(fpath, "r") as f:
             config = yaml.safe_load(f)
         return cls.model_validate(config)
@@ -16,6 +19,18 @@ class SourcePopulationConfig(BaseConfig):
     """Base configuration for source populations."""
 
     type: str = Field(..., description="Type of source population")
+    tau_stim: float = Field(0.01, gt=0, description="Time constant for the stimulus in seconds")
+    dt: float = Field(0.001, gt=0, description="Time step in seconds")
+
+
+class SourceGaborConfig(SourcePopulationConfig):
+    """Configuration for Gabor source population."""
+
+    type: Literal["gabor"] = Field("gabor", description="Type of source population (gabor)")
+    edge_probability: float = Field(1.0, gt=0, le=1, description="Probability of an edge appearing in the stimulus")
+    concentration: float = Field(1.0, gt=0, description="Concentration of the Gabor field")
+    baseline_rate: float = Field(5.0, gt=0, description="Baseline firing rate")
+    driven_rate: float = Field(45.0, gt=0, description="Driven firing rate")
 
 
 class SourceICAConfig(SourcePopulationConfig):
@@ -31,8 +46,6 @@ class SourceICAConfig(SourcePopulationConfig):
     rate_std: float = Field(10.0, gt=0, description="Standard deviation of input rates")
     rate_mean: float = Field(20.0, gt=0, description="Mean of input rates")
     gauss_source_width: float = Field(2 / 5, gt=0, description="Width of the Gaussian source")
-    tau_stim: float = Field(0.01, gt=0, description="Time constant for the stimulus in seconds")
-    dt: float = Field(0.001, gt=0, description="Time step in seconds")
 
 
 class SourceCorrelationConfig(SourcePopulationConfig):
@@ -44,8 +57,6 @@ class SourceCorrelationConfig(SourcePopulationConfig):
     decay_function: Literal["linear"] = Field("linear", description="Decay function")
     rate_std: float = Field(10.0, gt=0, description="Standard deviation of input rates")
     rate_mean: float = Field(20.0, gt=0, description="Mean of input rates")
-    tau_stim: float = Field(0.01, gt=0, description="Time constant for the stimulus in seconds")
-    dt: float = Field(0.001, gt=0, description="Time step in seconds")
 
 
 class SourcePoissonConfig(SourcePopulationConfig):
@@ -54,8 +65,6 @@ class SourcePoissonConfig(SourcePopulationConfig):
     type: Literal["poisson"] = Field("poisson", description="Type of source population (poisson)")
     num_inputs: int = Field(100, ge=1, description="Number of input neurons")
     rates: List[float] | float = Field(..., description="Base firing rates for each input")
-    tau_stim: float = Field(0.01, gt=0, description="Time constant for the stimulus in seconds")
-    dt: float = Field(0.001, gt=0, description="Time step in seconds")
 
 
 class PlasticityConfig(BaseConfig):
@@ -91,7 +100,10 @@ class SourceConfig(BaseConfig):
 
     num_synapses: int = Field(..., ge=1, description="Number of synapses")
     num_presynaptic_neurons: int = Field(..., ge=1, description="Number of presynaptic neurons")
-    source_rule: Literal["random", "divided"] = Field(..., description="Rule for generating presynaptic source indices")
+    source_rule: Literal["random", "divided", "random-restricted"] = Field(
+        ..., description="Rule for generating presynaptic source indices"
+    )
+    valid_sources: Optional[List[int]] = Field(None, description="List of valid presynaptic source indices")
 
 
 class BaseSynapseConfig(BaseConfig):
@@ -176,7 +188,7 @@ class SimulationConfig(BaseConfig):
     """Configuration for simulation."""
 
     neuron: NeuronConfig = Field(..., description="Neuron configuration")
-    sources: Dict[str, Union[SourceICAConfig, SourceCorrelationConfig, SourcePoissonConfig]] = Field(
+    sources: Dict[str, Union[SourceGaborConfig, SourceICAConfig, SourceCorrelationConfig, SourcePoissonConfig]] = Field(
         ..., description="Source population configurations"
     )
     synapses: Dict[str, Union[SourcedSynapseConfig, DirectSynapseConfig]] = Field(
