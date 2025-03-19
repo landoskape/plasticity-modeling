@@ -31,15 +31,8 @@ amount of plasticity evoked by positive pairings (LTP) or negative pairings (LTD
 - In iaf_correlation.ipynb the main result is in the second figure, showing the weight as a function of input correlation for different
 d/p ratios and locations on the branch. It works!!!
 - Need to add the single example figure and a summary plot and a good illustration of the correlated source modell...
-
-## Current Progress:
-- Massive progress on configuration. Got some finishing touches I think, then ready. 
-  - Create system for updating specific parameters based on an otherwise completed config (or maybe just after?)
-    - The hints of this system are in the _preparing_grid_search directory
-- Parallelization plan:
-  - Also check if concatenating synapse groups makes them faster... (e.g. 10x100 synapses vs 1x1000...)
-  - If so might be good to add a "concatenate" and "chunk" method that can be used to speed up parallel simulations
-
+- Results / iaf_runs / correlated / 20250312 has the results for the basal / apical correlated source experiment
+- Results / iaf_runs / uncorrelated / 20250319_1 has the results for the basal only version with the same DP ratios
 
 ## Notes on Hofer Reconstructions
 - the circularBasalApical1 directory probably has the main code source for replicating the Hofer reconstructions that I used in my thesis. 
@@ -47,3 +40,12 @@ d/p ratios and locations on the branch. It works!!!
 - Now I need to confirm it works as expected by:
   1. running a few to see the edge combos for each pairing
   2. making plotting code (classmethods of the source probably) to check the orientations etc
+
+
+## Software Development Goals
+- Massive progress on configuration. Got some finishing touches I think, then ready. 
+  - Create system for updating specific parameters based on an otherwise completed config (or maybe just after?)
+    - The hints of this system are in the _preparing_grid_search directory
+- Parallelization plan:
+  - Also check if concatenating synapse groups makes them faster... (e.g. 10x100 synapses vs 1x1000...)
+  - If so might be good to add a "concatenate" and "chunk" method that can be used to speed up parallel simulations
