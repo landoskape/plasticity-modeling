@@ -6,22 +6,23 @@ import itertools
 import copy
 
 
-def get_correlated_experiment(*, base_dp_ratio: float = 1.1, apical_dp_ratio: float = 1.1, num_simulations: int = 1):
-    fpath = config_dir() / f"correlated.yaml"
+def get_experiment(
+    config_name: str,
+    *,
+    base_dp_ratio: float = 1.1,
+    apical_dp_ratio: float = 1.1,
+    no_apical: bool = False,
+    num_simulations: int = 1,
+):
+    fpath = config_dir() / f"{config_name}.yaml"
     config = SimulationConfig.from_yaml(fpath)
     config.synapses["basal"].plasticity.depression_potentiation_ratio = base_dp_ratio
-    config.synapses["apical-simple"].plasticity.depression_potentiation_ratio = base_dp_ratio
-    config.synapses["apical-complex"].plasticity.depression_potentiation_ratio = apical_dp_ratio
-    config.num_simulations = num_simulations
-    return Simulation.from_config(config), config
-
-
-def get_ica_experiment(*, base_dp_ratio: float = 1.1, apical_dp_ratio: float = 1.1, num_simulations: int = 1):
-    fpath = config_dir() / f"ica.yaml"
-    config = SimulationConfig.from_yaml(fpath)
-    config.synapses["basal"].plasticity.depression_potentiation_ratio = base_dp_ratio
-    config.synapses["apical-simple"].plasticity.depression_potentiation_ratio = base_dp_ratio
-    config.synapses["apical-complex"].plasticity.depression_potentiation_ratio = apical_dp_ratio
+    if no_apical:
+        config.synapses.pop("apical-simple")
+        config.synapses.pop("apical-complex")
+    else:
+        config.synapses["apical-simple"].plasticity.depression_potentiation_ratio = base_dp_ratio
+        config.synapses["apical-complex"].plasticity.depression_potentiation_ratio = apical_dp_ratio
     config.num_simulations = num_simulations
     return Simulation.from_config(config), config
 

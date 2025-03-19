@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 from datetime import datetime
 import joblib
 from src.files import results_dir, save_repo_snapshot
-from src.iaf.experiments import get_correlated_experiment, get_ica_experiment
+from src.iaf.experiments import get_experiment
 
 
 def get_args():
@@ -61,13 +61,6 @@ def get_experiment_folder(args):
 
 
 def run_experiment(args):
-    if args.config == "correlated":
-        sim_builder = get_correlated_experiment
-    elif args.config == "ica":
-        sim_builder = get_ica_experiment
-    else:
-        raise ValueError(f"Invalid configuration: {args.config}")
-
     experiment_folder = get_experiment_folder(args)
 
     # Get parameters for easier access
@@ -85,7 +78,7 @@ def run_experiment(args):
     # Run all the requested experiments
     for iratio, apical_dp_ratio in enumerate(apical_dp_ratios):
         for repeat in range(repeats):
-            sim, cfg = sim_builder(apical_dp_ratio=apical_dp_ratio, num_simulations=num_neurons)
+            sim, cfg = get_experiment(config=args.config, apical_dp_ratio=apical_dp_ratio, num_simulations=num_neurons)
             results = sim.run(duration=duration)
             results["sim"] = sim
             results["cfg"] = cfg
