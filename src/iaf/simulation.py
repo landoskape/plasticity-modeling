@@ -192,7 +192,7 @@ class Simulation:
                     weights[ineuron][name] = neuron.synapse_groups[name].weights
         return weights
 
-    def run(self, duration: int, progress_bar: bool = True) -> dict:
+    def run(self, duration: int, progress_bar: bool = True, initialize: bool = True) -> dict:
         """
         Run the simulation.
 
@@ -202,6 +202,9 @@ class Simulation:
             The duration of the simulation in seconds.
         progress_bar : bool
             Whether to show a progress bar.
+        initialize : bool
+            Whether to initialize the neuron(s) and synapse groups.
+            If False, will continue from the last state.
 
         Returns
         -------
@@ -216,8 +219,9 @@ class Simulation:
         weights = self._prepare_weights(duration=duration)
 
         # Initialize the neuron
-        for neuron in self.neurons:
-            neuron.initialize(include_synapses=True, reset_weights=True)
+        if initialize:
+            for neuron in self.neurons:
+                neuron.initialize(include_synapses=True, reset_weights=True)
 
         # Manage source populations
         sources_router = [synapse_group.source_population for synapse_group in self.neurons[0].synapse_groups.values()]
