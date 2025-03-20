@@ -22,6 +22,13 @@ def get_args():
         help="The apical depression-potentiation ratios to simulate.",
     )
     parser.add_argument(
+        "--edge_probabilities",
+        type=float,
+        nargs="+",
+        default=[0.5, 0.75, 1.0],
+        help="The edge probabilities to simulate with.",
+    )
+    parser.add_argument(
         "--num_neurons",
         type=int,
         default=3,
@@ -75,6 +82,7 @@ def run_experiment(args):
     # Get parameters for easier access
     config = args.config
     apical_dp_ratios = args.apical_dp_ratios
+    edge_probabilities = args.edge_probabilities
     num_neurons = args.num_neurons
     repeats = args.repeats
     duration = args.duration
@@ -88,29 +96,32 @@ def run_experiment(args):
 
     # Run all the requested experiments
     for iratio, apical_dp_ratio in enumerate(apical_dp_ratios):
-        for repeat in range(repeats):
-            if not no_apical:
-                sim, cfg = get_experiment(
-                    config,
-                    apical_dp_ratio=apical_dp_ratio,
-                    num_simulations=num_neurons,
-                    no_apical=no_apical,
-                )
-            else:
-                sim, cfg = get_experiment(
-                    config,
-                    base_dp_ratio=apical_dp_ratio,
-                    num_simulations=num_neurons,
-                    no_apical=no_apical,
-                )
+        for iedge, edge_probability in enumerate(edge_probabilities):
+            for repeat in range(repeats):
+                if not no_apical:
+                    sim, cfg = get_experiment(
+                        config,
+                        apical_dp_ratio=apical_dp_ratio,
+                        num_simulations=num_neurons,
+                        no_apical=no_apical,
+                        edge_probability=edge_probability,
+                    )
+                else:
+                    sim, cfg = get_experiment(
+                        config,
+                        base_dp_ratio=apical_dp_ratio,
+                        num_simulations=num_neurons,
+                        no_apical=no_apical,
+                        edge_probability=edge_probability,
+                    )
 
-            results = sim.run(duration=duration)
-            results["sim"] = sim
-            results["cfg"] = cfg
+                results = sim.run(duration=duration)
+                results["sim"] = sim
+                results["cfg"] = cfg
 
-            # Save the results
-            results_path = experiment_folder / f"ratio_{iratio}_repeat_{repeat}.joblib"
-            joblib.dump(results, results_path)
+                # Save the results
+                results_path = experiment_folder / f"ratio_{iratio}_edge_{iedge}_repeat_{repeat}.joblib"
+                joblib.dump(results, results_path)
 
 
 if __name__ == "__main__":
