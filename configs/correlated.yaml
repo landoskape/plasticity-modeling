@@ -2,6 +2,17 @@
 num_simulations: 1
 dt: 1e-3
 
+# Neuron configuration
+neuron:
+  time_constant: 20e-3
+  resistance: 100e6
+  reset_voltage: -70e-3
+  spike_threshold: -50e-3
+  dt: 1e-3
+  use_homeostasis: true
+  homeostasis_tau: 20.0
+  homeostasis_set_point: 10.0
+
 # Source population configuration
 sources:
   excitatory: 
@@ -17,18 +28,7 @@ sources:
     type: poisson
     num_inputs: 200
     rates: 10.0
-    tau_stim: 0.01
-
-# Neuron configuration
-neuron:
-  time_constant: 20e-3
-  resistance: 100e6
-  reset_voltage: -70e-3
-  spike_threshold: -50e-3
-  dt: 1e-3
-  use_homeostasis: true
-  homeostasis_tau: 20.0
-  homeostasis_set_point: 10.0
+    tau_stim: inf
 
 # Synapse group configurations
 synapses:
