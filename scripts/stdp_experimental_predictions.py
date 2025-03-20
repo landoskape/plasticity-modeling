@@ -11,14 +11,14 @@ from src.conductance import (
     compute_current,
     plasticity_transfer_function,
 )
+from src.files import get_figure_dir
+from src.plotting import save_figure
 
 # Define root path of repo
 root_path = Path(__file__).parent.parent
 
 
-def show_nevian_reconstruction(
-    show_fig: bool = True, save_fig: bool = False
-) -> plt.Figure:
+def show_nevian_reconstruction(show_fig: bool = True, save_fig: bool = False) -> plt.Figure:
     # Read CSVs for STDP Data
     stdp_data_path = root_path / "data" / "nevian-sakmann-2006"
     stdp_files = [
@@ -75,14 +75,13 @@ def show_nevian_reconstruction(
         plt.show()
 
     if save_fig:
-        print("Haven't configured figure saving!!!")
+        fig_path = get_figure_dir("stdp_prediction") / "nevian_reconstruction"
+        save_figure(fig, fig_path)
 
     return fig
 
 
-def show_plasticity_transfer_function(
-    show_fig: bool = True, save_fig: bool = False
-) -> plt.Figure:
+def show_plasticity_transfer_function(show_fig: bool = True, save_fig: bool = False) -> plt.Figure:
     # Read CSVs for STDP Data
     stdp_data_path = root_path / "data" / "nevian-sakmann-2006"
 
@@ -110,7 +109,8 @@ def show_plasticity_transfer_function(
         plt.show()
 
     if save_fig:
-        print("Haven't configured figure saving!!!")
+        fig_path = get_figure_dir("stdp_prediction") / "plasticity_transfer_function"
+        save_figure(fig, fig_path)
 
     return fig
 
@@ -219,19 +219,13 @@ def run_simulations(num_ap_amplitudes: int = 10):
 
     effective_ca_ltp = ltp_ca_to_buffer * np.array(data["nmdar_integral_ca"])
     effective_ca_ltd = ltd_ca_to_buffer * np.array(data["vgcc_integral_ca"])
-    data["LTP"] = plasticity_transfer_function(
-        data["params"]["LTP"], x_values=effective_ca_ltp
-    )[0]
-    data["LTD"] = plasticity_transfer_function(
-        data["params"]["LTD"], x_values=effective_ca_ltd
-    )[0]
+    data["LTP"] = plasticity_transfer_function(data["params"]["LTP"], x_values=effective_ca_ltp)[0]
+    data["LTD"] = plasticity_transfer_function(data["params"]["LTD"], x_values=effective_ca_ltd)[0]
 
     return data
 
 
-def show_estimated_plasticity(
-    data: dict, buffer_scale: float = 1.0, show_fig: bool = True, save_fig: bool = False
-):
+def show_estimated_plasticity(data: dict, buffer_scale: float = 1.0, show_fig: bool = True, save_fig: bool = False):
     """Show plasticity kernels based on simulations
 
     The estimate of plasticity kernels depends on a few hard-coded free parameters
@@ -260,37 +254,38 @@ def show_estimated_plasticity(
 
     effective_ca_ltp = ltp_ca_to_buffer * np.array(data["nmdar_integral_ca"])
     effective_ca_ltd = ltd_ca_to_buffer * np.array(data["vgcc_integral_ca"])
-    ltp_transfer = plasticity_transfer_function(
-        data["params"]["LTP"], x_values=effective_ca_ltp
-    )[0]
-    ltd_transfer = plasticity_transfer_function(
-        data["params"]["LTD"], x_values=effective_ca_ltd
-    )[0]
+    ltp_transfer = plasticity_transfer_function(data["params"]["LTP"], x_values=effective_ca_ltp)[0]
+    ltd_transfer = plasticity_transfer_function(data["params"]["LTD"], x_values=effective_ca_ltd)[0]
 
     ap_peaks = [np.max(v_trace) for v_trace in data["v_trace"]]
 
-    fig, ax = plt.subplots(1, 1, figsize=(4, 4))
-    ax.plot(ap_peaks, ltp_transfer, color=NMDAR.color(), linewidth=1.5)
-    ax.plot(ap_peaks, ltd_transfer, color=VGCC.color(), linewidth=1.5)
+    fig, ax = plt.subplots(1, 1, figsize=(4, 4), layout="constrained")
+    ax.plot(ap_peaks, ltp_transfer / np.max(ltp_transfer), color=NMDAR.color(), linewidth=1.5, label="LTP")
+    ax.plot(ap_peaks, ltd_transfer / np.max(ltd_transfer), color=VGCC.color(), linewidth=1.5, label="LTD")
+    ax.set_xlabel("AP Peak Voltage (mV)")
+    ax.set_ylabel("Plasticity Magnitude (AU)")
+    ax.legend(loc="upper left")
 
     if show_fig:
-        plt.show()
+        plt.show(block=True)
 
     if save_fig:
-        print("Haven't configured figure saving!!!")
+        fig_path = get_figure_dir("stdp_prediction") / "estimated_plasticity_kernel"
+        save_figure(fig, fig_path)
 
     return fig
 
 
 if __name__ == "__main__":
-    show_fig = True
-    save_fig = False
-    data = run_simulations(num_ap_amplitues=100)
+    show_fig = False
+    save_fig = True
+    data = run_simulations(num_ap_amplitudes=100)
+
     # Show our reconstruction of the Nevian data
     fig = show_nevian_reconstruction(show_fig=show_fig, save_fig=save_fig)
 
     # Show the relative plasticity trasnfer functions
-    # fig = show_plasticity_transfer_function(show_fig=show_fig, save_fig=save_fig)
+    fig = show_plasticity_transfer_function(show_fig=show_fig, save_fig=save_fig)
 
     # Show the estimated plasticity for LTP and LTD based on our biophysical simulations
-    fig = show_estimated_plasticity(show_fig=show_fig, save_fig=save_fig)
+    fig = show_estimated_plasticity(data, show_fig=show_fig, save_fig=save_fig)

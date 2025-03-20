@@ -79,6 +79,10 @@ class SourceParams:
     def __post_init__(self):
         if self.valid_sources is not None:
             self.valid_sources = np.array(self.valid_sources)
+            if any(self.valid_sources < 0) or any(self.valid_sources >= self.num_presynaptic_neurons):
+                raise ValueError(
+                    f"valid_sources must be an array of integers between 0 and {self.num_presynaptic_neurons - 1}"
+                )
         self._generate_presynaptic_source()
 
     def _generate_presynaptic_source(self):
@@ -95,6 +99,15 @@ class SourceParams:
             source_array = np.repeat(
                 np.arange(self.num_presynaptic_neurons).reshape(-1, 1), num_source_per_input, axis=1
             )
+            source = source_array.flatten()
+        elif self.source_rule == "divided-restricted":
+            num_valid_sources = len(self.valid_sources)
+            if self.num_synapses % num_valid_sources != 0:
+                raise ValueError(
+                    f"num_synapses must be divisible by len(valid_sources) for source_rule == 'divided-restricted'"
+                )
+            num_source_per_input = int(self.num_synapses / num_valid_sources)
+            source_array = np.repeat(self.valid_sources.reshape(-1, 1), num_source_per_input, axis=1)
             source = source_array.flatten()
         else:
             raise ValueError(f"Invalid source rule: {self.source_rule}")

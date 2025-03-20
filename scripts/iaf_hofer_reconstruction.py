@@ -6,7 +6,7 @@ from src.iaf.experiments import get_experiment
 
 
 def get_args():
-    parser = ArgumentParser(description="Run an experiment varying the apical depression-potentiation ratio.")
+    parser = ArgumentParser(description="Run an experiment varying the distal depression-potentiation ratio.")
     parser.add_argument(
         "--config",
         type=str,
@@ -15,11 +15,11 @@ def get_args():
         help="Which configuration to use for the experiment",
     )
     parser.add_argument(
-        "--apical_dp_ratios",
+        "--distal_dp_ratios",
         type=float,
         nargs="+",
         default=[1.0, 1.025, 1.05, 1.075, 1.1],
-        help="The apical depression-potentiation ratios to simulate.",
+        help="The distal depression-potentiation ratios to simulate.",
     )
     parser.add_argument(
         "--edge_probabilities",
@@ -51,12 +51,12 @@ def get_args():
         help="The duration of the simulation in seconds.",
     )
     parser.add_argument(
-        "--no_apical",
+        "--no_distal",
         action="store_true",
         help=(
-            "Whether to run the experiment without apical dendrites.\n"
-            "If used, then the apical_dp_ratios will be used to set the "
-            "dp_ratio of basal synapses."
+            "Whether to run the experiment without distal dendrites.\n"
+            "If used, then the distal_dp_ratios will be used to set the "
+            "dp_ratio of distal synapses."
         ),
     )
     return parser.parse_args()
@@ -81,12 +81,12 @@ def run_experiment(args):
 
     # Get parameters for easier access
     config = args.config
-    apical_dp_ratios = args.apical_dp_ratios
+    distal_dp_ratios = args.distal_dp_ratios
     edge_probabilities = args.edge_probabilities
     num_neurons = args.num_neurons
     repeats = args.repeats
     duration = args.duration
-    no_apical = args.no_apical
+    no_distal = args.no_distal
 
     # Save the parameters
     joblib.dump(args, experiment_folder / "args.joblib")
@@ -95,23 +95,23 @@ def run_experiment(args):
     save_repo_snapshot(experiment_folder / "repo.zip", verbose=False)
 
     # Run all the requested experiments
-    for iratio, apical_dp_ratio in enumerate(apical_dp_ratios):
+    for iratio, distal_dp_ratio in enumerate(distal_dp_ratios):
         for iedge, edge_probability in enumerate(edge_probabilities):
             for repeat in range(repeats):
-                if not no_apical:
+                if not no_distal:
                     sim, cfg = get_experiment(
                         config,
-                        apical_dp_ratio=apical_dp_ratio,
+                        distal_dp_ratio=distal_dp_ratio,
                         num_simulations=num_neurons,
-                        no_apical=no_apical,
+                        no_distal=no_distal,
                         edge_probability=edge_probability,
                     )
                 else:
                     sim, cfg = get_experiment(
                         config,
-                        base_dp_ratio=apical_dp_ratio,
+                        base_dp_ratio=distal_dp_ratio,
                         num_simulations=num_neurons,
-                        no_apical=no_apical,
+                        no_distal=no_distal,
                         edge_probability=edge_probability,
                     )
 

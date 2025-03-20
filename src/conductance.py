@@ -286,7 +286,8 @@ def fit_sigmoid(df):
 
 
 def plasticity_transfer_function(
-    params: Tuple[float], x_values: Optional[np.ndarray] = None
+    params: Tuple[float],
+    x_values: Optional[np.ndarray] = None,
 ):
     """Generate a transfer function for plasticity based on sigmoid fit of buffer effects.
 

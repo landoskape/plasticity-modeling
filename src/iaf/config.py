@@ -100,7 +100,7 @@ class SourceConfig(BaseConfig):
 
     num_synapses: int = Field(..., ge=1, description="Number of synapses")
     num_presynaptic_neurons: int = Field(..., ge=1, description="Number of presynaptic neurons")
-    source_rule: Literal["random", "divided", "random-restricted"] = Field(
+    source_rule: Literal["random", "divided", "random-restricted", "divided-restricted"] = Field(
         ..., description="Rule for generating presynaptic source indices"
     )
     valid_sources: Optional[List[int]] = Field(None, description="List of valid presynaptic source indices")
