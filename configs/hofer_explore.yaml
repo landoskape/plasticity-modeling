@@ -31,11 +31,11 @@ sources:
 
 # Synapse group configurations
 synapses:
-  basal:
+  proximal:
     type: sourced
     plastic: true
-    num_synapses: 200
-    max_weight: 500e-12
+    num_synapses: 400
+    max_weight: 300e-12
     reversal: 0.0
     tau: 10e-3
     dt: 1e-3
@@ -43,7 +43,7 @@ synapses:
     conductance_threshold: 0.1
     source: 
       num_presynaptic_neurons: 36
-      num_synapses: 200
+      num_synapses: 400
       source_rule: divided-restricted
       valid_sources: [16, 17, 18, 19]
     
@@ -66,10 +66,10 @@ synapses:
     replacement:
       use_replacement: false
 
-  apical-simple:
+  distal-simple:
     type: sourced
     plastic: true
-    num_synapses: 720
+    num_synapses: 180
     max_weight: 100e-12
     reversal: 0.0
     tau: 10e-3
@@ -78,7 +78,7 @@ synapses:
     conductance_threshold: 0.1
     source: 
       num_presynaptic_neurons: 36
-      num_synapses: 720
+      num_synapses: 180
       source_rule: divided
     
     initialization:
@@ -100,10 +100,10 @@ synapses:
     replacement:
       use_replacement: false
 
-  apical-complex:
+  distal-complex:
     type: sourced
     plastic: true
-    num_synapses: 720
+    num_synapses: 180
     max_weight: 100e-12
     reversal: 0.0
     tau: 10e-3
@@ -112,7 +112,7 @@ synapses:
     conductance_threshold: 0.1
     source: 
       num_presynaptic_neurons: 36
-      num_synapses: 720
+      num_synapses: 180
       source_rule: divided
     
     initialization:
