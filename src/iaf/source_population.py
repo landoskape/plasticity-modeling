@@ -1,4 +1,4 @@
-from typing import Literal, Optional, List
+from typing import Literal, List
 from pathlib import Path
 import yaml
 from abc import ABC, abstractmethod
@@ -46,7 +46,8 @@ class SourcePopulation(ABC):
             The input rates and the number of time steps to keep them.
         """
         # Generate exponential interval (minimum 1)
-        interval = int(rng.exponential(self._rates_samples_mean)) + 1
+        sample_interval = rng.exponential(self._rates_samples_mean)
+        interval = int(sample_interval) + 1 if sample_interval != np.inf else np.inf
 
         # Generate rates
         rates = self._generate_new_rates()
@@ -113,11 +114,12 @@ class SourcePopulationGabor(SourcePopulation):
         self.dt = dt
 
         # Precompute the number of samples that the rates persist for (on average)
-        self._rates_samples_mean = round(self.tau_stim / self.dt)
+        self._rates_samples_mean = self.tau_stim / self.dt
 
-    def _generate_stimulus(self) -> np.ndarray:
-        stimulus_orientation = np.random.randint(0, 4, size=(3, 3))
-        if np.random.rand() < self.edge_probability:
+    def generate_stimulus(self, edge_probability: float = None) -> np.ndarray:
+        edge_probability = edge_probability or self.edge_probability
+        stimulus_orientation = rng.integers(0, 4, size=(3, 3))
+        if rng.random() < edge_probability:
             edge_orientation = stimulus_orientation[1, 1]
             x_outer = edge_orientation % 3
             y_outer = int(edge_orientation // 3)
@@ -126,7 +128,7 @@ class SourcePopulationGabor(SourcePopulation):
         return stimulus_orientation
 
     def _generate_new_rates(self) -> np.ndarray:
-        stimori = self._generate_stimulus()
+        stimori = self.generate_stimulus()
         stimulus = self.orientations[stimori]
         offsets = self.orientation_preference - np.reshape(stimulus, (-1, 1))
         drive = np.exp(self.concentration * np.cos(2 * offsets)) / (2 * np.pi * np.i0(self.concentration))
@@ -303,7 +305,7 @@ class SourcePopulationICA(SourceFromLoadingMixin, SourcePopulation):
         self._generate_source_loading()
 
         # Precompute the number of samples that the rates persist for (on average)
-        self._rates_samples_mean = round(self.tau_stim / self.dt)
+        self._rates_samples_mean = self.tau_stim / self.dt
 
     @classmethod
     def from_yaml(cls, fpath: Path):
@@ -474,7 +476,7 @@ class SourcePopulationCorrelation(SourceFromLoadingMixin, SourcePopulation):
         self._generate_source_loading()
 
         # Precompute the number of samples that the rates persist for (on average)
-        self._rates_samples_mean = round(self.tau_stim / self.dt)
+        self._rates_samples_mean = self.tau_stim / self.dt
 
     def _generate_source_loading(self) -> None:
         """
@@ -565,7 +567,7 @@ class SourcePopulationPoisson(SourcePopulation):
         self.dt = dt
 
         # Precompute the number of samples that the rates persist for (on average)
-        self._rates_samples_mean = round(self.tau_stim / self.dt)
+        self._rates_samples_mean = self.tau_stim / self.dt
 
     @classmethod
     def from_yaml(cls, fpath: Path):
