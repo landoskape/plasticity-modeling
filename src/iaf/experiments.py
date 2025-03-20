@@ -13,17 +13,20 @@ def get_experiment(
     apical_dp_ratio: float = 1.1,
     no_apical: bool = False,
     num_simulations: int = 1,
+    edge_probability: float = 0.5,
 ):
     fpath = config_dir() / f"{config_name}.yaml"
     config = SimulationConfig.from_yaml(fpath)
     config.synapses["basal"].plasticity.depression_potentiation_ratio = base_dp_ratio
     if no_apical:
-        config.synapses.pop("apical-simple")
-        config.synapses.pop("apical-complex")
+        config.synapses.pop("apical-simple", None)
+        config.synapses.pop("apical-complex", None)
     else:
         config.synapses["apical-simple"].plasticity.depression_potentiation_ratio = base_dp_ratio
         config.synapses["apical-complex"].plasticity.depression_potentiation_ratio = apical_dp_ratio
     config.num_simulations = num_simulations
+    if config_name == "hofer":
+        config.sources["excitatory"].edge_probability = edge_probability
     return Simulation.from_config(config), config
 
 
