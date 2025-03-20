@@ -35,6 +35,7 @@ d/p ratios and locations on the branch. It works!!!
 - Need to add the single example figure and a summary plot and a good illustration of the correlated source modell...
 - Results / iaf_runs / correlated / 20250312 has the results for the basal / apical correlated source experiment
 - Results / iaf_runs / uncorrelated / 20250319_1 has the results for the basal only version with the same DP ratios
+- Results / iaf_runs / ica / 20250320_2 has the results for the updated correlation experiment with new names (p, ds, dc)
 
 ## Section on Hofer Reconstructions
 - Results / iaf_runs / hofer / 20250320 has the results for the hofer experiment
@@ -99,3 +100,7 @@ d/p ratios and locations on the branch. It works!!!
 
 
 
+
+-- Need to figure out what's up with the new no-replacement hofer runs... (see iaf_testing_sims)
+   -- problem is that there's too much requirement for inputs? Maybe not enough decorrelation?
+   -- Hmmmmmm
