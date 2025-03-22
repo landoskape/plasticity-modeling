@@ -1,8 +1,6 @@
-# Simulation parameters
 num_simulations: 1
 dt: 1e-3
 
-# Neuron configuration
 neuron:
   time_constant: 20e-3
   resistance: 100e6
@@ -13,29 +11,21 @@ neuron:
   homeostasis_tau: 20.0
   homeostasis_set_point: 10.0
 
-# Source population configuration
 sources:
   excitatory: 
     type: gabor
     edge_probability: 1.0
-    concentration: 1.0
-    baseline_rate: 5.0
-    driven_rate: 45.0
+    concentration: 1.5
+    baseline_rate: 15.0
+    driven_rate: 30.0
     tau_stim: 10e-3
 
-  inhibitory: 
-    type: poisson
-    num_inputs: 100
-    rates: 10.0
-    tau_stim: inf
-
-# Synapse group configurations
 synapses:
   proximal:
     type: sourced
     plastic: true
-    num_synapses: 400
-    max_weight: 300e-12
+    num_synapses: 1000
+    max_weight: 80e-12
     reversal: 0.0
     tau: 10e-3
     dt: 1e-3
@@ -43,7 +33,7 @@ synapses:
     conductance_threshold: 0.1
     source: 
       num_presynaptic_neurons: 36
-      num_synapses: 400
+      num_synapses: 1000
       source_rule: divided-restricted
       valid_sources: [16, 17, 18, 19]
     
@@ -51,7 +41,6 @@ synapses:
       min_weight: 0.0
       max_weight: 1.0
 
-    # Plasticity configuration for basal synapses
     plasticity:
       use_stdp: true
       stdp_rate: 0.01
@@ -62,15 +51,14 @@ synapses:
       homeostasis_tau: 20.0
       homeostasis_scale: 1.0
 
-    # Replacement configuration for basal synapses
     replacement:
       use_replacement: false
 
   distal-simple:
     type: sourced
     plastic: true
-    num_synapses: 180
-    max_weight: 100e-12
+    num_synapses: 360
+    max_weight: 40e-12
     reversal: 0.0
     tau: 10e-3
     dt: 1e-3
@@ -78,14 +66,13 @@ synapses:
     conductance_threshold: 0.1
     source: 
       num_presynaptic_neurons: 36
-      num_synapses: 180
+      num_synapses: 360
       source_rule: divided
     
     initialization:
       min_weight: 0.0
       max_weight: 1.0
 
-    # Plasticity configuration for basal synapses
     plasticity:
       use_stdp: true
       stdp_rate: 0.01
@@ -96,15 +83,14 @@ synapses:
       homeostasis_tau: 20.0
       homeostasis_scale: 1.0
 
-    # Replacement configuration for basal synapses
     replacement:
       use_replacement: false
 
   distal-complex:
     type: sourced
     plastic: true
-    num_synapses: 180
-    max_weight: 100e-12
+    num_synapses: 360
+    max_weight: 40e-12
     reversal: 0.0
     tau: 10e-3
     dt: 1e-3
@@ -112,14 +98,13 @@ synapses:
     conductance_threshold: 0.1
     source: 
       num_presynaptic_neurons: 36
-      num_synapses: 180
+      num_synapses: 360
       source_rule: divided
     
     initialization:
       min_weight: 0.0
       max_weight: 1.0
 
-    # Plasticity configuration for basal synapses
     plasticity:
       use_stdp: true
       stdp_rate: 0.01
@@ -130,27 +115,5 @@ synapses:
       homeostasis_tau: 20.0
       homeostasis_scale: 1.0
 
-    # Replacement configuration for basal synapses
     replacement:
       use_replacement: false
-
-  # Inhibitory synapses
-  inhibitory:
-    type: direct
-    plastic: false
-    num_synapses: 100
-    max_weight: 100e-12
-    reversal: -70e-3
-    tau: 15e-3
-    conductance_threshold: 0.0
-    dt: 1e-3
-    source_population: inhibitory
-
-    initialization:
-      min_weight: 1.0
-      max_weight: 1.0
-
-    # Plasticity configuration for inhibitory synapses
-    plasticity:
-      use_stdp: false
-      use_homeostasis: false
