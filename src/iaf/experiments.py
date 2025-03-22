@@ -56,3 +56,36 @@ def get_experiment(
     if hasattr(config.sources["excitatory"], "edge_probability"):
         config.sources["excitatory"].edge_probability = edge_probability
     return Simulation.from_config(config), config
+
+
+# def _set_nested_attribute(obj, path, value):
+#     """
+#     Set a nested attribute on an object using a dot-separated path.
+
+#     Args:
+#         obj: The object to modify
+#         path: Dot-separated path to the attribute (e.g., "synapses.apical.plasticity.depression_potentiation_ratio")
+#         value: The value to set
+#     """
+#     path_parts = path.split(".")
+
+#     # Navigate to the parent object
+#     current = obj
+#     for part in path_parts[:-1]:
+#         if part in current.__dict__:
+#             current = current.__dict__[part]
+#         elif hasattr(current, part):
+#             current = getattr(current, part)
+#         elif isinstance(current, dict) and part in current:
+#             current = current[part]
+#         else:
+#             raise AttributeError(f"Cannot find attribute or key '{part}' in path '{path}'")
+
+#     # Set the value on the final object
+#     last_part = path_parts[-1]
+#     if hasattr(current, last_part):
+#         setattr(current, last_part, value)
+#     elif isinstance(current, dict) and last_part in current:
+#         current[last_part] = value
+#     else:
+#         raise AttributeError(f"Cannot find attribute or key '{last_part}' in path '{path}'")
