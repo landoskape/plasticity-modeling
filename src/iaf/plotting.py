@@ -61,7 +61,7 @@ def create_gabor(
 def create_gabor_grid(
     orientations: np.ndarray,
     spacing: int = 1,
-    gabor_params: Optional[dict] = None,
+    gabor_params: Optional[dict] = {},
 ) -> np.ndarray:
     """
     Create a grid of Gabor patterns from a 3x3 array of orientations.
