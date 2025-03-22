@@ -33,12 +33,11 @@ amount of plasticity evoked by positive pairings (LTP) or negative pairings (LTD
 - In iaf_correlation.ipynb the main result is in the second figure, showing the weight as a function of input correlation for different
 d/p ratios and locations on the branch. It works!!!
 - Need to add the single example figure and a summary plot and a good illustration of the correlated source modell...
-- Results / iaf_runs / correlated / 20250312 has the results for the basal / apical correlated source experiment
-- Results / iaf_runs / uncorrelated / 20250319_1 has the results for the basal only version with the same DP ratios
-- Results / iaf_runs / ica / 20250320_2 has the results for the updated correlation experiment with new names (p, ds, dc)
+- Results / iaf_runs / ica / 20250320 has the results for the updated correlation experiment with new names (p, ds, dc)
 
 ## Section on Hofer Reconstructions
 - Results / iaf_runs / hofer / 20250320 has the results for the hofer experiment
+- Consider the possibility of allowing each pixel to have it's own interval? 
 
 ## Software Development Goals
 - Massive progress on configuration. Got some finishing touches I think, then ready. 
@@ -47,7 +46,9 @@ d/p ratios and locations on the branch. It works!!!
 - Parallelization plan:
   - Also check if concatenating synapse groups makes them faster... (e.g. 10x100 synapses vs 1x1000...)
   - If so might be good to add a "concatenate" and "chunk" method that can be used to speed up parallel simulations
-
+- Analysis organization:
+  - Right now the iaf_correlation.ipynb and the iaf_hofer.ipynb are both doing hard coded analysis stuff with a lot
+    of repeated code. Gotta create centralized analysis functions that can be reused (preferably across experiments?) 
 
 # Figure Mapping
 - Overall Notes: 
@@ -103,4 +104,7 @@ d/p ratios and locations on the branch. It works!!!
 
 -- Need to figure out what's up with the new no-replacement hofer runs... (see iaf_testing_sims)
    -- problem is that there's too much requirement for inputs? Maybe not enough decorrelation?
-   -- Hmmmmmm
+   -- Solution ideas:
+      - Increase "concentration" of input tuning
+      - Vary the baseline vs driven rate of the inputs
+      - Check what's going on with homeostatic tuning as well
