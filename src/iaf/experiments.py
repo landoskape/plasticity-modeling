@@ -25,7 +25,7 @@ def get_experiment(
         config.synapses["distal-simple"].plasticity.depression_potentiation_ratio = base_dp_ratio
         config.synapses["distal-complex"].plasticity.depression_potentiation_ratio = distal_dp_ratio
     config.num_simulations = num_simulations
-    if config_name == "hofer":
+    if hasattr(config.sources["excitatory"], "edge_probability"):
         config.sources["excitatory"].edge_probability = edge_probability
     return Simulation.from_config(config), config
 
