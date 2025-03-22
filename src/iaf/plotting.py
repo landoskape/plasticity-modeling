@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Optional
+from typing import Optional, List
 
 
 def create_gabor(
@@ -10,30 +10,36 @@ def create_gabor(
     halfsize: int = 25,
     phase: float = 0.0,
 ) -> np.ndarray:
-    """
-    Create a Gabor pattern with specified parameters.
+    """Create a Gabor pattern with specified parameters.
+
+    This function generates a 2D Gabor pattern, which is the product of a
+    sinusoidal grating and a Gaussian envelope. The pattern is commonly used
+    to model the receptive fields of simple cells in the visual cortex.
 
     Parameters
     ----------
     orientation : float
-        The orientation angle in radians (3π/4 = vertical)
-        This is weird like this to match the edge orientation in the
-        source_population Gabor!
-    width : float
-        The width of the sinusoidal grating (relative to fullsize)
-    envelope : float
-        The standard deviation of the Gaussian envelope (relative to fullsize)
-    gamma : float
-        The spatial aspect ratio of the envelope
-    halfsize : int
-        The number of pixels in half of the grid
-    phase : float
-        The phase of the sinusoidal grating
+        The orientation angle in radians (3π/4 = vertical).
+        Note: This is offset by π/4 and negated internally to match the
+        edge orientation in the source_population Gabor.
+    width : float, optional
+        The width of the sinusoidal grating (relative to fullsize),
+        default is 0.6.
+    envelope : float, optional
+        The standard deviation of the Gaussian envelope (relative to fullsize),
+        default is 0.5.
+    gamma : float, optional
+        The spatial aspect ratio of the envelope, default is 1.5.
+    halfsize : int, optional
+        The number of pixels in half of the grid, default is 25.
+    phase : float, optional
+        The phase of the sinusoidal grating, default is 0.0.
 
     Returns
     -------
     np.ndarray
-        A 2D array containing the Gabor pattern
+        A 2D array of shape (2*halfsize+1, 2*halfsize+1) containing the
+        Gabor pattern.
     """
     orientation += np.pi / 4
     orientation = -1 * orientation
@@ -63,22 +69,29 @@ def create_gabor_grid(
     spacing: int = 1,
     gabor_params: Optional[dict] = {},
 ) -> np.ndarray:
-    """
-    Create a grid of Gabor patterns from a 3x3 array of orientations.
+    """Create a grid of Gabor patterns from a 3x3 array of orientations.
+
+    This function generates a grid of Gabor patterns with the orientations
+    specified in the input array, with optional spacing between the patterns.
 
     Parameters
     ----------
     orientations : np.ndarray
-        A 3x3 array of orientation angles in radians
-    spacing : int
-        Number of pixels to add between Gabors
+        A 3x3 array of orientation angles in radians.
+    spacing : int, optional
+        Number of pixels to add between Gabors, default is 1.
     gabor_params : dict, optional
-        Additional parameters to pass to create_gabor()
+        Additional parameters to pass to create_gabor(), default is {}.
 
     Returns
     -------
     np.ndarray
-        A 2D array containing the grid of Gabor patterns
+        A 2D array containing the grid of Gabor patterns.
+
+    Raises
+    ------
+    ValueError
+        If orientations is not a 3x3 array.
     """
     if orientations.shape != (3, 3):
         raise ValueError("orientations must be a 3x3 array")
@@ -93,7 +106,21 @@ def create_gabor_grid(
     return stitch_gabor_grid(gabors, spacing)
 
 
-def stitch_gabor_grid(gabors, spacing=1):
+def stitch_gabor_grid(gabors: List[List[np.ndarray]], spacing: int = 1) -> np.ndarray:
+    """Stitch a 3x3 grid of Gabor patterns into a single array.
+
+    Parameters
+    ----------
+    gabors : list of list of np.ndarray
+        A 3x3 list of lists, where each element is a 2D Gabor pattern array.
+    spacing : int, optional
+        Number of pixels to add between Gabors, default is 1.
+
+    Returns
+    -------
+    np.ndarray
+        A 2D array containing the stitched grid of Gabor patterns.
+    """
     # Calculate output size
     gabor_size = gabors[0][0].shape[0]
     output_size = 3 * gabor_size + 2 * spacing

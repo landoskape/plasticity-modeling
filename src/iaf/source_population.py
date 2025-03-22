@@ -1,4 +1,4 @@
-from typing import Literal, List
+from typing import Literal, List, Tuple, Optional, Union
 from pathlib import Path
 import yaml
 from abc import ABC, abstractmethod
@@ -14,6 +14,30 @@ from .config import (
 
 
 def create_source_population(config: SourcePopulationConfig) -> "SourcePopulation":
+    """Create a source population instance based on the configuration type.
+
+    This factory function creates the appropriate source population object
+    based on the type of configuration provided.
+
+    Parameters
+    ----------
+    config : SourcePopulationConfig
+        The configuration for the source population. Must be one of the following types:
+        - SourceGaborConfig: Creates a SourcePopulationGabor
+        - SourceICAConfig: Creates a SourcePopulationICA
+        - SourceCorrelationConfig: Creates a SourcePopulationCorrelation
+        - SourcePoissonConfig: Creates a SourcePopulationPoisson
+
+    Returns
+    -------
+    SourcePopulation
+        The created source population instance.
+
+    Raises
+    ------
+    ValueError
+        If the configuration type is not supported.
+    """
     if isinstance(config, SourceGaborConfig):
         return SourcePopulationGabor.from_config(config)
     elif isinstance(config, SourceICAConfig):
@@ -27,8 +51,27 @@ def create_source_population(config: SourcePopulationConfig) -> "SourcePopulatio
 
 
 class SourcePopulation(ABC):
-    """
-    A population of input sources with shared properties.
+    """Abstract base class for populations of input sources.
+
+    This class defines the interface for all source populations, which generate
+    input rates for the synaptic inputs to neurons in the simulation.
+
+    Each source population generates rates with specific statistical properties
+    that remain constant for an exponentially distributed random interval
+    (determined by tau_stim).
+
+    Attributes
+    ----------
+    num_inputs : int
+        The number of input neurons in the population.
+    dt : float
+        The time step of the simulation in seconds.
+    tau_stim : float
+        The time constant for the stimulus in seconds, which determines
+        the average duration for which input rates remain constant.
+    _rates_samples_mean : int
+        The mean number of time steps for which rates remain constant,
+        calculated as tau_stim / dt.
     """
 
     num_inputs: int
@@ -36,14 +79,20 @@ class SourcePopulation(ABC):
     tau_stim: float
     _rates_samples_mean: int
 
-    def generate_rates(self) -> tuple[np.ndarray, int]:
-        """
-        Generate input rates and an interval for how long to keep them.
+    def generate_rates(self) -> Tuple[np.ndarray, int]:
+        """Generate input rates and an interval for how long to keep them.
+
+        This method generates new input rates by calling the subclass-specific
+        _generate_new_rates method, and determines the duration for which these
+        rates should remain constant based on an exponential distribution with
+        mean tau_stim.
 
         Returns
         -------
         tuple[np.ndarray, int]
-            The input rates and the number of time steps to keep them.
+            A tuple containing:
+            - rates: Array of shape (num_inputs,) with the firing rates for each input
+            - interval: The number of time steps to keep these rates
         """
         # Generate exponential interval (minimum 1)
         sample_interval = rng.exponential(self._rates_samples_mean)
@@ -56,35 +105,84 @@ class SourcePopulation(ABC):
 
     @abstractmethod
     def _generate_new_rates(self) -> np.ndarray:
-        """
-        Generate new input rates.
+        """Generate new input rates.
+
+        This abstract method must be implemented by subclasses to generate
+        input rates according to their specific statistical properties.
+
+        Returns
+        -------
+        np.ndarray
+            Array of shape (num_inputs,) containing the firing rates for each input
         """
         pass
 
     @classmethod
     @abstractmethod
-    def from_config(cls, config):
+    def from_config(cls, config: SourcePopulationConfig) -> "SourcePopulation":
         """Create a source population from a configuration object.
 
-        Args:
-            config: The configuration for the source population.
+        Parameters
+        ----------
+        config : SourcePopulationConfig
+            The configuration for the source population.
 
-        Returns:
+        Returns
+        -------
+        SourcePopulation
             A new source population instance.
         """
         pass
 
     @classmethod
     @abstractmethod
-    def from_yaml(cls, fpath: Path):
+    def from_yaml(cls, fpath: Path) -> "SourcePopulation":
         """Create a source population from a YAML configuration file.
 
-        Args:
-            fpath: The path to the YAML configuration file.
+        Parameters
+        ----------
+        fpath : Path
+            The path to the YAML configuration file.
+
+        Returns
+        -------
+        SourcePopulation
+            A new source population instance.
         """
+        pass
 
 
 class SourcePopulationGabor(SourcePopulation):
+    """Source population that generates rates based on Gabor-like visual stimuli.
+
+    This class simulates a population of neurons responding to oriented Gabor patterns,
+    potentially with edge features. The stimulus is represented as a 3x3 grid of
+    orientation values, and neurons respond based on their preferred orientation
+    and the orientation of the stimuli.
+
+    Attributes
+    ----------
+    edge_probability : float
+        The probability of generating an edge in the stimulus.
+    concentration : float
+        The concentration parameter of the von Mises distribution, controlling
+        the width of tuning curves.
+    baseline_rate : float
+        The baseline firing rate of neurons when not driven by a stimulus.
+    driven_rate : float
+        The maximum additional rate that can be added to the baseline by a stimulus.
+    orientations : np.ndarray
+        The set of possible orientations (in radians) for the stimulus.
+    num_orientations : int
+        The number of distinct orientations.
+    num_inputs : int
+        The number of input neurons.
+    tau_stim : float
+        The time constant for the stimulus in seconds.
+    dt : float
+        The time step of the simulation in seconds.
+    """
+
     edge_probability: float
     concentration: float
     baseline_rate: float
@@ -104,6 +202,23 @@ class SourcePopulationGabor(SourcePopulation):
         tau_stim: float,
         dt: float,
     ):
+        """Initialize the Gabor source population.
+
+        Parameters
+        ----------
+        edge_probability : float
+            The probability of generating an edge in the stimulus.
+        concentration : float
+            The concentration parameter of the von Mises distribution.
+        baseline_rate : float
+            The baseline firing rate.
+        driven_rate : float
+            The maximum additional rate added by stimulus.
+        tau_stim : float
+            The time constant for the stimulus in seconds.
+        dt : float
+            The time step in seconds.
+        """
         self.edge_probability = edge_probability
         self.orientations = np.arange(self.num_orientations) / self.num_orientations * np.pi
         self.concentration = concentration
@@ -115,7 +230,23 @@ class SourcePopulationGabor(SourcePopulation):
         # Precompute the number of samples that the rates persist for (on average)
         self._rates_samples_mean = self.tau_stim / self.dt
 
-    def generate_stimulus(self, edge_probability: float = None) -> np.ndarray:
+    def generate_stimulus(self, edge_probability: Optional[float] = None) -> np.ndarray:
+        """Generate a 3x3 stimulus array with orientations.
+
+        Creates a 3x3 array where each cell contains an orientation index (0-3).
+        With probability edge_probability, it will create an edge feature by
+        setting the orientations of two opposite cells to match the center cell.
+
+        Parameters
+        ----------
+        edge_probability : float, optional
+            The probability of generating an edge, overriding the instance value.
+
+        Returns
+        -------
+        np.ndarray
+            A 3x3 array of orientation indices (0-3).
+        """
         edge_probability = edge_probability or self.edge_probability
         stimulus_orientation = rng.integers(0, 4, size=(3, 3))
         if rng.random() < edge_probability:
@@ -127,9 +258,34 @@ class SourcePopulationGabor(SourcePopulation):
         return stimulus_orientation
 
     def vonmises(self, circular_offset: np.ndarray) -> np.ndarray:
+        """Calculate von Mises tuning curve values for given orientation offsets.
+
+        Parameters
+        ----------
+        circular_offset : np.ndarray
+            Array of orientation differences (in radians).
+
+        Returns
+        -------
+        np.ndarray
+            Array of same shape as circular_offset containing von Mises values.
+        """
         return np.exp(self.concentration * np.cos(2 * circular_offset)) / (2 * np.pi * np.i0(self.concentration))
 
     def convert_stimulus_to_rates(self, stimulus: np.ndarray) -> np.ndarray:
+        """Convert a stimulus array of orientation indices to firing rates.
+
+        Parameters
+        ----------
+        stimulus : np.ndarray
+            A 3x3 array of orientation indices (0-3).
+
+        Returns
+        -------
+        np.ndarray
+            An array of shape (9, 4) containing the firing rates for each
+            position in the stimulus (9) and each preferred orientation (4).
+        """
         stimulus = self.orientations[stimulus]
         offsets = self.orientations.reshape(1, -1) - np.reshape(stimulus, (-1, 1))
         drive = self.vonmises(offsets)
@@ -137,18 +293,54 @@ class SourcePopulationGabor(SourcePopulation):
         return rates
 
     def _generate_new_rates(self) -> np.ndarray:
+        """Generate new input rates based on a Gabor stimulus.
+
+        This method:
+        1. Generates a 3x3 stimulus array of orientations
+        2. Converts the stimulus to firing rates
+        3. Reshapes the rates to a 1D array
+
+        Returns
+        -------
+        np.ndarray
+            Array of shape (num_inputs,) containing firing rates.
+        """
         stimori = self.generate_stimulus()
         rates = self.convert_stimulus_to_rates(stimori)
         return np.reshape(rates, -1)
 
     @classmethod
-    def from_yaml(cls, fpath: Path):
+    def from_yaml(cls, fpath: Path) -> "SourcePopulationGabor":
+        """Create a Gabor source population from a YAML configuration file.
+
+        Parameters
+        ----------
+        fpath : Path
+            The path to the YAML configuration file.
+
+        Returns
+        -------
+        SourcePopulationGabor
+            A new Gabor source population instance.
+        """
         with open(fpath, "r") as f:
             config = yaml.safe_load(f)
         return cls.from_config(SourceGaborConfig.model_validate(config))
 
     @classmethod
-    def from_config(cls, config: SourceGaborConfig):
+    def from_config(cls, config: SourceGaborConfig) -> "SourcePopulationGabor":
+        """Create a Gabor source population from a configuration object.
+
+        Parameters
+        ----------
+        config : SourceGaborConfig
+            The configuration for the Gabor source population.
+
+        Returns
+        -------
+        SourcePopulationGabor
+            A new Gabor source population instance.
+        """
         return cls(
             edge_probability=config.edge_probability,
             concentration=config.concentration,
@@ -160,8 +352,26 @@ class SourcePopulationGabor(SourcePopulation):
 
 
 class SourceFromLoadingMixin:
-    """
-    A mixin for source populations that are generated from a loading matrix.
+    """A mixin for source populations that generate rates from a loading matrix.
+
+    This mixin provides functionality for source populations that generate input rates
+    by combining latent signals with noise using a loading matrix. The loading matrix
+    determines how each latent signal contributes to the activity of each input neuron.
+
+    Attributes
+    ----------
+    num_inputs : int
+        The number of input neurons.
+    num_signals : int
+        The number of latent signals (independent components).
+    source_loading : np.ndarray
+        The loading matrix of shape (num_signals, num_inputs) that maps signals to inputs.
+    var_adjustment : np.ndarray
+        The variance adjustment factor for each input, used to normalize the variance.
+    rate_mean : float
+        The mean firing rate to center the distribution around.
+    rate_std : float
+        The standard deviation of firing rates.
     """
 
     num_inputs: int
@@ -173,19 +383,32 @@ class SourceFromLoadingMixin:
     rng: np.random.Generator
 
     def _generate_source_loading(self) -> None:
-        """
-        Generate the source loading and the variance adjustment.
+        """Generate the source loading matrix and compute the variance adjustment.
+
+        This method must be implemented by subclasses to create the appropriate
+        source loading matrix based on their specific requirements.
+
+        Raises
+        ------
+        NotImplementedError
+            If the subclass does not implement this method.
         """
         raise NotImplementedError("Subclasses must implement this method.")
 
     def _generate_new_rates(self) -> np.ndarray:
-        """
-        Generate new input rates.
+        """Generate new input rates by combining latent signals with noise.
+
+        This method:
+        1. Generates random signal components for each latent signal
+        2. Generates random noise components for each input neuron
+        3. Combines signals and noise using the source loading matrix
+        4. Scales and shifts the result to get the desired rate distribution
+        5. Clips negative rates to zero
 
         Returns
         -------
         np.ndarray
-            The input rates for each input neuron in the source population.
+            Array of shape (num_inputs,) containing the firing rates for each input neuron.
         """
         # Generate random signal components
         signal_components = rng.standard_normal(self.num_signals)
@@ -222,6 +445,16 @@ class SourceFromLoadingMixin:
 
         In practice, this isn't the true correlation because we have limited samples
         and the input rates are clipped to be nonnegative.
+
+        Parameters
+        ----------
+        source_loading : np.ndarray
+            The loading matrix of shape (num_signals, num_inputs).
+
+        Returns
+        -------
+        np.ndarray
+            The estimated correlation matrix of same shape as source_loading.
         """
         estimate = np.zeros_like(source_loading)
         for isource, loading in enumerate(source_loading):
@@ -314,7 +547,7 @@ class SourcePopulationICA(SourceFromLoadingMixin, SourcePopulation):
         self._rates_samples_mean = self.tau_stim / self.dt
 
     @classmethod
-    def from_yaml(cls, fpath: Path):
+    def from_yaml(cls, fpath: Path) -> "SourcePopulationICA":
         """Create a source population from a YAML configuration file.
 
         Args:
@@ -325,7 +558,7 @@ class SourcePopulationICA(SourceFromLoadingMixin, SourcePopulation):
         return cls.from_config(SourceICAConfig.model_validate(config))
 
     @classmethod
-    def from_config(cls, config: SourceICAConfig):
+    def from_config(cls, config: SourceICAConfig) -> "SourcePopulationICA":
         """Create a source population from a configuration object.
 
         Args:
@@ -498,7 +731,7 @@ class SourcePopulationCorrelation(SourceFromLoadingMixin, SourcePopulation):
         self.var_adjustment = np.sqrt(np.sum(self.source_loading**2, axis=0) + 1)
 
     @classmethod
-    def from_yaml(cls, fpath: Path):
+    def from_yaml(cls, fpath: Path) -> "SourcePopulationCorrelation":
         """Create a source population from a YAML configuration file.
 
         Args:
@@ -509,7 +742,7 @@ class SourcePopulationCorrelation(SourceFromLoadingMixin, SourcePopulation):
         return cls.from_config(SourceCorrelationConfig.model_validate(config))
 
     @classmethod
-    def from_config(cls, config: SourceCorrelationConfig):
+    def from_config(cls, config: SourceCorrelationConfig) -> "SourcePopulationCorrelation":
         """Create a Poisson source population from a configuration object.
 
         Args:
@@ -576,7 +809,7 @@ class SourcePopulationPoisson(SourcePopulation):
         self._rates_samples_mean = self.tau_stim / self.dt
 
     @classmethod
-    def from_yaml(cls, fpath: Path):
+    def from_yaml(cls, fpath: Path) -> "SourcePopulationPoisson":
         """Create a source population from a YAML configuration file.
 
         Args:
@@ -587,7 +820,7 @@ class SourcePopulationPoisson(SourcePopulation):
         return cls.from_config(SourcePoissonConfig.model_validate(config))
 
     @classmethod
-    def from_config(cls, config: SourcePoissonConfig):
+    def from_config(cls, config: SourcePoissonConfig) -> "SourcePopulationPoisson":
         """Create a Poisson source population from a configuration object.
 
         Args:
@@ -603,7 +836,7 @@ class SourcePopulationPoisson(SourcePopulation):
             dt=config.dt,
         )
 
-    def _validate_rates(self, rates: float | List[float] | np.ndarray) -> np.ndarray:
+    def _validate_rates(self, rates: Union[float, List[float], np.ndarray]) -> np.ndarray:
         if isinstance(rates, (float, int)):
             return np.ones(self.num_inputs) * rates
         elif isinstance(rates, list):
