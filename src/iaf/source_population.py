@@ -106,7 +106,6 @@ class SourcePopulationGabor(SourcePopulation):
     ):
         self.edge_probability = edge_probability
         self.orientations = np.arange(self.num_orientations) / self.num_orientations * np.pi
-        self.orientation_preference = self.orientations.reshape(1, -1)
         self.concentration = concentration
         self.baseline_rate = baseline_rate
         self.driven_rate = driven_rate
@@ -127,12 +126,19 @@ class SourcePopulationGabor(SourcePopulation):
             stimulus_orientation[-x_outer - 1, -y_outer - 1] = edge_orientation
         return stimulus_orientation
 
+    def vonmises(self, circular_offset: np.ndarray) -> np.ndarray:
+        return np.exp(self.concentration * np.cos(2 * circular_offset)) / (2 * np.pi * np.i0(self.concentration))
+
+    def convert_stimulus_to_rates(self, stimulus: np.ndarray) -> np.ndarray:
+        stimulus = self.orientations[stimulus]
+        offsets = self.orientations.reshape(1, -1) - np.reshape(stimulus, (-1, 1))
+        drive = self.vonmises(offsets)
+        rates = self.baseline_rate + self.driven_rate * drive
+        return rates
+
     def _generate_new_rates(self) -> np.ndarray:
         stimori = self.generate_stimulus()
-        stimulus = self.orientations[stimori]
-        offsets = self.orientation_preference - np.reshape(stimulus, (-1, 1))
-        drive = np.exp(self.concentration * np.cos(2 * offsets)) / (2 * np.pi * np.i0(self.concentration))
-        rates = self.baseline_rate + self.driven_rate * drive
+        rates = self.convert_stimulus_to_rates(stimori)
         return np.reshape(rates, -1)
 
     @classmethod
