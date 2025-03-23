@@ -99,9 +99,6 @@ d/p ratios and locations on the branch. It works!!!
   - Panel D: Replication of Figure 3D from Iacaruso showing how orientation tuning is aligned in co-axial space
 
 
-
-
-
 -- Need to figure out what's up with the new no-replacement hofer runs... (see iaf_testing_sims)
    -- problem is that there's too much requirement for inputs? Maybe not enough decorrelation?
    -- Solution ideas:
