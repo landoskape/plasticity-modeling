@@ -97,3 +97,36 @@ def named_transpose(list_of_lists, map_func=list):
     A, B, C = named_transpose(list_of_lists)
     """
     return map(map_func, zip(*list_of_lists))
+
+
+def nanshift(s, n, token=np.nan, axis=-1):
+    """
+    Shifts the input array by n positions, filling with NaN or specified token.
+
+    Parameters:
+    -----------
+    s : array-like
+        Input signal to be shifted
+    n : int
+        Number of positions to shift (positive: shift right, negative: shift left)
+    axis : int
+        Axis to shift along (default: -1)
+    token : float
+        Value to fill the empty spaces (default: np.nan)
+
+    Returns:
+    --------
+    array-like : Shifted signal
+    """
+    s = np.array(s)
+    s = np.moveaxis(s, axis, 0)
+
+    if n > 0:
+        signal = np.concatenate([np.full((n, *s.shape[1:]), token), s[:-n]], axis=0)
+    elif n < 0:
+        signal = np.concatenate([s[-n:], np.full((-n, *s.shape[1:]), token)], axis=0)
+    else:
+        signal = s.copy()
+
+    signal = np.moveaxis(signal, 0, axis)
+    return signal

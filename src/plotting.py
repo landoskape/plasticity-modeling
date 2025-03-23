@@ -2,6 +2,27 @@ import math
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+from dataclasses import dataclass
+
+
+@dataclass
+class Proximal:
+    color: str = "black"
+    label: str = "proximal"
+
+
+@dataclass
+class DistalSimple:
+    color: str = "midnightblue"
+    label: str = "distal-simple"
+    labelnl: str = "distal\nsimple"
+
+
+@dataclass
+class DistalComplex:
+    color: str = "blue"
+    label: str = "distal-complex"
+    labelnl: str = "distal\ncomplex"
 
 
 def save_figure(fig, path, **kwargs):
@@ -134,3 +155,78 @@ def errorPlot(x, data, axis=-1, se=False, ax=None, handle_nans=True, **kwargs):
     ax.fill_between(x, meanData + errorData, meanData - errorData, **fillBetweenArgs)
     kwargs.pop("alpha", None)
     ax.plot(x, meanData, **kwargs)
+
+
+def format_spines(
+    ax,
+    x_pos,
+    y_pos,
+    xbounds=None,
+    ybounds=None,
+    xticks=None,
+    yticks=None,
+    spine_linewidth=1,
+    tick_length=6,
+    tick_width=1,
+):
+    """
+    Format a matplotlib axis to have separated spines with data offset from axes.
+
+    Parameters:
+    -----------
+    ax : matplotlib.axes.Axes
+        The axis to format
+    x_pos : int or float, optional
+        The y-axis position on the x axis
+    y_pos : int or float, optional
+        The x-axis position on the y axis
+    xbounds : tuple, optional
+        The x-axis bounds as (min, max)
+    ybounds : tuple, optional
+        The y-axis bounds as (min, max)
+    xticks : list or array, optional
+        Custom x-axis tick positions
+    yticks : list or array, optional
+        Custom y-axis tick positions
+    spine_linewidth : int or float, optional
+        Width of the axis spines
+    tick_length : int or float, optional
+        Length of the tick marks
+    tick_width : int or float, optional
+        Width of the tick marks
+
+    Returns:
+    --------
+    ax : matplotlib.axes.Axes
+        The formatted axis
+    """
+    # Hide the top and right spines
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    # Set spine line width
+    for spine in ax.spines.values():
+        spine.set_linewidth(spine_linewidth)
+
+    # Move bottom spine down and left spine left
+    ax.spines["bottom"].set_position(("data", y_pos))
+    ax.spines["left"].set_position(("data", x_pos))
+
+    # Set axis limits if provided
+    if xbounds is not None:
+        ax.spines["bottom"].set_bounds(xbounds[0], xbounds[1])
+
+    if ybounds is not None:
+        ax.spines["left"].set_bounds(ybounds[0], ybounds[1])
+
+    # Set custom ticks if provided
+    if xticks is not None:
+        ax.set_xticks(xticks)
+
+    if yticks is not None:
+        ax.set_yticks(yticks)
+
+    # Adjust tick appearance
+    ax.tick_params(axis="both", which="major", direction="out", length=tick_length, width=tick_width)
+
+    return ax
