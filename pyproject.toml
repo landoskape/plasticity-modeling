@@ -20,6 +20,7 @@ dependencies = [
     "freezedry",
     "matplotlib",
     "syd",
+    "scikit-learn",
 ]
 requires-python = ">=3.9"
 
