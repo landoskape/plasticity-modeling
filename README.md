@@ -61,6 +61,7 @@ d/p ratios and locations on the branch. It works!!!
 
 - Figure 1: Experimental data exposition:
   - Panel A: Schematic of dendritic branch definitions (proximal, distal-simple, distal-complex)
+             - need to label these "Distal, XX Branch Structure, High/Low deltaCa_AP" so the first slide makes sense
   - Panel B: Schematic of amplification and calcium influx and how they're measured
   - Panel C: Average AP-evoked calcium influx for each group (p, ds, dc)
   - Panel D: Average AP-evoked amplification for each group (neuron sims if needed!)

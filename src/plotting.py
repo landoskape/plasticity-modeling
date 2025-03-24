@@ -5,21 +5,54 @@ import matplotlib.pyplot as plt
 from dataclasses import dataclass
 
 
-@dataclass
+@dataclass(init=False, frozen=True)
 class Proximal:
+    """Plotting properties for proximal dendritic sites.
+
+    These are intended to be constants and used throughout the codebase
+    without change - so the optimal usage is to call as class methods.
+
+    Example usage:
+    >>> plt.plot(..., color=Proximal.color, label=Proximal.label)
+    """
+
     color: str = "black"
     label: str = "proximal"
 
 
-@dataclass
+@dataclass(init=False, frozen=True)
 class DistalSimple:
+    """Plotting properties for distal simple dendritic sites.
+
+    These are intended to be constants and used throughout the codebase
+    without change - so the optimal usage is to call as class methods.
+
+    Use labelnl for labels that look better with a new line instead
+    of a hyphen.
+
+    Example usage:
+    >>> plt.plot(..., color=DistalSimple.color, label=DistalSimple.label)
+    """
+
     color: str = "midnightblue"
     label: str = "distal-simple"
     labelnl: str = "distal\nsimple"
 
 
-@dataclass
+@dataclass(init=False, frozen=True)
 class DistalComplex:
+    """Plotting properties for distal complex dendritic sites.
+
+    These are intended to be constants and used throughout the codebase
+    without change - so the optimal usage is to call as class methods.
+
+    Use labelnl for labels that look better with a new line instead
+    of a hyphen.
+
+    Example usage:
+    >>> plt.plot(..., color=DistalComplex.color, label=DistalComplex.label)
+    """
+
     color: str = "blue"
     label: str = "distal-complex"
     labelnl: str = "distal\ncomplex"
