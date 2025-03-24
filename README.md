@@ -42,7 +42,7 @@ d/p ratios and locations on the branch. It works!!!
 ## Software Development Goals
 - Massive progress on configuration. Got some finishing touches I think, then ready. 
   - Create system for updating specific parameters based on an otherwise completed config (or maybe just after?)
-    - The hints of this system are in the _preparing_grid_search directory
+    - (See the commented function in src/iaf/experiments.py)
 - Parallelization plan:
   - Also check if concatenating synapse groups makes them faster... (e.g. 10x100 synapses vs 1x1000...)
   - If so might be good to add a "concatenate" and "chunk" method that can be used to speed up parallel simulations
