@@ -57,7 +57,7 @@ synapses:
   distal-simple:
     type: sourced
     plastic: true
-    num_synapses: 360
+    num_synapses: 180
     max_weight: 20e-12
     reversal: 0.0
     tau: 10e-3
@@ -66,7 +66,7 @@ synapses:
     conductance_threshold: 0.1
     source: 
       num_presynaptic_neurons: 36
-      num_synapses: 360
+      num_synapses: 180
       source_rule: divided
     
     initialization:
@@ -89,7 +89,7 @@ synapses:
   distal-complex:
     type: sourced
     plastic: true
-    num_synapses: 360
+    num_synapses: 180
     max_weight: 20e-12
     reversal: 0.0
     tau: 10e-3
@@ -98,7 +98,7 @@ synapses:
     conductance_threshold: 0.1
     source: 
       num_presynaptic_neurons: 36
-      num_synapses: 360
+      num_synapses: 180
       source_rule: divided
     
     initialization:
