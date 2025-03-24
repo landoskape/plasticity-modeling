@@ -1,4 +1,5 @@
-from typing import Any, Dict, Type, TypeVar, Union
+from typing import Any, Dict, Type, TypeVar, Union, List, Tuple
+from pydantic import BaseModel
 import numpy as np
 from dataclasses import is_dataclass
 
@@ -168,3 +169,54 @@ def roll_along_axis(arr, shifts, axis):
 
     arr = np.reshape(rearr, original_shape)
     return np.moveaxis(arr, -1, axis)
+
+
+def compare_models(
+    a: Union[BaseModel, Dict[str, Any]],
+    b: Union[BaseModel, Dict[str, Any]],
+    path: str = "",
+) -> Tuple[List[str], List[str], List[str]]:
+    """
+    Recursively compares two Pydantic BaseModel instances or dictionaries.
+
+    Returns:
+        - List of keys in A but not in B
+        - List of keys in B but not in A
+        - List of keys present in both but with different values
+    """
+    if isinstance(a, BaseModel):
+        a = a.model_dump()
+    if isinstance(b, BaseModel):
+        b = b.model_dump()
+
+    in_a_not_b = []
+    in_b_not_a = []
+    different_values = []
+
+    keys_a = set(a.keys())
+    keys_b = set(b.keys())
+
+    for key in keys_a - keys_b:
+        in_a_not_b.append(f"A: {path}{key} = {a[key]!r}")
+
+    for key in keys_b - keys_a:
+        in_b_not_a.append(f"B: {path}{key} = {b[key]!r}")
+
+    for key in keys_a & keys_b:
+        value_a, value_b = a[key], b[key]
+        new_path = f"{path}{key}."
+
+        if isinstance(value_a, dict) and isinstance(value_b, dict):
+            sub_a, sub_b, sub_diff = compare_models(value_a, value_b, new_path)
+            in_a_not_b.extend(sub_a)
+            in_b_not_a.extend(sub_b)
+            different_values.extend(sub_diff)
+        elif isinstance(value_a, BaseModel) and isinstance(value_b, BaseModel):
+            sub_a, sub_b, sub_diff = compare_models(value_a, value_b, new_path)
+            in_a_not_b.extend(sub_a)
+            in_b_not_a.extend(sub_b)
+            different_values.extend(sub_diff)
+        elif value_a != value_b:
+            different_values.append(f"A: {new_path[:-1]} = {value_a!r}, B: {new_path[:-1]} = {value_b!r}")
+
+    return in_a_not_b, in_b_not_a, different_values
