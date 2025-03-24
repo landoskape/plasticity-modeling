@@ -230,6 +230,51 @@ class SourcePopulationGabor(SourcePopulation):
         # Precompute the number of samples that the rates persist for (on average)
         self._rates_samples_mean = self.tau_stim / self.dt
 
+    @classmethod
+    def stimulus_to_edge_positions(
+        cls,
+        stimulus: int,
+        flattened: bool = False,
+    ) -> Union[tuple[tuple[int, int], tuple[int, int]], tuple[int, int]]:
+        """Convert a stimulus to the x / y positions that make an edge with it.
+
+        For each stimulus, there's a corresponding set of outer positions that complete
+        the edge for that orientation. These positions will make a contiguous edge with
+        the central position of a 3x3 grid for the given stimulus. Note that the stimulus
+        orientation corresponding to each integer (from 0-3) is fixed such that this
+        definition of edge positions makes sense.
+
+        Note: the x/y conventions here are used for the first and second axis of the grid-
+        which is slightly unconventional because the first axis is the row index which makes
+        more sense as the "y" coordinate, but it was coded like this originally so we're
+        keeping it because it's... convention...
+
+        Parameters
+        ----------
+        stimulus : int
+            The stimulus orientation that determines corresponding edge positions.
+        flattened : bool, optional
+            If True, instead of returning ax0, ax1 coordinates of the edge positions,
+            will return a single integer index assuming the (3, 3) grid was reshaped to (9,).
+
+        Returns
+        -------
+        tuple[tuple[int, int], tuple[int, int]] | tuple[int, int]
+            If flattened is False, returns a tuple of tuples of (x, y) coordinates
+            of the edge positions. If flattened is True, returns a tuple of integers
+            corresponding to the flattened index of the edge positions.
+        """
+        x0 = stimulus % 3
+        y0 = int(stimulus // 3)
+        x1 = 3 - x0 - 1
+        y1 = 3 - y0 - 1
+        if flattened:
+            i0 = np.ravel_multi_index((x0, y0), (3, 3))
+            i1 = np.ravel_multi_index((x1, y1), (3, 3))
+            return i0, i1
+        else:
+            return (x0, y0), (x1, y1)
+
     def generate_stimulus(self, edge_probability: Optional[float] = None) -> np.ndarray:
         """Generate a 3x3 stimulus array with orientations.
 
@@ -250,11 +295,9 @@ class SourcePopulationGabor(SourcePopulation):
         edge_probability = edge_probability or self.edge_probability
         stimulus_orientation = rng.integers(0, 4, size=(3, 3))
         if rng.random() < edge_probability:
-            edge_orientation = stimulus_orientation[1, 1]
-            x_outer = edge_orientation % 3
-            y_outer = int(edge_orientation // 3)
-            stimulus_orientation[x_outer, y_outer] = edge_orientation
-            stimulus_orientation[-x_outer - 1, -y_outer - 1] = edge_orientation
+            outer0, outer1 = self.stimulus_to_edge_positions(stimulus_orientation[1, 1])
+            stimulus_orientation[outer0[0], outer0[1]] = stimulus_orientation[1, 1]
+            stimulus_orientation[outer1[0], outer1[1]] = stimulus_orientation[1, 1]
         return stimulus_orientation
 
     def vonmises(self, circular_offset: np.ndarray) -> np.ndarray:
