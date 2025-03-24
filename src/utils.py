@@ -130,3 +130,41 @@ def nanshift(s, n, token=np.nan, axis=-1):
 
     signal = np.moveaxis(signal, 0, axis)
     return signal
+
+
+def roll_along_axis(arr, shifts, axis):
+    """Rolls an array along a specified axis by the given shifts.
+
+    Allows for different shifts for each element in the array. The shifts
+    should have the shape (or number of elements) as the array excluding
+    the axis to roll along!
+
+    Parameters:
+    -----------
+    arr : array-like
+        The array to roll
+    shifts : array-like
+        The shifts to apply to the array
+    axis : int
+        The axis to roll along
+
+    Returns:
+    --------
+    array-like : Rolled array
+    """
+    original_shape = arr.shape
+    arr = arr.copy()
+    arr = np.moveaxis(arr, axis, -1)
+    rearr = np.reshape(arr, (-1, original_shape[axis]))
+    shifts = np.reshape(shifts, -1)
+
+    if len(shifts) != rearr.shape[0]:
+        raise ValueError(
+            f"Length of shifts must match the dimensions of the array everywhere except the roll axis ({rearr.shape[0]})"
+        )
+
+    for i in range(rearr.shape[0]):
+        rearr[i] = np.roll(rearr[i], shifts[i])
+
+    arr = np.reshape(rearr, original_shape)
+    return np.moveaxis(arr, -1, axis)
