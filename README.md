@@ -52,12 +52,9 @@ d/p ratios and locations on the branch. It works!!!
 
 # Figure Mapping
 - Overall Notes: 
-  - Proximal: Black, Distal-Simple: Dark-Gray, Distal-Complex: Blue
   - Show correlation matrix of inputs IFF it's easy to see how the input correlations
     map onto learned weights in the weight trajectory graph...
-  - When redoing the big runs, change names to proximal, distal-simple, distal-complex!!!!
-  - Make a plotting support class for the different groups with classmethods for colors, names
-    etc etc anything else for consistency and reuse of common motifs. 
+  - It would be cool to do hierarchical clustering and then show it with this order!
 
 - Figure 1: Experimental data exposition:
   - Panel A: Schematic of dendritic branch definitions (proximal, distal-simple, distal-complex)
@@ -106,3 +103,7 @@ d/p ratios and locations on the branch. It works!!!
       - Increase "concentration" of input tuning
       - Vary the baseline vs driven rate of the inputs
       - Check what's going on with homeostatic tuning as well
+
+
+
+-- Try hofer_noinhibition.yaml
