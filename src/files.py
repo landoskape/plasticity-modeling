@@ -33,7 +33,7 @@ def results_dir(folder: str | None = None) -> Path:
 
 
 def get_figure_dir(folder: str | None = None) -> Path:
-    figure_dir = root_dir() / "media" / "figures"
+    figure_dir = root_dir() / "figures"
     if folder:
         figure_dir = figure_dir / folder
     if not figure_dir.exists():
