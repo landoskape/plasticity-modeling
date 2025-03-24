@@ -284,16 +284,18 @@ def plot_amplification_demonstration(
     c_gap_peak = data.spk_new[data.idx_gap, icell]
     c_nl = c_gap_peak - c_ap_peak - c_glu_peak
 
+    names = ["$\Delta Ca_{1 AP}$", "$\Delta Ca_{Glu}$", "$\Delta Ca_{pairing}$", "$\Delta Ca_{amp}$"]
+    colors = ["black", "red", "darkorange", "darkviolet"]
+
     start_offset = start_pos - 100
     start_offset = 67
     fig, ax = plt.subplots(1, 1, figsize=(5, 5))
     ax.axhline(0, color="black", linewidth=0.7)
-
-    ax.plot(data.tvec[start_offset:] - 100, c_ap[start_offset:], color="black", linewidth=1.0)
-    ax.plot(data.tvec[start_offset:] - 100, c_glu[start_offset:], color="red", linewidth=1.0)
-    ax.plot(data.tvec[start_offset:] - 100, c_gap[start_offset:], color="darkorange", linewidth=1.0)
-    ax.plot(data.tvec[start_offset:] - 100, c_syn[start_offset:], color="black", linewidth=1.0)
-    ax.plot(data.tvec[start_offset:] - 100, c_syn[start_offset:], color="red", linestyle="--", linewidth=1.0)
+    ax.plot(data.tvec[start_offset:] - 100, c_ap[start_offset:], color=colors[0], linewidth=1.0)
+    ax.plot(data.tvec[start_offset:] - 100, c_glu[start_offset:], color=colors[1], linewidth=1.0)
+    ax.plot(data.tvec[start_offset:] - 100, c_gap[start_offset:], color=colors[2], linewidth=1.0)
+    ax.plot(data.tvec[start_offset:] - 100, c_syn[start_offset:], color=colors[0], linewidth=1.0)
+    ax.plot(data.tvec[start_offset:] - 100, c_syn[start_offset:], color=colors[1], linestyle="--", linewidth=1.0)
     ax.plot([0, 0], [-0.09, -0.04], color="black", linewidth=1.5, linestyle="-")
 
     def stem(x, y, ystart=0, color="black", linewidth=2.0):
@@ -304,12 +306,12 @@ def plot_amplification_demonstration(
     start_glu = start_ap + delta_pos
     start_gap = start_ap + 2 * delta_pos
     start_syn = start_ap + 3 * delta_pos
-    stem(start_ap, c_ap_peak, color="black")
-    stem(start_glu, c_glu_peak, color="red")
-    stem(start_gap, c_gap_peak, color="darkorange")
-    stem(start_syn, c_ap_peak + c_glu_peak + c_nl, ystart=c_ap_peak + c_glu_peak, color="blue")
-    stem(start_syn, c_ap_peak + c_glu_peak, ystart=c_ap_peak, color="red")
-    stem(start_syn, c_ap_peak, color="black")
+    stem(start_ap, c_ap_peak, color=colors[0])
+    stem(start_glu, c_glu_peak, color=colors[1])
+    stem(start_gap, c_gap_peak, color=colors[2])
+    stem(start_syn, c_ap_peak + c_glu_peak + c_nl, ystart=c_ap_peak + c_glu_peak, color=colors[3])
+    stem(start_syn, c_ap_peak + c_glu_peak, ystart=c_ap_peak, color=colors[1])
+    stem(start_syn, c_ap_peak, color=colors[0])
 
     # Create legends and scale bars
     scale_x_root = 200
@@ -331,8 +333,6 @@ def plot_amplification_demonstration(
         fontsize=12,
     )
 
-    names = ["$\Delta Ca_{amp}$", "$\Delta Ca_{1 AP}$", "$\Delta Ca_{Glu}$", "$\Delta Ca_{pairing}$"]
-    colors = ["blue", "black", "red", "darkorange"]
     legend_x_start = 260
     legend_y_start = 0.72
     legend_y_offset = -0.065
@@ -546,7 +546,7 @@ def plot_formatted_elife_data(
     format_spines(ax_amp_peaks, x_pos=-0.6, y_pos=-0.27, xbounds=(0, 2), ybounds=(0.0, 3.0))
 
     ax_ap_trace.set_ylabel("$\Delta Ca_{AP}$")
-    ax_amp_trace.set_ylabel("$\Delta Ca_{amp}$/$\Delta Ca_{glu}$")
+    ax_amp_trace.set_ylabel("$\Delta Ca_{amp} \propto \Delta Ca_{glu}$")
     ax_ap_trace.set_yticks([0.0, 0.1, 0.2, 0.3])
     ax_amp_trace.set_yticks([0.0, 1.0, 2.0, 3.0])
     ax_ap_peaks.set_xticks([0, 1, 2])

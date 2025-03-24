@@ -34,7 +34,24 @@ class DistalSimple:
     >>> plt.plot(..., color=DistalSimple.color, label=DistalSimple.label)
     """
 
-    color: str = "midnightblue"
+    # Color options:
+    # - cornflowerblue
+    # - blueviolet
+    # - darkmagenta
+    # - darkorchid
+    # - darkviolet
+    # - dodgerblue
+    # - gray
+    # - lightslategrey
+    # - mediumpurple
+    # - mediumorchid
+    # - mediumslateblue
+    # - mediumturquoise
+    # - purple
+    # - steelblue
+    # - teal
+
+    color: str = "teal"
     label: str = "distal-simple"
     labelnl: str = "distal\nsimple"
 
