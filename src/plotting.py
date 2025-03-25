@@ -3,7 +3,7 @@ import math
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 # Centimeters to inches
