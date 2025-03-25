@@ -17,6 +17,12 @@ class FigParams:
     single_width: float = 8.5 * cm
     onepointfive_width: float = 11.4 * cm
     double_width: float = 17.4 * cm
+    fontsize: float = 7
+    linewidth: float = 1.0
+    tick_length: float = 2
+    tick_width: float = 1
+    tick_fontsize: float = 7
+    spine_pos: float = -0.025
 
     @classmethod
     def all_fig_params(cls) -> dict[str, Any]:
@@ -237,9 +243,12 @@ def format_spines(
     ybounds=None,
     xticks=None,
     yticks=None,
+    xlabels=None,
+    ylabels=None,
     spine_linewidth=1,
     tick_length=6,
     tick_width=1,
+    tick_fontsize=None,
 ):
     """
     Format a matplotlib axis to have separated spines with data offset from axes.
@@ -249,9 +258,9 @@ def format_spines(
     ax : matplotlib.axes.Axes
         The axis to format
     x_pos : int or float, optional
-        The y-axis position on the x axis
+        The fractional value of the y-axis to offset the x-axis
     y_pos : int or float, optional
-        The x-axis position on the y axis
+        The fractional value of the x-axis to offset the y-axis
     xbounds : tuple, optional
         The x-axis bounds as (min, max)
     ybounds : tuple, optional
@@ -260,12 +269,18 @@ def format_spines(
         Custom x-axis tick positions
     yticks : list or array, optional
         Custom y-axis tick positions
+    xlabels : list or array, optional
+        Custom x-axis tick labels
+    ylabels : list or array, optional
+        Custom y-axis tick labels
     spine_linewidth : int or float, optional
         Width of the axis spines
     tick_length : int or float, optional
         Length of the tick marks
     tick_width : int or float, optional
         Width of the tick marks
+    tick_fontsize : int or float, optional
+        Font size of the tick labels
 
     Returns:
     --------
@@ -281,6 +296,12 @@ def format_spines(
         spine.set_linewidth(spine_linewidth)
 
     # Move bottom spine down and left spine left
+    x_lims = ax.get_xlim()
+    y_lims = ax.get_ylim()
+    x_range = x_lims[1] - x_lims[0]
+    y_range = y_lims[1] - y_lims[0]
+    x_pos = x_pos * x_range + x_lims[0]
+    y_pos = y_pos * y_range + y_lims[0]
     ax.spines["bottom"].set_position(("data", y_pos))
     ax.spines["left"].set_position(("data", x_pos))
 
@@ -294,11 +315,22 @@ def format_spines(
     # Set custom ticks if provided
     if xticks is not None:
         ax.set_xticks(xticks)
+    if xlabels is not None:
+        ax.set_xticklabels(xlabels)
 
     if yticks is not None:
         ax.set_yticks(yticks)
+    if ylabels is not None:
+        ax.set_yticklabels(ylabels)
 
     # Adjust tick appearance
-    ax.tick_params(axis="both", which="major", direction="out", length=tick_length, width=tick_width)
+    ax.tick_params(
+        axis="both",
+        which="major",
+        direction="out",
+        length=tick_length,
+        width=tick_width,
+        labelsize=tick_fontsize,
+    )
 
     return ax
