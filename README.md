@@ -64,10 +64,14 @@ d/p ratios and locations on the branch. It works!!!
   - Panel D: Average AP-evoked amplification for each group (neuron sims if needed!)
 
 - Figure 2: Experimental predictions for STDP
-  - Panel A: Simulation of expected NMDAR and VGCC dependent calcium influx for each group
-  - Panel B: Nevian reconstruction with relabeled curves as NMDA/VGCC dependence
-  - Panel C: Estimated plasticity transfer function
-    
+  - Panel A: Schematic of AP Traces for three groups (p, ds, dc)
+  - Panel B: NMDAR Calcium influx for each group
+  - Panel C: VGCC Calcium influx for each group
+      - panels A-C on top row
+  - Panel D: Nevian reconstruction with relabeled curves as NMDA/VGCC dependence
+  - Panel E: Estimated plasticity transfer function
+  - Panel F: LTP / LTD For each group (e.g. p, ds, dc summary curves with one color for LTP, another for LTD)
+
 - Figure 3: STDP Model
   - Panel A: Schematic of STDP model neuron
   - Panel B: Schematic of STDP model STDP rules
