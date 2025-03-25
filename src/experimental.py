@@ -274,6 +274,86 @@ def plot_amplification_demonstration(
     show_fig: bool = True,
     save_fig: bool = False,
 ):
+    fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+    ax = build_ax_amplification_demonstration(ax, data, icell, start_pos, delta_pos)
+
+    if show_fig:
+        plt.show(block=True)
+
+    if save_fig:
+        fig_path = get_figure_dir("experimental_data") / "amplification_demonstration"
+        save_figure(fig, fig_path)
+
+    return fig
+
+
+def plot_formatted_elife_data(
+    data: ElifeData,
+    show_error: bool = False,
+    se: bool = True,
+    show_fig: bool = True,
+    save_fig: bool = False,
+):
+    """Plot formatted ELife data.
+
+    Parameters
+    ----------
+    data : ElifeData
+        The ELife data to plot.
+    show_error : bool, optional
+        Whether to show the error bars, by default False.
+    se : bool, optional
+        Whether to show the standard error, by default True.
+    show_fig : bool, optional
+        Whether to show the figure, by default True.
+    save_fig : bool, optional
+        Whether to save the figure, by default False.
+    """
+    fig = plt.figure(figsize=(6, 6), layout="constrained")
+    gs = fig.add_gridspec(2, 2, width_ratios=[1, 0.7])
+    ax_ap_trace = fig.add_subplot(gs[0, 0])
+    ax_amp_trace = fig.add_subplot(gs[1, 0])
+    ax_ap_peaks = fig.add_subplot(gs[0, 1])
+    ax_amp_peaks = fig.add_subplot(gs[1, 1])
+
+    build_axes_formatted_elife_data(ax_ap_trace, ax_amp_trace, ax_ap_peaks, ax_amp_peaks, data, show_error, se)
+
+    if show_fig:
+        plt.show(block=True)
+
+    if save_fig:
+        fig_path = get_figure_dir("experimental_data") / "formatted_elife_data"
+        save_figure(fig, fig_path)
+
+    return fig
+
+
+def build_ax_amplification_demonstration(
+    ax: plt.Axes,
+    data: ElifeData,
+    icell: int = 17,
+    start_pos: int = 20,
+    delta_pos: int = 10,
+):
+    """Build the amplification demonstration figure on a given axis.
+
+    Parameters
+    ----------
+    ax : plt.Axes
+        The axis to build the figure on.
+    data : ElifeData
+        The ELife data to plot.
+    icell : int, optional
+        The cell index to plot, by default 17.
+    start_pos : int, optional
+        The start position of the demonstration, by default 20.
+    delta_pos : int, optional
+        The delta position of the demonstration, by default 10.
+
+    Returns
+    -------
+    ax : plt.Axes
+    """
     c_ap = data.sapbase[:, icell]
     c_glu = correct_pmt(data.sglubase[:, icell])
     c_gap = correct_pmt(data.sgapbase[:, icell])
@@ -289,7 +369,6 @@ def plot_amplification_demonstration(
 
     start_offset = start_pos - 100
     start_offset = 67
-    fig, ax = plt.subplots(1, 1, figsize=(5, 5))
     ax.axhline(0, color="black", linewidth=0.7)
     ax.plot(data.tvec[start_offset:] - 100, c_ap[start_offset:], color=colors[0], linewidth=1.0)
     ax.plot(data.tvec[start_offset:] - 100, c_glu[start_offset:], color=colors[1], linewidth=1.0)
@@ -352,37 +431,36 @@ def plot_amplification_demonstration(
     ax.set_xlim(-100, 400)
     ax.set_ylim(-0.11, 0.79)
 
-    if show_fig:
-        plt.show(block=True)
-
-    if save_fig:
-        fig_path = get_figure_dir("experimental_data") / "amplification_demonstration"
-        save_figure(fig, fig_path)
-
-    return fig
+    return ax
 
 
-def plot_formatted_elife_data(
+def build_axes_formatted_elife_data(
+    ax_ap_trace: plt.Axes,
+    ax_amp_trace: plt.Axes,
+    ax_ap_peaks: plt.Axes,
+    ax_amp_peaks: plt.Axes,
     data: ElifeData,
     show_error: bool = False,
     se: bool = True,
-    show_fig: bool = True,
-    save_fig: bool = False,
 ):
     """Plot formatted ELife data.
 
     Parameters
     ----------
+    ax_ap_trace : plt.Axes
+        The axis to plot the AP trace on.
+    ax_amp_trace : plt.Axes
+        The axis to plot the AMP trace on.
+    ax_ap_peaks : plt.Axes
+        The axis to plot the AP peaks on.
+    ax_amp_peaks : plt.Axes
+        The axis to plot the AMP peaks on.
     data : ElifeData
         The ELife data to plot.
     show_error : bool, optional
         Whether to show the error bars, by default False.
     se : bool, optional
         Whether to show the standard error, by default True.
-    show_fig : bool, optional
-        Whether to show the figure, by default True.
-    save_fig : bool, optional
-        Whether to save the figure, by default False.
     """
     # Classify dendritic sites into proximal, distal-simple, distal-complex
     # See params docstring for explanation
@@ -400,13 +478,6 @@ def plot_formatted_elife_data(
 
     idx_distal_simple = idx_distal & idx_simple
     idx_distal_complex = idx_distal & idx_complex
-
-    fig = plt.figure(figsize=(6, 6), layout="constrained")
-    gs = fig.add_gridspec(2, 2, width_ratios=[1, 0.7])
-    ax_ap_trace = fig.add_subplot(gs[0, 0])
-    ax_amp_trace = fig.add_subplot(gs[1, 0])
-    ax_ap_peaks = fig.add_subplot(gs[0, 1])
-    ax_amp_peaks = fig.add_subplot(gs[1, 1])
 
     # Get corrections
     correction_proximal = np.sqrt(np.sum(idx_proximal)) if se else 1
@@ -564,11 +635,4 @@ def plot_formatted_elife_data(
     ax_ap_peaks.set_yticks([])
     ax_amp_peaks.set_yticks([])
 
-    if show_fig:
-        plt.show(block=True)
-
-    if save_fig:
-        fig_path = get_figure_dir("experimental_data") / "formatted_elife_data"
-        save_figure(fig, fig_path)
-
-    return fig
+    return ax_ap_trace, ax_amp_trace, ax_ap_peaks, ax_amp_peaks
