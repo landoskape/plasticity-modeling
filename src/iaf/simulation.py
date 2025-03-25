@@ -241,7 +241,13 @@ class Simulation:
                     weights[ineuron][name] = neuron.synapse_groups[name].weights
         return weights
 
-    def run(self, duration: int, progress_bar: bool = True, initialize: bool = True) -> dict:
+    def run(
+        self,
+        duration: int,
+        progress_bar: bool = True,
+        initialize: bool = True,
+        save_source_rates: bool = False,
+    ) -> dict:
         """Run the simulation for a specified duration.
 
         This method executes the simulation, updating the state of all neurons and
@@ -266,6 +272,9 @@ class Simulation:
         initialize : bool, optional
             Whether to initialize the neuron(s) and synapse groups before running.
             If False, will continue from the last state, by default True.
+        save_source_rates : bool, optional
+            Whether to return the source_rates of the simulation, by default False.
+            When True, will include the source rates & source rate intervals.
 
         Returns
         -------
@@ -277,6 +286,8 @@ class Simulation:
               arrays depends on the synapse group type:
               - For sourced synapse groups: (duration, num_presynaptic_neurons)
               - For direct synapse groups: (duration, num_synapses)
+            - source_rates: Dictionary of source_rates, if save_source_rates is True.
+            - source_intervals: Dictionary of source_intervals, if save_source_rates is True.
         """
         steps_per_second = int(1 / self.dt)
         num_steps = int(duration * steps_per_second)
@@ -296,6 +307,10 @@ class Simulation:
         source_track_interval = {source_name: 0 for source_name in sources_to_update}
         source_rates = {source_name: None for source_name in sources_to_update}
 
+        if save_source_rates:
+            source_rates_full = {source_name: [] for source_name in sources_to_update}
+            source_intervals_full = {source_name: [] for source_name in sources_to_update}
+
         # Run the simulation
         seconds_progress = tqdm(range(duration)) if progress_bar else range(duration)
 
@@ -309,6 +324,10 @@ class Simulation:
                         rates, interval = self.source_populations[source_name].generate_rates()
                         source_rates[source_name] = rates
                         source_track_interval[source_name] = interval - 1
+
+                        if save_source_rates:
+                            source_rates_full[source_name].append(rates)
+                            source_intervals_full[source_name].append(interval)
 
                     else:
                         source_track_interval[source_name] -= 1
@@ -338,4 +357,9 @@ class Simulation:
             spike_times=spike_times,
             weights=weights,
         )
+        if save_source_rates:
+            results["source_rates"] = {source: np.stack(rates) for source, rates in source_rates_full.items()}
+            results["source_intervals"] = {
+                source: np.stack(intervals) for source, intervals in source_intervals_full.items()
+            }
         return results
