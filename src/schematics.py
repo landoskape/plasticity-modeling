@@ -177,7 +177,7 @@ class Neuron:
             soma_radius,
             facecolor="black" if fill else "white",
             edgecolor="black",
-            linewidth=self.linewidth * 0.5 * scale,
+            linewidth=self.linewidth * scale,
         )
         ax.add_patch(elements["soma"])
 
