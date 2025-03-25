@@ -52,6 +52,11 @@ def get_args():
             "dp_ratio of proximal synapses."
         ),
     )
+    parser.add_argument(
+        "--save_source_rates",
+        action="store_true",
+        help="Whether to save the source rates of the simulation.",
+    )
     return parser.parse_args()
 
 
@@ -79,6 +84,7 @@ def run_experiment(args):
     repeats = args.repeats
     duration = args.duration
     no_distal = args.no_distal
+    save_source_rates = args.save_source_rates
 
     # Save the parameters
     joblib.dump(args, experiment_folder / "args.joblib")
@@ -104,7 +110,7 @@ def run_experiment(args):
                     no_distal=no_distal,
                 )
 
-            results = sim.run(duration=duration)
+            results = sim.run(duration=duration, save_source_rates=args.save_source_rates)
             results["sim"] = sim
             results["cfg"] = cfg
 
