@@ -33,11 +33,11 @@ amount of plasticity evoked by positive pairings (LTP) or negative pairings (LTD
 - In iaf_correlation.ipynb the main result is in the second figure, showing the weight as a function of input correlation for different
 d/p ratios and locations on the branch. It works!!!
 - Need to add the single example figure and a summary plot and a good illustration of the correlated source modell...
-- Results / iaf_runs / ica / 20250320 has the results for the updated correlation experiment with new names (p, ds, dc)
+- Results / iaf_runs / correlated / 20250320 has the results for the updated correlation experiment with new names (p, ds, dc)
+- Results / iaf_runs / correlated / 20250324 has full_output results for the correlated model for making example figures
 
 ## Section on Hofer Reconstructions
 - Results / iaf_runs / hofer / 20250320 has the results for the hofer experiment
-- Consider the possibility of allowing each pixel to have it's own interval? 
 
 ## Software Development Goals
 - Massive progress on configuration. Got some finishing touches I think, then ready. 
