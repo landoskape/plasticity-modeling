@@ -1,8 +1,30 @@
+from typing import Any
 import math
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+
+# Centimeters to inches
+cm = 1 / 2.54
+
+
+@dataclass(init=False, frozen=True)
+class FigParams:
+    """Plotting parameters for the project."""
+
+    single_width: float = 8.5 * cm
+    onepointfive_width: float = 11.4 * cm
+    double_width: float = 17.4 * cm
+
+    @classmethod
+    def all_fig_params(cls) -> dict[str, Any]:
+        return dict(
+            layout="constrained",
+            dpi=300,
+            frameon=False,
+        )
 
 
 @dataclass(init=False, frozen=True)
