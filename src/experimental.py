@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 from .files import data_dir, get_figure_dir
 from .utils import resolve_dataclass, nanshift
-from .plotting import save_figure, beeswarm, format_spines
+from .plotting import save_figure, beeswarm, format_spines, FigParams
 from .plotting import Proximal, DistalSimple, DistalComplex
 
 
@@ -611,10 +611,11 @@ def build_axes_formatted_elife_data(
     ax_amp_peaks.set_xlim(-0.5, 2.5)
     ax_amp_peaks.set_ylim(-0.25, 3.1)
 
-    format_spines(ax_ap_trace, x_pos=-65, y_pos=-0.027, xbounds=(-25, 400), ybounds=(0.0, 0.3))
-    format_spines(ax_amp_trace, x_pos=-65, y_pos=-0.27, xbounds=(-25, 400), ybounds=(0.0, 3))
-    format_spines(ax_ap_peaks, x_pos=-0.6, y_pos=-0.027, xbounds=(0, 2), ybounds=(0.0, 0.3))
-    format_spines(ax_amp_peaks, x_pos=-0.6, y_pos=-0.27, xbounds=(0, 2), ybounds=(0.0, 3.0))
+    spine_pos = FigParams.spine_pos
+    format_spines(ax_ap_trace, x_pos=spine_pos, y_pos=spine_pos, xbounds=(-25, 400), ybounds=(0.0, 0.3))
+    format_spines(ax_amp_trace, x_pos=spine_pos, y_pos=spine_pos, xbounds=(-25, 400), ybounds=(0.0, 3))
+    format_spines(ax_ap_peaks, x_pos=spine_pos, y_pos=spine_pos, xbounds=(0, 2), ybounds=(0.0, 0.3))
+    format_spines(ax_amp_peaks, x_pos=spine_pos, y_pos=spine_pos, xbounds=(0, 2), ybounds=(0.0, 3.0))
 
     ax_ap_trace.set_ylabel("$\Delta Ca_{AP}$")
     ax_amp_trace.set_ylabel("$\Delta Ca_{amp} \propto \Delta Ca_{glu}$")
