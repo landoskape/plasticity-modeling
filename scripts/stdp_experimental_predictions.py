@@ -10,17 +10,15 @@ from src.conductance import (
     fit_sigmoid,
     compute_current,
     plasticity_transfer_function,
+    simplistic_plasticity_transfer_function,
 )
-from src.files import get_figure_dir
+from src.files import get_figure_dir, data_dir
 from src.plotting import save_figure
-
-# Define root path of repo
-root_path = Path(__file__).parent.parent
 
 
 def show_nevian_reconstruction(show_fig: bool = True, save_fig: bool = False) -> plt.Figure:
     # Read CSVs for STDP Data
-    stdp_data_path = root_path / "data" / "nevian-sakmann-2006"
+    stdp_data_path = data_dir() / "nevian-sakmann-2006"
     stdp_files = [
         f"{plasticity_type}-{buffer_type}.csv"
         for plasticity_type in ["LTP", "LTD"]
@@ -83,7 +81,7 @@ def show_nevian_reconstruction(show_fig: bool = True, save_fig: bool = False) ->
 
 def show_plasticity_transfer_function(show_fig: bool = True, save_fig: bool = False) -> plt.Figure:
     # Read CSVs for STDP Data
-    stdp_data_path = root_path / "data" / "nevian-sakmann-2006"
+    stdp_data_path = data_dir() / "nevian-sakmann-2006"
 
     plasticity_types = ["LTP", "LTD"]
     colors = [NMDAR.color(), VGCC.color()]
@@ -97,9 +95,15 @@ def show_plasticity_transfer_function(show_fig: bool = True, save_fig: bool = Fa
     # Plot results
     fig, ax = plt.subplots(1, 1, figsize=(4, 4), layout="constrained")
     for ii, ptype in enumerate(plasticity_types):
-        transfer_function, x = plasticity_transfer_function(params[ii])
+        LTP = ptype == "LTP"
+        ca_signal, transfer_function = plasticity_transfer_function(
+            params[ii],
+            LTP=LTP,
+            max_buffer_concentration=5.0,
+            kd=0.25,
+        )
         kwargs = dict(linewidth=2, linestyle="-", color=colors[ii], label=ptype)
-        ax.plot(x, transfer_function, **kwargs)
+        ax.plot(ca_signal, transfer_function, **kwargs)
 
     ax.legend(loc="upper left")
     ax.set_xlabel("[Ca] Concentration (AU)")
@@ -121,7 +125,7 @@ def run_simulations(num_ap_amplitudes: int = 10):
     # Read CSVs for STDP Data
     plasticity_type = ["LTP", "LTD"]
     buffer_type = "EGTA"
-    stdp_data_path = root_path / "data" / "nevian-sakmann-2006"
+    stdp_data_path = data_dir() / "nevian-sakmann-2006"
     stdp_files = [f"{ptype}-{buffer_type}.csv" for ptype in plasticity_type]
     stdp_file_paths = [stdp_data_path / stdp_file for stdp_file in stdp_files]
 
@@ -219,8 +223,8 @@ def run_simulations(num_ap_amplitudes: int = 10):
 
     effective_ca_ltp = ltp_ca_to_buffer * np.array(data["nmdar_integral_ca"])
     effective_ca_ltd = ltd_ca_to_buffer * np.array(data["vgcc_integral_ca"])
-    data["LTP"] = plasticity_transfer_function(data["params"]["LTP"], x_values=effective_ca_ltp)[0]
-    data["LTD"] = plasticity_transfer_function(data["params"]["LTD"], x_values=effective_ca_ltd)[0]
+    data["LTP"] = simplistic_plasticity_transfer_function(data["params"]["LTP"], x_values=effective_ca_ltp)[0]
+    data["LTD"] = simplistic_plasticity_transfer_function(data["params"]["LTD"], x_values=effective_ca_ltd)[0]
 
     return data
 
@@ -247,15 +251,45 @@ def show_estimated_plasticity(data: dict, buffer_scale: float = 1.0, show_fig: b
     # reflects the maximum calcium possible from these channels. We're ignoring lots of things,
     # including but not limited to: buffering properties, extrusion properties, glutamate binding
     # dynamics, etc etc etc.
+
+    # ~~~ The only thing to consider is that estimating max requires the data to have picked an
+    # ~~~ AP amplitude that evokes near maximal concentration!!!
     nmdar_peak = np.max(data["nmdar_integral_ca"])
     vgcc_peak = np.max(data["vgcc_integral_ca"])
-    ltp_ca_to_buffer = buffer_scale / nmdar_peak
-    ltd_ca_to_buffer = buffer_scale / vgcc_peak
+    common_peak = max([nmdar_peak, vgcc_peak])
+    ltp_ca_to_buffer = buffer_scale / common_peak
+    ltd_ca_to_buffer = buffer_scale / common_peak
 
     effective_ca_ltp = ltp_ca_to_buffer * np.array(data["nmdar_integral_ca"])
     effective_ca_ltd = ltd_ca_to_buffer * np.array(data["vgcc_integral_ca"])
-    ltp_transfer = plasticity_transfer_function(data["params"]["LTP"], x_values=effective_ca_ltp)[0]
-    ltd_transfer = plasticity_transfer_function(data["params"]["LTD"], x_values=effective_ca_ltd)[0]
+    ca_concentration, ltp_transfer = plasticity_transfer_function(
+        data["params"]["LTP"],
+        LTP=True,
+        max_buffer_concentration=10.0,
+        kd=0.25,
+        num_points=10001,
+    )
+    ltd_transfer = plasticity_transfer_function(
+        data["params"]["LTD"],
+        LTP=False,
+        max_buffer_concentration=10.0,
+        kd=0.25,
+        num_points=10001,
+    )[1]
+
+    def get_closest_idx(reference, comparison):
+        idx = np.zeros(comparison.shape, dtype=np.int32)
+        for ic, c in enumerate(comparison):
+            idx[ic] = np.argmin(np.abs(reference - c))
+        error = comparison - reference[idx]
+        return idx, error
+
+    # Get closest index and error for the "effective" concentration
+    # and the "measured" concentration
+    idx_ltp, error_ltp = get_closest_idx(ca_concentration, effective_ca_ltp)
+    idx_ltd, error_ltd = get_closest_idx(ca_concentration, effective_ca_ltd)
+    ltp_transfer = ltp_transfer[idx_ltp]
+    ltd_transfer = -1 * ltd_transfer[idx_ltd]  # flip sign because transfer is negative
 
     ap_peaks = [np.max(v_trace) for v_trace in data["v_trace"]]
 
