@@ -220,3 +220,11 @@ def compare_models(
             different_values.append(f"A: {new_path[:-1]} = {value_a!r}, B: {new_path[:-1]} = {value_b!r}")
 
     return in_a_not_b, in_b_not_a, different_values
+
+
+def get_closest_idx(reference, comparison):
+    idx = np.zeros(comparison.shape, dtype=np.int32)
+    for ic, c in enumerate(comparison):
+        idx[ic] = np.argmin(np.abs(reference - c))
+    error = comparison - reference[idx]
+    return idx, error
