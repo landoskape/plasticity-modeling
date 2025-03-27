@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 import math
 import numpy as np
 import torch
@@ -19,10 +19,14 @@ class FigParams:
     double_width: float = 17.4 * cm
     fontsize: float = 7
     linewidth: float = 1.0
-    tick_length: float = 2
+    thinlinewidth: float = 0.7
+    scattersize: float = 6.0
+    scatteralpha: float = 0.5
+    markersize: float = 3.0
+    tick_length: float = 2.5
     tick_width: float = 1
     tick_fontsize: float = 7
-    spine_pos: float = -0.025
+    spine_pos: float = -0.0175
 
     @classmethod
     def all_fig_params(cls) -> dict[str, Any]:
@@ -31,6 +35,57 @@ class FigParams:
             dpi=300,
             frameon=False,
         )
+
+    @classmethod
+    def kwargs_spines(cls) -> dict[str, Any]:
+        return dict(
+            x_pos=FigParams.spine_pos,
+            y_pos=FigParams.spine_pos,
+            spine_linewidth=FigParams.linewidth,
+            tick_length=FigParams.tick_length,
+            tick_width=FigParams.tick_width,
+            tick_fontsize=FigParams.tick_fontsize,
+        )
+
+
+def add_group_legend(
+    ax: plt.Axes,
+    x: float,
+    y_start: float,
+    y_offset: float,
+    y_extra: float = 0,
+    ha: str = "center",
+    va: str = "center",
+    fontsize: float = FigParams.fontsize,
+    label_type: Literal["normal", "nl", "short", "experimental"] = "normal",
+    extra_label_simple: str = "",
+    extra_label_complex: str = "",
+):
+    y_proximal = y_start
+    y_distal_simple = y_start + y_offset
+    y_distal_complex = y_start + 2 * y_offset + y_extra
+
+    if label_type == "normal":
+        label_simple = DistalSimple.label
+        label_complex = DistalComplex.label
+    elif label_type == "nl":
+        label_simple = DistalSimple.labelnl
+        label_complex = DistalComplex.labelnl
+    elif label_type == "short":
+        label_simple = DistalSimple.shortlabel
+        label_complex = DistalComplex.shortlabel
+    elif label_type == "experimental":
+        label_simple = DistalSimple.experimental
+        label_complex = DistalComplex.experimental
+    else:
+        raise ValueError("Didn't recognized label_type! received: {label_type}")
+
+    label_simple += extra_label_simple
+    label_complex += extra_label_complex
+
+    ax.text(x, y_proximal, Proximal.label, color=Proximal.color, ha=ha, va=va, fontsize=fontsize)
+    ax.text(x, y_distal_simple, label_simple, color=DistalSimple.color, ha=ha, va=va, fontsize=fontsize)
+    ax.text(x, y_distal_complex, label_complex, color=DistalComplex.color, ha=ha, va=va, fontsize=fontsize)
 
 
 @dataclass(init=False, frozen=True)
@@ -45,6 +100,7 @@ class Proximal:
     """
 
     color: str = "black"
+    shortlabel: str = "prox"
     label: str = "proximal"
 
 
@@ -80,8 +136,10 @@ class DistalSimple:
     # - teal
 
     color: str = "teal"
+    shortlabel: str = "d-s"
     label: str = "distal-simple"
     labelnl: str = "distal\nsimple"
+    experimental: str = "high $\Delta Ca_{AP}$"
 
 
 @dataclass(init=False, frozen=True)
@@ -99,8 +157,10 @@ class DistalComplex:
     """
 
     color: str = "blue"
+    shortlabel: str = "d-c"
     label: str = "distal-complex"
     labelnl: str = "distal\ncomplex"
+    experimental: str = "low $\Delta Ca_{AP}$"
 
 
 def save_figure(fig, path, **kwargs):
