@@ -14,6 +14,10 @@ from src.utils import get_closest_idx
 F = physical_constants["Faraday constant"][0]
 
 
+# From memory need to look up
+BUFFER_KD = 250e-3
+
+
 class VGCC:
     """Voltage-Gated Calcium Channel (VGCC) model with activation and inactivation gates.
 
@@ -592,14 +596,12 @@ def measure_transfer_functions(
         data["params"]["LTP"],
         LTP=True,
         max_buffer_concentration=10.0,
-        kd=0.25,
         num_points=10001,
     )
     ltd_transfer = plasticity_transfer_function(
         data["params"]["LTD"],
         LTP=False,
         max_buffer_concentration=10.0,
-        kd=0.25,
         num_points=10001,
     )[1]
 
@@ -679,7 +681,7 @@ def plasticity_transfer_function(
     params: tuple[float],
     LTP: bool,
     max_buffer_concentration: float = 5.0,
-    kd: float = 0.25,
+    kd: float = BUFFER_KD,
     num_points: int = 1001,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Generate a transfer function for plasticity based on sigmoid fit of buffer effects.
@@ -723,8 +725,6 @@ def plasticity_transfer_function(
     """
     # Set up effective calcium dose values
     buffer_concentration = np.linspace(0, max_buffer_concentration, num_points)
-
-    kd = 0.250  # Kd of BAPTA / EGTA (I think this is right?)
     kappa = buffer_concentration / kd
 
     L, x0, k, b = params
