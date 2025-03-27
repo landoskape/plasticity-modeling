@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 from .files import data_dir, get_figure_dir
 from .utils import resolve_dataclass, nanshift
-from .plotting import save_figure, beeswarm, format_spines, FigParams
+from .plotting import save_figure, beeswarm, format_spines, add_group_legend, FigParams
 from .plotting import Proximal, DistalSimple, DistalComplex
 
 
@@ -333,7 +333,18 @@ def build_ax_amplification_demonstration(
     data: ElifeData,
     icell: int = 17,
     start_pos: int = 20,
+    start_offset: int = 67,
     delta_pos: int = 10,
+    legend_x_start: float = 260,
+    legend_y_start: float = 0.72,
+    legend_y_offset: float = -0.065,
+    scale_x_root: float = 200,
+    scale_x_mag: float = 50,
+    scale_y_root: float = 0.3,
+    scale_y_mag: float = 0.07,
+    scale_y_offset: float = 0.01,
+    xlim: tuple[float, float] = (-100, 400),
+    ylim: tuple[float, float] = (-0.11, 0.79),
 ):
     """Build the amplification demonstration figure on a given axis.
 
@@ -347,8 +358,30 @@ def build_ax_amplification_demonstration(
         The cell index to plot, by default 17.
     start_pos : int, optional
         The start position of the demonstration, by default 20.
+    start_offset : int, optional
+        The starting offset for plotting the traces, by default 67.
     delta_pos : int, optional
         The delta position of the demonstration, by default 10.
+    legend_x_start : float, optional
+        The x position of the legend text items, by default 260.
+    legend_y_start : float, optional
+        The y start position of the legend text items, by default 0.72.
+    legend_y_offset : float, optional
+        The y offset positions of the legend text items, by default -0.065.
+    scale_x_root : float, optional
+        The x_root position for the floating scale bar, by default 200.
+    scale_x_mag : float, optional
+        The x_magnitude for the floating scale bar, by default 50.
+    scale_y_root : float , optional
+        The y root position for the floating scale bar, by default 0.3.
+    scale_y_mag : float, optional
+        The y magnitude for the floating scale bar, by default 0.07.
+    scale_y_offset : float, optional
+        The y offset for the floating scale bar text, by default 0.01.
+    xlim : tuple[float, float], optional
+        The xlim for the plot, by default (-100, 400)
+    ylim : tuple[float, float], optional
+        The ylim for the plot, by default (-0.11, 0.79)
 
     Returns
     -------
@@ -364,62 +397,119 @@ def build_ax_amplification_demonstration(
     c_gap_peak = data.spk_new[data.idx_gap, icell]
     c_nl = c_gap_peak - c_ap_peak - c_glu_peak
 
-    names = ["$\Delta Ca_{1 AP}$", "$\Delta Ca_{Glu}$", "$\Delta Ca_{pairing}$", "$\Delta Ca_{amp}$"]
-    colors = ["black", "red", "darkorange", "darkviolet"]
+    curve_names = dict(
+        ap="$\Delta Ca_{1 AP}$",
+        glu="$\Delta Ca_{Glu}$",
+        pairing="$\Delta Ca_{pairing}$",
+        amp="$\Delta Ca_{amp}$",
+        syn1="$\Delta Ca_{syn}$",
+        syn2="$\Delta Ca_{syn}$",
+    )
+    curve_colors = dict(
+        ap="black",
+        glu="red",
+        pairing="darkorange",
+        amp="darkviolet",
+        syn1="black",
+        syn2=("red", 0.5),
+    )
+    curve_offsets = dict(
+        ap=0,
+        glu=1,
+        pairing=3,
+        amp=4,
+        syn1=2,
+        syn2=2,
+    )
 
-    start_offset = start_pos - 100
-    start_offset = 67
-    ax.axhline(0, color="black", linewidth=0.7)
-    ax.plot(data.tvec[start_offset:] - 100, c_ap[start_offset:], color=colors[0], linewidth=1.0)
-    ax.plot(data.tvec[start_offset:] - 100, c_glu[start_offset:], color=colors[1], linewidth=1.0)
-    ax.plot(data.tvec[start_offset:] - 100, c_gap[start_offset:], color=colors[2], linewidth=1.0)
-    ax.plot(data.tvec[start_offset:] - 100, c_syn[start_offset:], color=colors[0], linewidth=1.0)
-    ax.plot(data.tvec[start_offset:] - 100, c_syn[start_offset:], color=colors[1], linestyle="--", linewidth=1.0)
-    ax.plot([0, 0], [-0.09, -0.04], color="black", linewidth=1.5, linestyle="-")
+    start_0line = start_pos - 100 - delta_pos
+    end_0line = xlim[1] - 100
+    ax.plot([start_0line, end_0line], [0, 0], color="black", linewidth=FigParams.thinlinewidth)
+    ax.plot(
+        data.tvec[start_offset:] - 100, c_ap[start_offset:], color=curve_colors["ap"], linewidth=FigParams.thinlinewidth
+    )
+    ax.plot(
+        data.tvec[start_offset:] - 100,
+        c_glu[start_offset:],
+        color=curve_colors["glu"],
+        linewidth=FigParams.thinlinewidth,
+    )
+    ax.plot(
+        data.tvec[start_offset:] - 100,
+        c_gap[start_offset:],
+        color=curve_colors["pairing"],
+        linewidth=FigParams.thinlinewidth,
+    )
+    ax.plot(
+        data.tvec[start_offset:] - 100,
+        c_syn[start_offset:],
+        color=curve_colors["syn1"],
+        linewidth=FigParams.thinlinewidth,
+    )
+    ax.plot(
+        data.tvec[start_offset:] - 100,
+        c_syn[start_offset:],
+        color=curve_colors["syn2"],
+        linewidth=FigParams.thinlinewidth,
+    )
+    ax.plot([0, 0], [-0.09, -0.04], color="black", linewidth=FigParams.linewidth, linestyle="-")
 
-    def stem(x, y, ystart=0, color="black", linewidth=2.0):
+    def stem(x, y, ystart=0, color="black", linewidth=FigParams.thinlinewidth):
         ax.plot([x, x], [ystart, y], color=color, linewidth=linewidth)
-        ax.plot(x, y, color=color, marker="o", markersize=4, markeredgecolor=color, markerfacecolor=color)
+        ax.plot(x, y, color=color, marker="o", markersize=1.5, markeredgecolor=color, markerfacecolor=color)
 
     start_ap = start_pos - 100
     start_glu = start_ap + delta_pos
     start_gap = start_ap + 2 * delta_pos
     start_syn = start_ap + 3 * delta_pos
-    stem(start_ap, c_ap_peak, color=colors[0])
-    stem(start_glu, c_glu_peak, color=colors[1])
-    stem(start_gap, c_gap_peak, color=colors[2])
-    stem(start_syn, c_ap_peak + c_glu_peak + c_nl, ystart=c_ap_peak + c_glu_peak, color=colors[3])
-    stem(start_syn, c_ap_peak + c_glu_peak, ystart=c_ap_peak, color=colors[1])
-    stem(start_syn, c_ap_peak, color=colors[0])
+    stem(start_ap, c_ap_peak, color=curve_colors["ap"])
+    stem(start_glu, c_glu_peak, color=curve_colors["glu"])
+    stem(start_gap, c_gap_peak, color=curve_colors["pairing"])
+    stem(start_syn, c_ap_peak + c_glu_peak + c_nl, ystart=c_ap_peak + c_glu_peak, color=curve_colors["amp"])
+    stem(start_syn, c_ap_peak + c_glu_peak, ystart=c_ap_peak, color=curve_colors["glu"])
+    stem(start_syn, c_ap_peak, color=curve_colors["ap"])
 
     # Create legends and scale bars
-    scale_x_root = 200
-    scale_x_mag = 50
-    scale_y_root = 0.3
-    scale_y_mag = 0.07
-    scale_y_offset = 0.01
-
-    ax.plot([scale_x_root, scale_x_root], [scale_y_root, scale_y_root + scale_y_mag], color="black", linewidth=1.0)
-    ax.plot([scale_x_root, scale_x_root + scale_x_mag], [scale_y_root, scale_y_root], color="black", linewidth=1.0)
-    ax.text(scale_x_root, scale_y_root - scale_y_offset, f"{scale_x_mag}ms", ha="left", va="top", fontsize=12)
+    ax.plot(
+        [scale_x_root, scale_x_root],
+        [scale_y_root, scale_y_root + scale_y_mag],
+        color="black",
+        linewidth=FigParams.thinlinewidth,
+    )
+    ax.plot(
+        [scale_x_root, scale_x_root + scale_x_mag],
+        [scale_y_root, scale_y_root],
+        color="black",
+        linewidth=FigParams.thinlinewidth,
+    )
+    ax.text(
+        scale_x_root,
+        scale_y_root - scale_y_offset,
+        f"{scale_x_mag}ms",
+        ha="left",
+        va="top",
+        fontsize=FigParams.fontsize,
+    )
     ax.text(
         scale_x_root,
         scale_y_root,
-        f"{int(scale_y_mag*100)}% $\Delta$ G/R",
+        f"{int(scale_y_mag*100)}% $\Delta$G/R",
         ha="right",
         va="bottom",
         rotation=90,
-        fontsize=12,
+        fontsize=FigParams.fontsize,
     )
 
-    legend_x_start = 260
-    legend_y_start = 0.72
-    legend_y_offset = -0.065
-
-    for i, (name, color) in enumerate(zip(names, colors)):
-        xpos = legend_x_start
-        ypos = legend_y_start + i * legend_y_offset
-        ax.text(xpos, ypos, name, ha="left", va="center", fontsize=16, color=color)
+    for key in curve_names:
+        ax.text(
+            legend_x_start,
+            legend_y_start + legend_y_offset * curve_offsets[key],
+            curve_names[key],
+            ha="left",
+            va="center",
+            fontsize=FigParams.fontsize,
+            color=curve_colors[key],
+        )
 
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -428,8 +518,178 @@ def build_ax_amplification_demonstration(
     ax.set_xticks([])
     ax.set_yticks([])
 
-    ax.set_xlim(-100, 400)
-    ax.set_ylim(-0.11, 0.79)
+    ax.set_xlim(*xlim)
+    ax.set_ylim(*ylim)
+
+    return ax
+
+
+def build_ax_amplification_demonstration_with_spines(
+    ax: plt.Axes,
+    data: ElifeData,
+    icell: int = 17,
+    start_pos: int = 20,
+    start_offset: int = 67,
+    delta_pos: int = 10,
+    legend_x_start: float = 260,
+    legend_y_start: float = 0.72,
+    legend_y_offset: float = -0.065,
+    scale_x_root: float = 200,
+    scale_y_root: float = 0.3,
+    scale_y_mag: float = 0.07,
+    xlim: tuple[float, float] = (-100, 400),
+    ylim: tuple[float, float] = (-0.11, 0.79),
+):
+    """Build the amplification demonstration figure on a given axis.
+
+    Parameters
+    ----------
+    ax : plt.Axes
+        The axis to build the figure on.
+    data : ElifeData
+        The ELife data to plot.
+    icell : int, optional
+        The cell index to plot, by default 17.
+    start_pos : int, optional
+        The start position of the demonstration, by default 20.
+    start_offset : int, optional
+        The starting offset for plotting the traces, by default 67.
+    delta_pos : int, optional
+        The delta position of the demonstration, by default 10.
+    legend_x_start : float, optional
+        The x position of the legend text items, by default 260.
+    legend_y_start : float, optional
+        The y start position of the legend text items, by default 0.72.
+    legend_y_offset : float, optional
+        The y offset positions of the legend text items, by default -0.065.
+    xlim : tuple[float, float], optional
+        The xlim for the plot, by default (-100, 400)
+    ylim : tuple[float, float], optional
+        The ylim for the plot, by default (-0.11, 0.79)
+
+    Returns
+    -------
+    ax : plt.Axes
+    """
+    c_ap = data.sapbase[:, icell]
+    c_glu = correct_pmt(data.sglubase[:, icell])
+    c_gap = correct_pmt(data.sgapbase[:, icell])
+    c_syn = data.syntrace[:, icell]
+
+    c_ap_peak = data.spk_new[data.idx_ap, icell]
+    c_glu_peak = data.spk_new[data.idx_glu, icell]
+    c_gap_peak = data.spk_new[data.idx_gap, icell]
+    c_nl = c_gap_peak - c_ap_peak - c_glu_peak
+
+    curve_names = dict(
+        ap="$\Delta Ca_{1 AP}$",
+        glu="$\Delta Ca_{Glu}$",
+        pairing="$\Delta Ca_{pairing}$",
+        amp="$\Delta Ca_{amp}$",
+        syn1="$\Delta Ca_{syn}$",
+        syn2="$\Delta Ca_{syn}$",
+    )
+    curve_colors = dict(
+        ap="black",
+        glu="red",
+        pairing="darkorange",
+        amp="darkviolet",
+        syn1="black",
+        syn2=("red", 0.5),
+    )
+    curve_offsets = dict(
+        ap=0,
+        glu=1,
+        pairing=3,
+        amp=4,
+        syn1=2,
+        syn2=2,
+    )
+
+    ax.plot(
+        data.tvec[start_offset:] - 100,
+        c_ap[start_offset:],
+        color=curve_colors["ap"],
+        linewidth=FigParams.thinlinewidth,
+    )
+    ax.plot(
+        data.tvec[start_offset:] - 100,
+        c_glu[start_offset:],
+        color=curve_colors["glu"],
+        linewidth=FigParams.thinlinewidth,
+    )
+    ax.plot(
+        data.tvec[start_offset:] - 100,
+        c_gap[start_offset:],
+        color=curve_colors["pairing"],
+        linewidth=FigParams.thinlinewidth,
+    )
+    ax.plot(
+        data.tvec[start_offset:] - 100,
+        c_syn[start_offset:],
+        color=curve_colors["syn1"],
+        linewidth=FigParams.thinlinewidth,
+    )
+    ax.plot(
+        data.tvec[start_offset:] - 100,
+        c_syn[start_offset:],
+        color=curve_colors["syn2"],
+        linewidth=FigParams.thinlinewidth,
+    )
+
+    def stem(x, y, ystart=0, color="black", linewidth=FigParams.thinlinewidth):
+        ax.plot([x, x], [ystart, y], color=color, linewidth=linewidth)
+        ax.plot(x, y, color=color, marker="o", markersize=1.5, markeredgecolor=color, markerfacecolor=color)
+
+    start_ap = start_pos - 100
+    start_glu = start_ap + delta_pos
+    start_gap = start_ap + 2 * delta_pos
+    start_syn = start_ap + 3 * delta_pos
+    stem(start_ap, c_ap_peak, color=curve_colors["ap"])
+    stem(start_glu, c_glu_peak, color=curve_colors["glu"])
+    stem(start_gap, c_gap_peak, color=curve_colors["pairing"])
+    stem(start_syn, c_ap_peak + c_glu_peak + c_nl, ystart=c_ap_peak + c_glu_peak, color=curve_colors["amp"])
+    stem(start_syn, c_ap_peak + c_glu_peak, ystart=c_ap_peak, color=curve_colors["glu"])
+    stem(start_syn, c_ap_peak, color=curve_colors["ap"])
+
+    # Draw 0 line for stem plots
+    start_0line = start_pos - 100 - delta_pos
+    end_0line = start_pos - 100 + 4 * delta_pos
+    ax.plot([start_0line, end_0line], [0, 0], color="black", linewidth=FigParams.linewidth)
+
+    # Create legends and scale bars
+    ax.plot(
+        [scale_x_root, scale_x_root],
+        [scale_y_root, scale_y_root + scale_y_mag],
+        color="black",
+        linewidth=FigParams.thinlinewidth,
+    )
+    ax.text(
+        scale_x_root - scale_x_root / 25,
+        scale_y_root,
+        f"{int(scale_y_mag*100)}% $\Delta$G/R",
+        ha="right",
+        va="bottom",
+        rotation=90,
+        fontsize=FigParams.fontsize,
+    )
+
+    for key in curve_names:
+        ax.text(
+            legend_x_start,
+            legend_y_start + legend_y_offset * curve_offsets[key],
+            curve_names[key],
+            ha="left",
+            va="center",
+            fontsize=FigParams.fontsize,
+            color=curve_colors[key],
+        )
+
+    ax.set_xlim(*xlim)
+    ax.set_ylim(*ylim)
+    format_spines(ax, xbounds=(0, 400), xticks=[0, 400], yticks=[], ybounds=(0.0, ylim[1]), **FigParams.kwargs_spines())
+    ax.spines["left"].set_visible(False)
+    ax.set_xlabel("Time (ms)", fontsize=FigParams.fontsize, labelpad=-5)
 
     return ax
 
@@ -522,12 +782,25 @@ def build_axes_formatted_elife_data(
             color=DistalComplex.color,
             alpha=0.2,
         )
-    ax_ap_trace.plot(data.tvec - 100, mn_ap_proximal, color=Proximal.color)
-    ax_ap_trace.plot(data.tvec - 100, mn_ap_distal_simple, color=DistalSimple.color)
-    ax_ap_trace.plot(data.tvec - 100, mn_ap_distal_complex, color=DistalComplex.color)
-    ax_ap_trace.set_xlabel("Time (ms)")
-    ax_ap_trace.set_xlim(-50, 400)
-    ax_ap_trace.set_ylim(-0.025, 0.3)
+
+    ax_ap_trace.plot(
+        data.tvec - 100,
+        mn_ap_proximal,
+        color=Proximal.color,
+        linewidth=FigParams.thinlinewidth,
+    )
+    ax_ap_trace.plot(
+        data.tvec - 100,
+        mn_ap_distal_simple,
+        color=DistalSimple.color,
+        linewidth=FigParams.thinlinewidth,
+    )
+    ax_ap_trace.plot(
+        data.tvec - 100,
+        mn_ap_distal_complex,
+        color=DistalComplex.color,
+        linewidth=FigParams.thinlinewidth,
+    )
 
     if show_error:
         ax_amp_trace.fill_between(
@@ -551,16 +824,43 @@ def build_axes_formatted_elife_data(
             color=DistalComplex.color,
             alpha=0.2,
         )
-    ax_amp_trace.plot(data.tvec - 100, mn_amp_proximal, color=Proximal.color)
-    ax_amp_trace.plot(data.tvec - 100, mn_amp_distal_simple, color=DistalSimple.color)
-    ax_amp_trace.plot(data.tvec - 100, mn_amp_distal_complex, color=DistalComplex.color)
-    ax_amp_trace.set_xlabel("Time (ms)")
-    ax_amp_trace.set_xlim(-50, 400)
-    ax_amp_trace.set_ylim(-0.25, 3.1)
 
+    ax_amp_trace.plot(
+        data.tvec - 100,
+        mn_amp_proximal,
+        color=Proximal.color,
+        linewidth=FigParams.thinlinewidth,
+    )
+    ax_amp_trace.plot(
+        data.tvec - 100,
+        mn_amp_distal_simple,
+        color=DistalSimple.color,
+        linewidth=FigParams.thinlinewidth,
+    )
+    ax_amp_trace.plot(
+        data.tvec - 100,
+        mn_amp_distal_complex,
+        color=DistalComplex.color,
+        linewidth=FigParams.thinlinewidth,
+    )
+
+    # Plot text legend
+    add_group_legend(
+        ax_ap_trace,
+        x=360,
+        y_start=0.25,
+        y_offset=-0.035,
+        y_extra=0,
+        ha="center",
+        va="center",
+        fontsize=FigParams.fontsize,
+        label_type="experimental",
+    )
+
+    # Plot summary data scatter plot
     nbins = 10
-    s = 25
-    alpha = 0.85
+    s = FigParams.scattersize
+    alpha = FigParams.scatteralpha
     beewidth = 0.25
 
     ax_ap_peaks.scatter(
@@ -569,6 +869,7 @@ def build_axes_formatted_elife_data(
         color=Proximal.color,
         s=s,
         alpha=alpha,
+        edgecolor="none",
     )
     ax_ap_peaks.scatter(
         1 + beewidth * beeswarm(data.spk[data.idx_ap, idx_distal_simple], nbins=nbins),
@@ -576,6 +877,7 @@ def build_axes_formatted_elife_data(
         color=DistalSimple.color,
         s=s,
         alpha=alpha,
+        edgecolor="none",
     )
     ax_ap_peaks.scatter(
         2 + beewidth * beeswarm(data.spk[data.idx_ap, idx_distal_complex], nbins=nbins),
@@ -583,9 +885,8 @@ def build_axes_formatted_elife_data(
         color=DistalComplex.color,
         s=s,
         alpha=alpha,
+        edgecolor="none",
     )
-    ax_ap_peaks.set_xlim(-0.5, 2.5)
-    ax_ap_peaks.set_ylim(-0.025, 0.3)
 
     ax_amp_peaks.scatter(
         0 + beewidth * beeswarm(data.ampreglu[idx_proximal], nbins=nbins),
@@ -593,6 +894,7 @@ def build_axes_formatted_elife_data(
         color=Proximal.color,
         s=s,
         alpha=alpha,
+        edgecolor="none",
     )
     ax_amp_peaks.scatter(
         1 + beewidth * beeswarm(data.ampreglu[idx_distal_simple], nbins=nbins),
@@ -600,6 +902,7 @@ def build_axes_formatted_elife_data(
         color=DistalSimple.color,
         s=s,
         alpha=alpha,
+        edgecolor="none",
     )
     ax_amp_peaks.scatter(
         2 + beewidth * beeswarm(data.ampreglu[idx_distal_complex], nbins=nbins),
@@ -607,33 +910,45 @@ def build_axes_formatted_elife_data(
         color=DistalComplex.color,
         s=s,
         alpha=alpha,
+        edgecolor="none",
     )
+    # ax_ap_trace.set_xlabel("Time (ms)", fontsize=FigParams.fontsize)
+    ax_ap_trace.set_xlim(-50, 400)
+    ax_ap_trace.set_ylim(-0.025, 0.31)
+
+    ax_amp_trace.set_xlabel("Time (ms)", fontsize=FigParams.fontsize, labelpad=-5)
+    ax_amp_trace.set_xlim(-50, 400)
+    ax_amp_trace.set_ylim(-0.25, 3.1)
+    ax_ap_peaks.set_xlim(-0.5, 2.5)
+    ax_ap_peaks.set_ylim(-0.025, 0.31)
+
     ax_amp_peaks.set_xlim(-0.5, 2.5)
     ax_amp_peaks.set_ylim(-0.25, 3.1)
+    format_spines(ax_ap_trace, xticks=[], xbounds=(-25, 400), ybounds=(0.0, 0.3), **FigParams.kwargs_spines())
+    format_spines(ax_amp_trace, xbounds=(-25, 400), ybounds=(0.0, 3.0), **FigParams.kwargs_spines())
+    format_spines(ax_ap_peaks, xbounds=(0, 2), ybounds=(0.0, 0.3), **FigParams.kwargs_spines())
+    format_spines(ax_amp_peaks, xbounds=(0, 2), ybounds=(0.0, 3.0), **FigParams.kwargs_spines())
 
-    spine_pos = FigParams.spine_pos
-    format_spines(ax_ap_trace, x_pos=spine_pos, y_pos=spine_pos, xbounds=(-25, 400), ybounds=(0.0, 0.3))
-    format_spines(ax_amp_trace, x_pos=spine_pos, y_pos=spine_pos, xbounds=(-25, 400), ybounds=(0.0, 3))
-    format_spines(ax_ap_peaks, x_pos=spine_pos, y_pos=spine_pos, xbounds=(0, 2), ybounds=(0.0, 0.3))
-    format_spines(ax_amp_peaks, x_pos=spine_pos, y_pos=spine_pos, xbounds=(0, 2), ybounds=(0.0, 3.0))
-
-    ax_ap_trace.set_ylabel("$\Delta Ca_{AP}$")
-    ax_amp_trace.set_ylabel("$\Delta Ca_{amp} \propto \Delta Ca_{glu}$")
-    ax_ap_trace.set_yticks([0.0, 0.1, 0.2, 0.3])
-    ax_amp_trace.set_yticks([0.0, 1.0, 2.0, 3.0])
-    ax_ap_peaks.set_xticks([0, 1, 2])
+    ax_ap_trace.set_ylabel("$\Delta Ca_{AP}$", fontsize=FigParams.fontsize, labelpad=-10)
+    ax_amp_trace.set_ylabel("relative $\Delta Ca_{amp}$", fontsize=FigParams.fontsize, labelpad=-5)
+    ax_ap_trace.set_yticks([0.0, 0.3])
+    ax_amp_trace.set_yticks([0.0, 3.0])
+    ax_ap_peaks.set_yticks([0.0, 0.3])
+    ax_amp_peaks.set_yticks([0.0, 3.0])
+    ax_ap_peaks.set_xticks([])
     ax_ap_peaks.set_xticklabels([])
     ax_amp_peaks.set_xticks(
-        [0, 1, 2],
-        labels=[Proximal.label, DistalSimple.labelnl, DistalComplex.labelnl],
-        rotation=45,
-        ha="right",
-        rotation_mode="anchor",
+        [],  # [0, 1, 2],
+        # labels=[Proximal.label, DistalSimple.labelnl, DistalComplex.labelnl],
+        # ha="right",
+        # rotation=45,
+        # rotation_mode="anchor",
+        # fontsize=FigParams.fontsize,
     )
 
-    ax_ap_peaks.spines["left"].set_visible(False)
-    ax_amp_peaks.spines["left"].set_visible(False)
-    ax_ap_peaks.set_yticks([])
-    ax_amp_peaks.set_yticks([])
+    # ax_ap_peaks.spines["left"].set_visible(False)
+    # ax_amp_peaks.spines["left"].set_visible(False)
+    # ax_ap_peaks.set_yticks([])
+    # ax_amp_peaks.set_yticks([])
 
     return ax_ap_trace, ax_amp_trace, ax_ap_peaks, ax_amp_peaks
