@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Literal
 import numpy as np
 import pandas as pd
 from scipy.constants import R, physical_constants
@@ -6,8 +6,10 @@ from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 from matplotlib.typing import ColorType
 
-from src.files import get_figure_dir
-from src.plotting import save_figure, FigParams
+from src.files import get_figure_dir, data_dir
+from src.plotting import save_figure, FigParams, Proximal, DistalSimple, DistalComplex
+from src.experimental import ElifeData
+from src.utils import get_closest_idx
 
 F = physical_constants["Faraday constant"][0]
 
@@ -35,7 +37,7 @@ class VGCC:
         list[float]
             RGB color values normalized to [0, 1] range
         """
-        return [x / 255 for x in [66, 135, 135]]
+        return "mediumpurple"  # [x / 255 for x in [66, 135, 135]]
 
     def __init__(self) -> None:
         """Initialize VGCC with parameters."""
@@ -503,13 +505,131 @@ def fit_sigmoid(df: pd.DataFrame) -> np.ndarray:
     return params
 
 
-def plasticity_transfer_function(
+def get_nevian_params(buffer: Literal["BAPTA", "EGTA", "AVERAGE"] = "AVERAGE"):
+    """Retrieve nevian reconstruction data and measure sigmoidal fits to data.
+
+    Parameters
+    ----------
+    buffer : Literal["BAPTA", "EGTA", "AVERAGE"], optional
+        Which buffer data to use to make the data, default is AVERAGE
+        which means combining them and making the sigmoid of both datasets.
+
+    Returns
+    -------
+    dfs : list[pd.DataFrame]
+        dataframe of the data for LTP[0] and LTD[1]
+    params : list[tuple]
+        sigmoidal fit to the data in dfs
+    """
+    # Read CSVs for STDP Data
+    stdp_data_path = data_dir() / "nevian-sakmann-2006"
+    stdp_dfs = {}
+    for plasticity_type in ["LTP", "LTD"]:
+        stdp_dfs[plasticity_type] = {}
+        for buffer_type in ["BAPTA", "EGTA"]:
+            path = stdp_data_path / f"{plasticity_type}-{buffer_type}.csv"
+            stdp_dfs[plasticity_type][buffer_type] = get_csv_data(path)
+
+    if buffer == "BAPTA":
+        ltp_df = stdp_dfs["LTP"]["BAPTA"]
+        ltd_df = stdp_dfs["LTD"]["BAPTA"]
+    elif buffer == "EGTA":
+        ltp_df = stdp_dfs["LTP"]["EGTA"]
+        ltd_df = stdp_dfs["LTD"]["EGTA"]
+    elif buffer == "AVERAGE":
+        ltp_df = pd.concat([stdp_dfs["LTP"]["BAPTA"], stdp_dfs["LTP"]["EGTA"]])
+        ltd_df = pd.concat([stdp_dfs["LTD"]["BAPTA"], stdp_dfs["LTD"]["EGTA"]])
+    else:
+        raise ValueError(f"Did not recognize buffer, received: {buffer}")
+
+    dfs = dict(LTP=ltp_df, LTD=ltd_df)
+    params = dict(LTP=fit_sigmoid(ltp_df), LTD=fit_sigmoid(ltd_df))
+
+    return dfs, params
+
+
+def measure_transfer_functions(
+    data: dict,
+    flip_ltd: bool = True,
+):
+    # Calculate peak calcium influx evoked by each channel
+    # Note: it's appropriate to do this independently, because the two curves represent relative
+    # calcium influx as a function of the voltage stimulus - but since we don't know what the
+    # maximum channel conductance is in a dendritic spine, we can't compare NMDAR to VGCC. So,
+    # to keep things simple, I assume that the maximum calcium influx that enters via a 1ms AP
+    # reflects the maximum calcium possible from these channels. We're ignoring lots of things,
+    # including but not limited to: buffering properties, extrusion properties, glutamate binding
+    # dynamics, etc etc etc.
+
+    # Get elife data
+    elife_data = ElifeData()
+
+    # Estimate relative peak concentration of NMDAR vs VGCC based on maximum
+    # measurements of calcium concentration for AP only or NL component (which
+    # mostly from NMDARs)
+    max_nl_component = np.max(elife_data.nl_component)  # to estimate how much calcium can come in due to NMDARs
+    max_ap_only = np.max(elife_data.spk_new[elife_data.idx_ap])  # to estimate how much calcium can come in due to VGCCs
+    relative_ltp_scale = max_nl_component / max_ap_only  # to relate VGCC and NMDAR conductance to calcium
+
+    # ~~~ The only thing to consider is that estimating max requires the data to have picked an
+    # ~~~ AP amplitude that evokes near maximal concentration!!!
+    nmdar_peak = np.max(data["nmdar_integral_ca"])
+    vgcc_peak = np.max(data["vgcc_integral_ca"])
+    ltp_ca_to_buffer = 1.0 / nmdar_peak / relative_ltp_scale
+    ltd_ca_to_buffer = 1.0 / vgcc_peak
+    effective_ca_ltp = ltp_ca_to_buffer * np.array(data["nmdar_integral_ca"])
+    effective_ca_ltd = ltd_ca_to_buffer * np.array(data["vgcc_integral_ca"])
+
+    # This measures the transfer function from relative calcium to plasticity magnitude
+    # with the maximum calcium value being 1.0 or whatever the average calcium influx
+    # for a typical pre/post or post/pre protocol is that drives plasticity.
+    # --
+    # So, to convert the "*_integral_ca" into units of relative calcium, we should divide
+    # integral calcium by the maximum observed (at least over a valid range of AP amplitudes
+    # to capture the full range). To attempt to compare NMDARs and VGCCs (which we don't
+    # have max channel conductance data for), we update based on the peak NMDAR/VGCC ca influx.
+    ca_concentration, ltp_transfer = plasticity_transfer_function(
+        data["params"]["LTP"],
+        LTP=True,
+        max_buffer_concentration=10.0,
+        kd=0.25,
+        num_points=10001,
+    )
+    ltd_transfer = plasticity_transfer_function(
+        data["params"]["LTD"],
+        LTP=False,
+        max_buffer_concentration=10.0,
+        kd=0.25,
+        num_points=10001,
+    )[1]
+
+    # Get closest index and error for the "effective" concentration
+    # and the "measured" concentration
+    idx_ltp, error_ltp = get_closest_idx(ca_concentration, effective_ca_ltp)
+    idx_ltd, error_ltd = get_closest_idx(ca_concentration, effective_ca_ltd)
+    ltp_transfer = ltp_transfer[idx_ltp]
+    ltd_transfer = ltd_transfer[idx_ltd]
+
+    if flip_ltd:
+        # flip sign because transfer is negative
+        ltd_transfer = -1 * ltd_transfer
+
+    results = dict(
+        LTP=ltp_transfer,
+        LTD=ltd_transfer,
+        error_ltp_ca_estimate=error_ltp,
+        error_ltd_ca_estimate=error_ltd,
+    )
+    return results
+
+
+def simplistic_plasticity_transfer_function(
     params: tuple[float],
     x_values: Optional[np.ndarray] = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Generate a transfer function for plasticity based on sigmoid fit of buffer effects.
 
-    Our model is that the reduction in plasticity caused by adding more buffer linearly
+    In this model, we assume the reduction in plasticity caused by adding more buffer linearly
     corresponds to the relationship between the amount of calcium influx and the amount
     of plasticity. So, if a buffer concentration of 0.5mM causes a 50% reduction in the
     amount of LTP/LTD, then we assume that the effective dose of [Ca] at 0.5mM buffer
@@ -553,6 +673,171 @@ def plasticity_transfer_function(
     transfer_function = (transfer_function - baseline) / scale
     transfer_function = 1 - transfer_function
     return transfer_function, x_values
+
+
+def plasticity_transfer_function(
+    params: tuple[float],
+    LTP: bool,
+    max_buffer_concentration: float = 5.0,
+    kd: float = 0.25,
+    num_points: int = 1001,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Generate a transfer function for plasticity based on sigmoid fit of buffer effects.
+
+    We model how buffers affect calcium dynamics by assuming the buffer is in the buffer
+    capcity regime (e.g. [CaB]/[Ca] = [B]/Kd). Therefore, an increase in the concentration
+    of the buffer linearly corresponds to a reduction in calcium concentration.
+
+    From the Nevian pharmacology data, we know the relationship between the magnitude of
+    plasticity and the concentration of calcium ~above a certain threshold~ for plasticity.
+
+    Let B_{threshold} be the lowest buffer concentration at which plasticity is fully
+    blocked (e.g. just over 1 mM for LTP data, see Nevian reconstruction). Let the associated
+    calcium at this buffer concentration be Ca_{threshold}.
+
+    Parameters
+    ----------
+    params : tuple[float]
+        Parameters from sigmoid fit (L, x0, k, b) where:
+        L: Maximum value (will be set to 1.0)
+        x0: x-value of the sigmoid's midpoint (half-effective concentration)
+        k: Steepness of the curve (hill coefficient)
+        b: y-offset (will be set to 0)
+    LTP : boolean
+        True if we're modeling LTP (assumes the sigmoid model is positive, and
+        negative for LTD).
+    max_buffer_concentration : float
+        maximum buffer concentration to model, default=5.0
+    kd : float
+        The binding coefficient of the buffer we're modeling.
+    num_points : int
+        The number of points to use for the concentration values.
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        A tuple containing:
+        - transfer_function: Normalized sigmoid values (0-1 range)
+        - buffer_concentration: Buffer concentration values
+        -
+    """
+    # Set up effective calcium dose values
+    buffer_concentration = np.linspace(0, max_buffer_concentration, num_points)
+
+    kd = 0.250  # Kd of BAPTA / EGTA (I think this is right?)
+    kappa = buffer_concentration / kd
+
+    L, x0, k, b = params
+    transfer = sigmoid(buffer_concentration, L, x0, k, b)
+    transfer = np.maximum(transfer, 0) if LTP else np.minimum(transfer, 0)
+
+    # Measure calcium remaining after adding buffer
+    Ca_remaining = 1.0 / (1 + kappa)
+
+    # Return calcium and plasticity (in order from lowest to highest calcium)
+    return Ca_remaining[::-1], transfer[::-1]
+
+
+def run_simulations(
+    buffer: Literal["BAPTA", "EGTA", "AVERAGE"] = "AVERAGE",
+    max_ap_amplitude: float = 100,
+    num_ap_amplitudes: int = 100,
+) -> plt.Axes:
+    """Run simulations of conductance data and expected plasticity curves."""
+
+    # Get Nevian params
+    params = get_nevian_params(buffer)[1]
+
+    # Simulation parameters
+    v_range = np.linspace(-80, 40, 200)  # Voltage range for steady-state plots
+    dt = 0.01  # Time step for numerical integration (ms)
+    t_start = 0
+    t_end = 5
+    t_range = np.linspace(t_start, t_end, int((t_end - t_start) / dt))
+    v_base = -70  # base voltage of APs
+    ap_peak_time = 1  # Time of AP peak in ms
+    ap_amplitudes = np.linspace(0, max_ap_amplitude, num_ap_amplitudes)  # AP amplitudes to test
+    ap_peaks = v_base + ap_amplitudes
+    ca_in = 75e-9
+    ca_out = 1.5e-6
+
+    # Initialize channels
+    nmdar = NMDAR()
+    vgcc = VGCC()
+
+    # Data dictionary for storing all results
+    data = dict(
+        params=params,
+        t_range=t_range,
+        v_range=v_range,
+        ap_amplitudes=ap_amplitudes,
+        ap_peaks=ap_peaks,
+        ca_in=ca_in,
+        ca_out=ca_out,
+        nmdar=vars(nmdar),
+        vgcc=vars(vgcc),
+        v_trace=[],
+        nmdar_p=[],
+        vgcc_p=[],
+        nmdar_ica=[],
+        vgcc_ica=[],
+        LTP=[],
+        LTD=[],
+    )
+
+    # Generate voltage traces and responses for different AP amplitudes
+    for amp in ap_amplitudes:
+        # Create AP waveform
+        ap = AP(v_amp=amp, v_dur=1, v_base=-70)
+        v_trace = ap.voltage(t_range, ap_peak_time)
+
+        # Initialize state variables to steady state at baseline voltage
+        m = vgcc.open_probability_activation(v_trace[0])
+        h = vgcc.open_probability_inactivation(v_trace[0])
+        n = nmdar.open_probability(v_trace[0])
+
+        # Arrays to store results
+        m_trace = np.zeros_like(t_range)
+        h_trace = np.zeros_like(t_range)
+        n_trace = np.zeros_like(t_range)
+        m_trace[0] = m
+        h_trace[0] = h
+        n_trace[0] = n
+
+        # Numerical integration using Euler's method
+        for i in range(1, len(t_range)):
+            m += dt * vgcc.dmdt(v_trace[i - 1], m)
+            h += dt * vgcc.dhdt(v_trace[i - 1], h)
+            n += dt * nmdar.dndt(v_trace[i - 1], n)
+
+            m_trace[i] = m
+            h_trace[i] = h
+            n_trace[i] = n
+
+        # Calculate open probabilities
+        vgcc_p = m_trace**2 * h_trace  # VGCC open probability
+        nmdar_p = n_trace  # NMDAR open probability
+
+        # Calculate calcium current
+        vgcc_ica = -compute_current(v_trace, vgcc_p, ca_in, ca_out)
+        nmdar_ica = -compute_current(v_trace, nmdar_p, ca_in, ca_out)
+
+        data["v_trace"].append(v_trace)
+        data["nmdar_p"].append(nmdar_p)
+        data["vgcc_p"].append(vgcc_p)
+        data["nmdar_ica"].append(nmdar_ica)
+        data["vgcc_ica"].append(vgcc_ica)
+
+    data["nmdar_peak_p"] = [np.max(p) for p in data["nmdar_p"]]
+    data["vgcc_peak_p"] = [np.max(p) for p in data["vgcc_p"]]
+    data["nmdar_integral_ca"] = [np.sum(ica - ica[0]) for ica in data["nmdar_ica"]]
+    data["vgcc_integral_ca"] = [np.sum(ica - ica[0]) for ica in data["vgcc_ica"]]
+
+    # Calculate plasticity transfer functions
+    transfer_function_results = measure_transfer_functions(data, flip_ltd=True)
+    data = data | transfer_function_results
+
+    return data
 
 
 def plot_channel_properties(
@@ -809,3 +1094,101 @@ def build_axes_simulations(
         ax_vgcc.plot(t_range, vgcc_p, color=color, label=label, linewidth=linewidth)
 
     return ax_voltage, ax_nmdar, ax_vgcc
+
+
+def build_axes_nevian_reconstruction(
+    ax: plt.Axes,
+    buffer: Literal["BAPTA", "EGTA", "AVERAGE"] = "AVERAGE",
+    x_legend: float = 1.8,
+    y_legend: float = 0.95,
+    y_offset: float = -0.15,
+    ha_legend: str = "right",
+    va_legend: str = "center",
+) -> plt.Axes:
+
+    dfs, params = get_nevian_params(buffer=buffer)
+    keys = ["LTP", "LTD"]
+    names = ["LTP ($\propto I_{NMDAR}$)", "LTD ($\propto I_{VGCC}$)"]
+    colors = [NMDAR.color(), VGCC.color()]
+
+    # Plot results
+    xfit = np.linspace(0.0, 2.0, 101)
+    for key, name, color in zip(keys, names, colors):
+        xdata = dfs[key]["x"]
+        ydata = dfs[key]["y"]
+        kwargs = dict(
+            marker=".",
+            markerfacecolor=color,
+            markersize=FigParams.scattersize,
+            markeredgecolor="none",
+            linestyle="none",
+            label=name,
+        )
+        if key == "LTD":
+            ydata = -ydata
+        ax.plot(xdata, ydata, **kwargs, zorder=1000)
+
+        L, x0, k, b = params[key]
+        yfit = sigmoid(xfit, L, x0, k, b)
+        if key == "LTD":
+            yfit = -yfit
+        kwargs = dict(linewidth=FigParams.linewidth, linestyle="-", color=color)
+        ax.plot(xfit, yfit, **kwargs, zorder=900)
+
+    ax.axhline(0, color="black", linewidth=FigParams.thinlinewidth, linestyle="--", zorder=-1000)
+    ax.set_ylim(-0.3, 1.3)
+
+    for iname, name in enumerate(names):
+        ax.text(
+            x_legend,
+            y_legend + iname * y_offset,
+            name,
+            color=colors[iname],
+            ha=ha_legend,
+            va=va_legend,
+            fontsize=FigParams.fontsize,
+        )
+
+
+def build_axes_transfer_functions(
+    ax_transfer: plt.Axes,
+    ax_prediction: plt.Axes,
+    data: dict,
+    ap_amplitudes: np.ndarray,
+    x_legend: float = 1.8,
+    y_legend: float = 0.95,
+    y_offset: float = -0.15,
+    ha_legend: str = "right",
+    va_legend: str = "center",
+) -> tuple[plt.Axes, plt.Axes]:
+    ax_transfer.plot(data["ap_peaks"], data["LTP"], color=NMDAR.color(), linewidth=FigParams.thinlinewidth)
+    ax_transfer.plot(data["ap_peaks"], data["LTD"], color=VGCC.color(), linewidth=FigParams.thinlinewidth)
+    ax_transfer.set_ylim(-0.1, 1.1)
+
+    idx_to_aps, error = get_closest_idx(data["ap_amplitudes"], np.array(ap_amplitudes))
+    if np.any(error > 0.1):
+        raise ValueError(
+            "Failed to find APs with desired amplitude, run_simulations with a wider range and precision!!"
+        )
+
+    if len(ap_amplitudes) != 3:
+        raise ValueError("This function expects 3 AP amplitudes")
+
+    ltp_groups = data["LTP"][idx_to_aps]
+    ltd_groups = data["LTD"][idx_to_aps]
+    colors = [Proximal.color, DistalSimple.color, DistalComplex.color]
+
+    plasticity = np.stack([ltp_groups, ltd_groups], axis=1)
+    plasticity = np.clip(plasticity, 0.0, 1.0)
+    for pp, color in zip(plasticity, colors):
+        ax_prediction.plot(
+            [0, 1],
+            pp,
+            color=color,
+            linewidth=FigParams.thinlinewidth,
+            marker=".",
+            markersize=FigParams.scattersize,
+        )
+
+    ax_prediction.set_xlim(-0.2, 1.2)
+    ax_prediction.set_ylim(-0.1, 1.1)
