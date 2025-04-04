@@ -1155,14 +1155,9 @@ def build_axes_transfer_functions(
     ax_prediction: plt.Axes,
     data: dict,
     ap_amplitudes: np.ndarray,
-    x_legend: float = 1.8,
-    y_legend: float = 0.95,
-    y_offset: float = -0.15,
-    ha_legend: str = "right",
-    va_legend: str = "center",
 ) -> tuple[plt.Axes, plt.Axes]:
-    ax_transfer.plot(data["ap_peaks"], data["LTP"], color=NMDAR.color(), linewidth=FigParams.thinlinewidth)
-    ax_transfer.plot(data["ap_peaks"], data["LTD"], color=VGCC.color(), linewidth=FigParams.thinlinewidth)
+    ax_transfer.plot(data["ap_peaks"], data["LTP"], color=NMDAR.color(), linewidth=FigParams.linewidth)
+    ax_transfer.plot(data["ap_peaks"], data["LTD"], color=VGCC.color(), linewidth=FigParams.linewidth)
     ax_transfer.set_ylim(-0.1, 1.1)
 
     idx_to_aps, error = get_closest_idx(data["ap_amplitudes"], np.array(ap_amplitudes))
@@ -1176,19 +1171,21 @@ def build_axes_transfer_functions(
 
     ltp_groups = data["LTP"][idx_to_aps]
     ltd_groups = data["LTD"][idx_to_aps]
-    colors = [Proximal.color, DistalSimple.color, DistalComplex.color]
+    colors = [NMDAR.color(), VGCC.color()]
+    # location_colors = [Proximal.color, DistalSimple.color, DistalComplex.color]
 
-    plasticity = np.stack([ltp_groups, ltd_groups], axis=1)
+    plasticity = np.stack([ltp_groups, ltd_groups], axis=0)
     plasticity = np.clip(plasticity, 0.0, 1.0)
     for pp, color in zip(plasticity, colors):
         ax_prediction.plot(
-            [0, 1],
+            [0, 1, 2],
             pp,
             color=color,
-            linewidth=FigParams.thinlinewidth,
-            marker=".",
-            markersize=FigParams.scattersize,
+            linewidth=FigParams.linewidth,
+            marker="o",
+            markersize=FigParams.markersize,
+            zorder=0,
         )
 
-    ax_prediction.set_xlim(-0.2, 1.2)
+    ax_prediction.set_xlim(-0.2, 2.2)
     ax_prediction.set_ylim(-0.1, 1.1)

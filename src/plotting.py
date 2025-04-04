@@ -1,7 +1,6 @@
 from typing import Any, Literal
 import math
 import numpy as np
-import torch
 import matplotlib.pyplot as plt
 from dataclasses import dataclass
 
@@ -177,6 +176,11 @@ def make_rf_display(u, disp_buffer=2, flip_sign=False, background_value=-1.0):
 
     u is a input_dim x num_cells matrix, where input_dim = im_length**2
     """
+    try:
+        import torch
+    except ImportError:
+        raise ImportError("This function requires torch to be installed.")
+    
     num_cells, im_length = u.shape[1], int(math.sqrt(u.shape[0]))
     assert num_cells * im_length**2 == u.numel(), "Input dimension isn't a square"
     u = u.T.view(num_cells, im_length, im_length)
@@ -305,6 +309,8 @@ def format_spines(
     yticks=None,
     xlabels=None,
     ylabels=None,
+    xrotation=0,
+    yrotation=0,
     spine_linewidth=1,
     tick_length=6,
     tick_width=1,
@@ -376,12 +382,12 @@ def format_spines(
     if xticks is not None:
         ax.set_xticks(xticks)
     if xlabels is not None:
-        ax.set_xticklabels(xlabels)
+        ax.set_xticklabels(xlabels, rotation=xrotation)
 
     if yticks is not None:
         ax.set_yticks(yticks)
     if ylabels is not None:
-        ax.set_yticklabels(ylabels)
+        ax.set_yticklabels(ylabels, rotation=yrotation)
 
     # Adjust tick appearance
     ax.tick_params(
