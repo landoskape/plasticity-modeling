@@ -5,6 +5,9 @@ Eventually I might want to turn this into a useful piece of software -- but righ
 for keeping the modeling code and figure-making scripts well organized. So, with that in mind, the
 README is going to just be a map of figures and how to make them. 
 
+## Installation
+I didn't include pytorch in the pyproject.toml dependencies for the usual reason. 
+
 ## Section on STDP Predictions
 This figure is meant to serve as a link between our experimental data, biophysical modeling, and
 the predictions that motivate our STDP models. They start with the biophysical conductance model
@@ -56,37 +59,9 @@ d/p ratios and locations on the branch. It works!!!
     map onto learned weights in the weight trajectory graph...
   - It would be cool to do hierarchical clustering and then show it with this order!
 
-- Figure 1: Experimental data exposition:
-  - Panel A: Schematic of dendritic branch definitions (proximal, distal-simple, distal-complex)
-             - need to label these "Distal, XX Branch Structure, High/Low deltaCa_AP" so the first slide makes sense
-  - Panel B: Schematic of amplification and calcium influx and how they're measured
-  - Panel C: Average AP-evoked calcium influx for each group (p, ds, dc)
-  - Panel D: Average AP-evoked amplification for each group (neuron sims if needed!)
-
-- Figure 2: Experimental predictions for STDP
-  - Panel A: Nevian reconstruction with relabeled curves as NMDA/VGCC dependence
-  - Panel B: Schematic of AP Traces for three groups (p, ds, dc)
-  - Panel C: NMDAR Calcium influx for each group
-  - Panel D: VGCC Calcium influx for each group
-      - panels A-C on top row
-  - SCRATCH:
-    - The previous idea for Panel E/F are not really good ideas because there's no way
-      to ~know~ for sure how to normalize the calcium concentration to use
-    - So instead just going to show the open probabilities and then make an argument via text!
-
 - Figure 3: STDP Model
   - Panel A: Schematic of STDP model neuron
   - Panel B: Schematic of STDP model STDP rules
-
-- Figure 4: IaF Correlation Model
-  - Panel A: Demonstration of stimulus structure for correlation model
-  - Panel B: Demonstration of IaF PSTH (in column temporally aligned with A)
-  - Panel C: Demonstration of IaF Input Weights for the three groups (in column temporally aligned with A)
-  - ???????: Correlation matrix of inputs?
-  - Panel D: Summary data of net weight for each group
-    - Note: This will be horizontal instead of vertical, so create a nice schematic to indicate input correlation
-      that can be reused in panel A / C / D / ??? for continuity.
-  - Panel E: Summary statistics (correlation FWHM for each group as a function of D/P ratio)
 
 - Figure 5: Hofer Prediction Exposition
   - Panel A: Illustration of visual environment and receptive fields
