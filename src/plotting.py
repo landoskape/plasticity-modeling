@@ -2,6 +2,7 @@ from typing import Any, Literal
 import math
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import colormaps
 from dataclasses import dataclass
 
 
@@ -17,6 +18,9 @@ class FigParams:
     onepointfive_width: float = 11.4 * cm
     double_width: float = 17.4 * cm
     fontsize: float = 7
+    smallfontsize: float = 5.5
+    tinyfontsize: float = 4
+    thicklinewidth: float = 1.4
     linewidth: float = 1.0
     thinlinewidth: float = 0.7
     scattersize: float = 6.0
@@ -65,15 +69,19 @@ def add_group_legend(
     y_distal_complex = y_start + 2 * y_offset + y_extra
 
     if label_type == "normal":
+        label_proximal = Proximal.label
         label_simple = DistalSimple.label
         label_complex = DistalComplex.label
     elif label_type == "nl":
+        label_proximal = Proximal.labelnl
         label_simple = DistalSimple.labelnl
         label_complex = DistalComplex.labelnl
     elif label_type == "short":
+        label_proximal = Proximal.shortlabel
         label_simple = DistalSimple.shortlabel
         label_complex = DistalComplex.shortlabel
     elif label_type == "experimental":
+        label_proximal = Proximal.experimental
         label_simple = DistalSimple.experimental
         label_complex = DistalComplex.experimental
     else:
@@ -82,9 +90,31 @@ def add_group_legend(
     label_simple += extra_label_simple
     label_complex += extra_label_complex
 
-    ax.text(x, y_proximal, Proximal.label, color=Proximal.color, ha=ha, va=va, fontsize=fontsize)
+    ax.text(x, y_proximal, label_proximal, color=Proximal.color, ha=ha, va=va, fontsize=fontsize)
     ax.text(x, y_distal_simple, label_simple, color=DistalSimple.color, ha=ha, va=va, fontsize=fontsize)
     ax.text(x, y_distal_complex, label_complex, color=DistalComplex.color, ha=ha, va=va, fontsize=fontsize)
+
+
+def add_dpratio_legend(
+    ax: plt.Axes,
+    ratios: list[float],
+    x: float,
+    y: float,
+    fontsize: float = FigParams.fontsize,
+    cmap: str = "plasma_r",
+    cmap_pinch: float = 0.25,
+):
+    num_ratios = len(ratios)
+    cmap = colormaps[cmap]
+    colors = [cmap(ii) for ii in np.linspace(cmap_pinch, 1 - cmap_pinch, num_ratios)]
+    labels = [f"{(ratio-1.0)*100:1g}" for ratio in ratios]
+    text = ax.text(x, y, "Distal-Complex", ha="right", va="top", color="k", fontsize=fontsize)
+    text = ax.annotate("Depression (%)", xycoords=text, xy=(1, 0), fontsize=fontsize, color="k", va="top", ha="right")
+    text = ax.annotate(labels[-1], xycoords=text, xy=(1, 0), fontsize=fontsize, color=colors[-1], va="top", ha="right")
+    kwargs = dict(fontsize=fontsize, va="bottom", ha="right")
+    for ii in range(num_ratios - 2, -1, -1):
+        text = ax.annotate(", ", xycoords=text, xy=(0, 0), color="k", **kwargs)
+        text = ax.annotate(labels[ii], xycoords=text, xy=(0, 0), color=colors[ii], **kwargs)
 
 
 @dataclass(init=False, frozen=True)
@@ -101,6 +131,8 @@ class Proximal:
     color: str = "black"
     shortlabel: str = "prox"
     label: str = "proximal"
+    labelnl: str = "proximal"
+    experimental: str = "proximal"
 
 
 @dataclass(init=False, frozen=True)
@@ -167,7 +199,7 @@ def save_figure(fig, path, **kwargs):
     Save a figure with high resolution in png and svg formats
     """
     fig.savefig(path.with_suffix(".png"), dpi=300, **kwargs)
-    fig.savefig(path.with_suffix(".svg"), **kwargs)
+    fig.savefig(path.with_suffix(".svg"), dpi=300, **kwargs)
 
 
 def make_rf_display(u, disp_buffer=2, flip_sign=False, background_value=-1.0):
@@ -180,7 +212,7 @@ def make_rf_display(u, disp_buffer=2, flip_sign=False, background_value=-1.0):
         import torch
     except ImportError:
         raise ImportError("This function requires torch to be installed.")
-    
+
     num_cells, im_length = u.shape[1], int(math.sqrt(u.shape[0]))
     assert num_cells * im_length**2 == u.numel(), "Input dimension isn't a square"
     u = u.T.view(num_cells, im_length, im_length)
@@ -301,8 +333,8 @@ def errorPlot(x, data, axis=-1, se=False, ax=None, handle_nans=True, **kwargs):
 
 def format_spines(
     ax,
-    x_pos,
-    y_pos,
+    x_pos=0.0,
+    y_pos=0.0,
     xbounds=None,
     ybounds=None,
     xticks=None,
@@ -311,6 +343,12 @@ def format_spines(
     ylabels=None,
     xrotation=0,
     yrotation=0,
+    xrotationmode=None,
+    yrotationmode=None,
+    xva="center",
+    yva="center",
+    xha="center",
+    yha="center",
     spine_linewidth=1,
     tick_length=6,
     tick_width=1,
@@ -339,6 +377,22 @@ def format_spines(
         Custom x-axis tick labels
     ylabels : list or array, optional
         Custom y-axis tick labels
+    xrotation : int or float, optional
+        Rotation angle for x-axis tick labels
+    yrotation : int or float, optional
+        Rotation angle for y-axis tick labels
+    xrotationmode : str, optional
+        Rotation mode for x-axis tick labels
+    yrotationmode : str, optional
+        Rotation mode for y-axis tick labels
+    xva : str, optional
+        Vertical alignment for x-axis tick labels
+    yva : str, optional
+        Vertical alignment for y-axis tick labels
+    xha : str, optional
+        Horizontal alignment for x-axis tick labels
+    yha : str, optional
+        Horizontal alignment for y-axis tick labels
     spine_linewidth : int or float, optional
         Width of the axis spines
     tick_length : int or float, optional
@@ -382,12 +436,12 @@ def format_spines(
     if xticks is not None:
         ax.set_xticks(xticks)
     if xlabels is not None:
-        ax.set_xticklabels(xlabels, rotation=xrotation)
+        ax.set_xticklabels(xlabels, rotation=xrotation, rotation_mode=xrotationmode, ha=xha, va=xva)
 
     if yticks is not None:
         ax.set_yticks(yticks)
     if ylabels is not None:
-        ax.set_yticklabels(ylabels, rotation=yrotation)
+        ax.set_yticklabels(ylabels, rotation=yrotation, rotation_mode=yrotationmode, ha=yha, va=yva)
 
     # Adjust tick appearance
     ax.tick_params(
