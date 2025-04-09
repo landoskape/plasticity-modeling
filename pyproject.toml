@@ -21,6 +21,7 @@ dependencies = [
     "matplotlib",
     "syd",
     "scikit-learn",
+    "ipykernel",
 ]
 requires-python = ">=3.9"
 
