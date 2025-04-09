@@ -3,8 +3,17 @@ from dataclasses import dataclass, field
 import joblib
 import numpy as np
 import matplotlib.pyplot as plt
-from src.files import get_figure_dir, data_dir
-from src.plotting import FigParams, save_figure, Proximal, DistalSimple, DistalComplex, format_spines, add_group_legend
+from src.files import get_figure_dir, data_dir, results_dir
+from src.plotting import (
+    FigParams,
+    save_figure,
+    Proximal,
+    DistalSimple,
+    DistalComplex,
+    format_spines,
+    add_group_legend,
+    add_dpratio_legend,
+)
 from src.schematics import Neuron
 from src.experimental import (
     ElifeData,
@@ -12,6 +21,16 @@ from src.experimental import (
     build_ax_amplification_demonstration_with_spines,
 )
 from src.conductance import build_axes_simulations, build_axes_nevian_reconstruction, build_axes_transfer_functions
+from src.iaf.plotting import (
+    create_dpratio_colors,
+    build_ax_latent_correlation_demonstration,
+    build_ax_corrcoef,
+    build_ax_trajectory,
+    build_ax_weight_summary,
+    build_ax_weight_fits,
+    build_ax_sigmoid_example,
+)
+from src.iaf.analysis import gather_metadata, gather_results, gather_rates, gather_weights
 
 
 @dataclass
@@ -482,7 +501,12 @@ def figure2_option2(fig_params: Figure2Params, show_fig: bool = True, save_fig: 
     )
 
     # Build transfer axes
-    build_axes_transfer_functions(ax_transfer, ax_ltpltd, conductance_data, ap_amplitudes=ap_amplitudes)
+    build_axes_transfer_functions(
+        ax_transfer,
+        ax_ltpltd,
+        conductance_data,
+        ap_amplitudes=ap_amplitudes,
+    )
 
     format_spines(
         ax_transfer,
@@ -498,20 +522,32 @@ def figure2_option2(fig_params: Figure2Params, show_fig: bool = True, save_fig: 
         tick_fontsize=FigParams.tick_fontsize,
     )
 
+    # labels=[Proximal.label, DistalSimple.labelnl, DistalComplex.labelnl],
     format_spines(
         ax_ltpltd,
         x_pos=FigParams.spine_pos,
         y_pos=FigParams.spine_pos,
-        xticks=[0, 1],
+        xticks=[0, 1, 2],
         yticks=[0.0, 1.0],
-        xlabels=["LTP", "LTD"],
-        xbounds=(0.0, 1.0),
+        xbounds=(0.0, 2.0),
         ybounds=(0.0, 1.0),
         spine_linewidth=FigParams.linewidth,
         tick_length=FigParams.tick_length,
         tick_width=FigParams.tick_width,
         tick_fontsize=FigParams.tick_fontsize,
     )
+    ax_ltpltd.set_xticks(
+        [0, 1, 2],
+        labels=[Proximal.label, DistalSimple.labelnl, DistalComplex.labelnl],
+        ha="right",
+        rotation=45,
+        rotation_mode="anchor",
+        fontsize=FigParams.fontsize,
+    )
+
+    ax_transfer.set_xlabel("AP Peak (mV)", fontsize=FigParams.fontsize, labelpad=-5)
+    ax_transfer.set_ylabel("plasticity", fontsize=FigParams.fontsize, labelpad=-1)
+    ax_ltpltd.set_ylabel("plasticity", fontsize=FigParams.fontsize, labelpad=-1)
 
     # Remove white backgrounds
     ax_voltage.set_facecolor("none")
@@ -531,9 +567,361 @@ def figure2_option2(fig_params: Figure2Params, show_fig: bool = True, save_fig: 
     return fig
 
 
+@dataclass
+class Figure4Params:
+    example_simulations: str = "20250324"
+    full_simulations: str = "20250320"
+    schematic_T: int = 300
+    schematic_N: int = 6
+    schematic_sigma_latent: int = 15
+    schematic_sigma_noise: int = 10
+    schematic_max_correlation: float = 0.9
+    schematic_y_offsets: float = -1.0
+    schematic_y_latent: float = 1.0
+    schematic_colormap: str = "Reds"
+    schematic_latent_color: str = "black"
+    schematic_text_offset_fraction: float = 0.025
+    corrcoef_source_name: str = "excitatory"
+    example_idpratio: int = 2
+    example_irepeat: int = 0
+    example_ineuron: int = 0
+    example_cmap: str = "gray_r"
+    example_include_psth: bool = False
+    feature_colormap: str = "Reds"
+    feature_label_max_value: float = 0.8
+    feature_label_min_value: float = 0.1
+    feature_offset_fraction: float = 0.02
+    feature_width_fraction: float = 0.025
+    summary_average_method: str = "fraction"
+    summary_average_window: float = 0.2
+    summary_cmap: str = "plasma_r"
+    summary_cmap_pinch: float = 0.25
+    summary_legend_xpos: float = 0.96
+    summary_legend_ypos: float = 0.12
+    fits_beeswarm_width: float = 0.3
+    fits_share_ylim: bool = True
+
+
+def figure4(fig_params: Figure4Params, show_fig: bool = True, save_fig: bool = False):
+    # Define parameters for 2 x 3 figure with 1.5 column width
+    fig_width = FigParams.double_width
+    fig_height = fig_width / 4 * 2
+    fontsize = FigParams.fontsize
+
+    # Build feature colormap
+    feature_cmap = plt.get_cmap(fig_params.feature_colormap)
+    feature_colors = feature_cmap(
+        np.linspace(fig_params.feature_label_max_value, fig_params.feature_label_min_value, 40)
+    )
+
+    # Build figure and axes
+    fig = plt.figure(figsize=(fig_width, fig_height), **FigParams.all_fig_params())
+    gs = fig.add_gridspec(1, 2, width_ratios=[1, 3])
+    gs_inputs = gs[0].subgridspec(2, 1)
+    gs_corrcoef = gs_inputs[1].subgridspec(2, 2, width_ratios=[0.05, 1], height_ratios=[0.05, 1])
+    ax_schematic = fig.add_subplot(gs_inputs[0])
+    ax_cc_left = fig.add_subplot(gs_corrcoef[1, 0])
+    ax_cc_top = fig.add_subplot(gs_corrcoef[0, 1])
+    ax_corrcoef = fig.add_subplot(gs_corrcoef[1, 1], sharex=ax_cc_top, sharey=ax_cc_left)
+
+    gs_results = gs[1].subgridspec(3, 3, width_ratios=[1, 1, 0.75])
+    ax_basal = fig.add_subplot(gs_results[0, 0])
+    ax_dsimple = fig.add_subplot(gs_results[1, 0])
+    ax_dcomplex = fig.add_subplot(gs_results[2, 0])
+    ax_summary_basal = fig.add_subplot(gs_results[0, 1])
+    ax_summary_dsimple = fig.add_subplot(gs_results[1, 1])
+    ax_summary_dcomplex = fig.add_subplot(gs_results[2, 1])
+    ax_fits_basal = fig.add_subplot(gs_results[0, 2])
+    ax_fits_dsimple = fig.add_subplot(gs_results[1, 2])
+    ax_fits_dcomplex = fig.add_subplot(gs_results[2, 2])
+    ax_inset_sigmoid = ax_fits_dsimple.inset_axes((0.175, 0.1, 0.75, 0.3))
+    ax_inset_features = ax_fits_dsimple.inset_axes((0.175, 0.05, 0.75, 0.03))
+
+    ax_schematic = build_ax_latent_correlation_demonstration(
+        ax_schematic,
+        T=fig_params.schematic_T,
+        N=fig_params.schematic_N,
+        sigma_latent=fig_params.schematic_sigma_latent,
+        sigma_noise=fig_params.schematic_sigma_noise,
+        max_correlation=fig_params.schematic_max_correlation,
+        y_latent=fig_params.schematic_y_latent,
+        y_offsets=fig_params.schematic_y_offsets,
+        colormap=fig_params.schematic_colormap,
+        latent_color=fig_params.schematic_latent_color,
+        text_offset_fraction=fig_params.schematic_text_offset_fraction,
+    )
+
+    # Just get rid of the entire axis
+    ax_schematic.set_xticks([])
+    ax_schematic.set_yticks([])
+    for spine in ax_schematic.spines.values():
+        spine.set_visible(False)
+
+    example_folder = results_dir("iaf_runs") / "correlated" / fig_params.example_simulations
+    example_metadata = gather_metadata(example_folder, experiment_type="correlation")
+    example_firing_rates = gather_rates(example_metadata, experiment_type="correlation")
+    example_results = gather_results(example_metadata)
+    max_correlation = example_metadata["base_config"].sources["excitatory"].max_correlation
+
+    idx_to_example_ratio = np.array(example_metadata["ratios"]) == fig_params.example_idpratio
+    idx_to_example_repeat = np.array(example_metadata["repeats"]) == fig_params.example_irepeat
+    idx_to_example = np.where(idx_to_example_ratio & idx_to_example_repeat)[0]
+    if len(idx_to_example) != 1:
+        raise ValueError(
+            f"No example found for idpratio {fig_params.example_idpratio} and irepeat {fig_params.example_irepeat}"
+        )
+    idx_to_example = idx_to_example[0]
+    num_ratios = len(example_metadata["dp_ratios"])
+    colors = create_dpratio_colors(num_ratios, cmap=fig_params.summary_cmap, cmap_pinch=fig_params.summary_cmap_pinch)[
+        0
+    ]
+    example_color = colors[fig_params.example_idpratio]
+
+    _ = build_ax_corrcoef(
+        ax_corrcoef,
+        ax_cc_left,
+        ax_cc_top,
+        example_results[idx_to_example],
+        feature_colors,
+        source_name=fig_params.corrcoef_source_name,
+        rho_max=max_correlation,
+    )
+    for ax in (ax_cc_left, ax_cc_top, ax_corrcoef):
+        ax.set_xlabel("")
+        ax.set_ylabel("")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+
+    plot_firing_rates = example_firing_rates[
+        fig_params.example_idpratio, fig_params.example_irepeat, fig_params.example_ineuron
+    ]
+    _ = build_ax_trajectory(
+        None,
+        ax_basal,
+        ax_dsimple,
+        ax_dcomplex,
+        example_results[idx_to_example],
+        plot_firing_rates,
+        ineuron=fig_params.example_ineuron,
+        feature_colors=feature_colors,
+        cmap=fig_params.example_cmap,
+        feature_offset_fraction=fig_params.feature_offset_fraction,
+        feature_width_fraction=fig_params.feature_width_fraction,
+    )
+
+    xoffset = -fig_params.feature_offset_fraction - fig_params.feature_width_fraction
+    num_seconds = example_firing_rates.shape[-1]
+    xticks = [0, 1]
+    xlabels = [0, num_seconds]
+    for iax, (ax, wg) in enumerate(
+        zip((ax_basal, ax_dsimple, ax_dcomplex, None), [Proximal, DistalSimple, DistalComplex, None]),
+    ):
+        if ax is None:
+            continue
+        requires_xaxis = iax == 3 or (iax == 2 and not fig_params.example_include_psth)
+        ax.set_xlim(xoffset, 1)
+        if iax == 3:
+            ax.set_ylim(0, np.max(plot_firing_rates) * 1.02)
+            ax.set_ylabel("Firing\nRate", fontsize=fontsize, labelpad=-9)
+            yticks = [0, np.max(plot_firing_rates)]
+            ybounds = (0, np.max(plot_firing_rates))
+        else:
+            ax.set_ylabel(wg.labelnl, fontsize=fontsize, labelpad=0, color=wg.color)
+            yticks = []
+            ybounds = ax.get_ylim()
+        format_spines(
+            ax,
+            x_pos=FigParams.spine_pos,
+            y_pos=FigParams.spine_pos,
+            xticks=xticks if requires_xaxis else [],
+            yticks=yticks,
+            xbounds=[0, 1],
+            ybounds=ybounds,
+            spine_linewidth=FigParams.linewidth,
+            tick_length=FigParams.tick_length,
+            tick_width=FigParams.tick_width,
+            tick_fontsize=FigParams.tick_fontsize,
+        )
+        if iax != 3:
+            ax.spines["left"].set_visible(False)
+        if requires_xaxis:
+            ax.set_xlabel("Time (s)", fontsize=fontsize, labelpad=-6)
+            ax.set_xticks(xticks, labels=xlabels)
+        else:
+            ax.spines["bottom"].set_visible(False)
+
+    # Now build summary axes for the weights at the end of the simulations
+    summary_folder = results_dir("iaf_runs") / "correlated" / fig_params.full_simulations
+    summary_metadata = gather_metadata(summary_folder, experiment_type="correlation")
+    summary_weights = gather_weights(
+        summary_metadata,
+        experiment_type="correlation",
+        average_method=fig_params.summary_average_method,
+        average_window=fig_params.summary_average_window,
+        normalize=True,
+    )
+    max_correlation = example_metadata["base_config"].sources["excitatory"].max_correlation
+
+    build_ax_weight_summary(
+        ax_summary_basal,
+        ax_summary_dsimple,
+        ax_summary_dcomplex,
+        summary_metadata,
+        summary_weights,
+        cmap=fig_params.summary_cmap,
+        cmap_pinch=fig_params.summary_cmap_pinch,
+    )
+    yticks = [0, max_correlation]
+    for iax, ax in enumerate([ax_summary_basal, ax_summary_dsimple, ax_summary_dcomplex]):
+        requires_xaxis = iax == 2
+        ax.set_xlim(0, 1)
+        format_spines(
+            ax,
+            x_pos=FigParams.spine_pos,
+            y_pos=FigParams.spine_pos,
+            xticks=[0, 1] if requires_xaxis else [],
+            yticks=yticks,
+            xbounds=[0, 1],
+            ybounds=yticks,
+            spine_linewidth=FigParams.linewidth,
+            tick_length=FigParams.tick_length,
+            tick_width=FigParams.tick_width,
+            tick_fontsize=FigParams.tick_fontsize,
+        )
+        ax.set_ylabel("Input\nCorr." + r" ($\rho$)", fontsize=fontsize, labelpad=-9)
+        if requires_xaxis:
+            ax.set_xlabel("Relative Weight", fontsize=fontsize, labelpad=-6)
+        else:
+            ax.spines["bottom"].set_visible(False)
+
+    build_ax_weight_fits(
+        ax_fits_basal,
+        ax_fits_dsimple,
+        ax_fits_dcomplex,
+        summary_metadata,
+        summary_weights,
+        cmap=fig_params.summary_cmap,
+        cmap_pinch=fig_params.summary_cmap_pinch,
+        beeswarm_width=fig_params.fits_beeswarm_width,
+        share_ylim=fig_params.fits_share_ylim,
+    )
+    ratios = summary_metadata["dp_ratios"]
+    num_ratios = len(ratios)
+    xticks = range(num_ratios)
+    xlabels = [f"{(ratio-1.0)*100:1g}" for ratio in ratios]
+    yticks = [-1, 0, 0.4]
+    for iax, ax in enumerate([ax_fits_basal, ax_fits_dsimple, ax_fits_dcomplex]):
+        requires_xaxis = iax == 2
+        ax.set_xlim(-0.5, num_ratios - 0.5)
+        format_spines(
+            ax,
+            x_pos=FigParams.spine_pos,
+            y_pos=FigParams.spine_pos,
+            xticks=xticks if requires_xaxis else [],
+            yticks=yticks,
+            xbounds=[0, num_ratios - 1],
+            ybounds=ax.get_ylim(),
+            spine_linewidth=FigParams.linewidth,
+            tick_length=FigParams.tick_length,
+            tick_width=FigParams.tick_width,
+            tick_fontsize=FigParams.tick_fontsize,
+        )
+        ax.set_ylabel(r"$\sigma$ half-point ($\rho$)", fontsize=fontsize, labelpad=0)
+        if requires_xaxis:
+            ax.set_xlabel("Extra Depression (%)", fontsize=fontsize, labelpad=0)
+            ax.set_xticklabels(xlabels)
+        else:
+            ax.spines["bottom"].set_visible(False)
+
+    add_dpratio_legend(
+        ax_summary_basal,
+        ratios,
+        x=fig_params.summary_legend_xpos,
+        y=fig_params.summary_legend_ypos,
+        fontsize=FigParams.fontsize,
+        cmap=fig_params.summary_cmap,
+        cmap_pinch=fig_params.summary_cmap_pinch,
+    )
+
+    xlim_sum = ax_summary_basal.get_xlim()
+    ylim_sum = ax_summary_basal.get_ylim()
+    xratio = (fig_params.summary_legend_xpos - xlim_sum[0]) / (xlim_sum[1] - xlim_sum[0])
+    yratio = (fig_params.summary_legend_ypos - ylim_sum[0]) / (ylim_sum[1] - ylim_sum[0])
+    xlim = ax_fits_basal.get_xlim()
+    ylim = ax_fits_basal.get_ylim()
+    xpos = xlim[0] + xratio * (xlim[1] - xlim[0])
+    ypos = ylim[0] + yratio * (ylim[1] - ylim[0])
+    add_dpratio_legend(
+        ax_fits_basal,
+        ratios,
+        x=xpos,
+        y=ypos,
+        fontsize=FigParams.fontsize,
+        cmap=fig_params.summary_cmap,
+        cmap_pinch=fig_params.summary_cmap_pinch,
+    )
+
+    build_ax_sigmoid_example(
+        ax_inset_sigmoid,
+        example_results[idx_to_example],
+        ineuron=fig_params.example_ineuron,
+        color=example_color,
+    )
+    ax_inset_sigmoid.set_xlim(0, 0.4)
+    format_spines(
+        ax_inset_sigmoid,
+        x_pos=FigParams.spine_pos,
+        y_pos=FigParams.spine_pos,
+        xbounds=(0, 0.4),
+        ybounds=(0, 1),
+        xticks=[],
+        yticks=[0, 1],
+        ylabels=["0", "1"],
+        spine_linewidth=FigParams.thinlinewidth,
+        tick_length=FigParams.tick_length / 2,
+        tick_width=FigParams.tick_width / 2,
+        tick_fontsize=FigParams.tick_fontsize * 0.7,
+    )
+    ax_inset_sigmoid.spines["bottom"].set_visible(False)
+    ax_inset_features.imshow(feature_colors[::-1][None], aspect="auto", interpolation="none", extent=[0, 0.4, 0, 1])
+    ax_inset_features.set_xlim(0, 0.4)
+    ax_inset_features.set_xticks([])
+    ax_inset_features.set_yticks([])
+    for spine in ax_inset_features.spines.values():
+        spine.set_visible(False)
+
+    # Remove white backgrounds
+    ax_schematic.set_facecolor("none")
+    ax_corrcoef.set_facecolor("none")
+    ax_cc_left.set_facecolor("none")
+    ax_cc_top.set_facecolor("none")
+    ax_basal.set_facecolor("none")
+    ax_dsimple.set_facecolor("none")
+    ax_dcomplex.set_facecolor("none")
+    ax_summary_basal.set_facecolor("none")
+    ax_summary_dsimple.set_facecolor("none")
+    ax_summary_dcomplex.set_facecolor("none")
+    ax_fits_basal.set_facecolor("none")
+    ax_fits_dsimple.set_facecolor("none")
+    ax_fits_dcomplex.set_facecolor("none")
+    ax_inset_sigmoid.set_facecolor("none")
+    ax_inset_features.set_facecolor("none")
+
+    if show_fig:
+        plt.show(block=True)
+
+    if save_fig:
+        fig_path = get_figure_dir("core_figures") / "figure4"
+        save_figure(fig, fig_path)
+
+    return fig
+
+
 if __name__ == "__main__":
     # Set master parameters for showing / saving figures
-    show_fig = True
+    show_fig = False
     save_fig = True
 
     # Build Figure 1
@@ -541,6 +929,10 @@ if __name__ == "__main__":
     # figure1(fig1params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 2
-    fig2params = Figure2Params()
+    # fig2params = Figure2Params()
     # figure2(fig2params, show_fig=show_fig, save_fig=save_fig)
-    figure2_option2(fig2params, show_fig=show_fig, save_fig=save_fig)
+    # figure2_option2(fig2params, show_fig=show_fig, save_fig=save_fig)
+
+    # Build Figure 4
+    fig4params = Figure4Params()
+    figure4(fig4params, show_fig=show_fig, save_fig=save_fig)

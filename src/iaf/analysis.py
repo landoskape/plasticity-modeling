@@ -1,13 +1,12 @@
 from pathlib import Path
 from typing import Literal
+from natsort import natsorted
 import joblib
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib as mpl
+from scipy.optimize import curve_fit
 
-from src.files import results_dir, config_dir
+from src.files import config_dir
 from src.iaf.config import SimulationConfig
-from src.plotting import errorPlot
 from src.iaf.iaf_neuron import IaF
 from src.iaf.source_population import SourcePopulationGabor
 from src.iaf.synapse_group import SourceParams
@@ -56,6 +55,65 @@ def gather_weights(
         return _gather_weights_correlation(metadata, average_method, average_window, normalize)
     else:
         raise ValueError(f"Invalid experiment type: {experiment_type}")
+
+
+def sigmoid(x: np.ndarray, beta: float, x0: float) -> np.ndarray:
+    """Sigmoid function constrained from 0 to 1"""
+    return 1 / (1 + np.exp(-beta * (x - x0)))
+
+
+def get_sigmoid_params(
+    weights: np.ndarray,
+    xvals: np.ndarray,
+    p0: tuple[float] = [1, 0.4],
+    maxfev: int = 10000,
+    bounds: tuple[tuple[float]] = ([-np.inf, -np.inf], [np.inf, 100]),
+) -> tuple[np.ndarray, np.ndarray]:
+    """Fit sigmoid function to weights for each input correlation.
+
+    This goes with the correlated.yaml experiment and the weights are expected to be sum weight for each input
+    where the input correlation is defined by xvals.
+
+    Parameters
+    ----------
+    weights : np.ndarray
+        Weights to fit.
+    xvals : np.ndarray
+        X values to fit.
+    p0 : list
+        Initial guess for parameters.
+    maxfev : int
+        Maximum number of function evaluations.
+    bounds : tuple
+        Bounds for parameters.
+
+    Returns
+    -------
+    beta : np.ndarray
+        Beta parameter of sigmoid function.
+    x0 : np.ndarray
+        x0 parameter of sigmoid function.
+    """
+    original_shape = weights.shape[:-1]
+    weights = weights.reshape(-1, weights.shape[-1])
+    beta = []
+    x0 = []
+    p0 = [1, 0.4]
+    maxfev = 10000
+    bounds = ([-np.inf, -np.inf], [np.inf, 100])
+    for weight in weights:
+        try:
+            popt, _ = curve_fit(sigmoid, xvals, weight, p0=p0, bounds=bounds, maxfev=maxfev)
+            beta.append(popt[0])
+            x0.append(popt[1])
+        except RuntimeError:
+            beta.append(np.nan)
+            x0.append(np.nan)
+    beta = np.array(beta)
+    x0 = np.array(x0)
+    beta = beta.reshape(original_shape)
+    x0 = x0.reshape(original_shape)
+    return beta, x0
 
 
 def sort_orientation_preference(
@@ -165,7 +223,7 @@ def summarize_weights(weights: dict[str, np.ndarray], orientation_preference: np
 
 
 def _gather_metadata_correlation(experiment_folder):
-    runs = list(experiment_folder.glob("ratio_*_repeat_*.joblib"))
+    runs = natsorted(list(experiment_folder.glob("ratio_*_repeat_*.joblib")))
     args = joblib.load(experiment_folder / "args.joblib")
 
     ratios = []
@@ -196,7 +254,7 @@ def _gather_metadata_correlation(experiment_folder):
 
 
 def _gather_metadata_hofer(experiment_folder):
-    runs = list(experiment_folder.glob("ratio_*_edge_*_repeat_*.joblib"))
+    runs = natsorted(list(experiment_folder.glob("ratio_*_edge_*_repeat_*.joblib")))
     args = joblib.load(experiment_folder / "args.joblib")
 
     ratios = []
