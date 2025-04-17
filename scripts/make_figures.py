@@ -6,21 +6,27 @@ import matplotlib.pyplot as plt
 from src.files import get_figure_dir, data_dir, results_dir
 from src.plotting import (
     FigParams,
-    save_figure,
     Proximal,
     DistalSimple,
     DistalComplex,
+    save_figure,
     format_spines,
     add_group_legend,
     add_dpratio_legend,
 )
-from src.schematics import Neuron
+from src.schematics import Neuron, build_integrated_schematic_axis
 from src.experimental import (
     ElifeData,
     build_axes_formatted_elife_data,
     build_ax_amplification_demonstration_with_spines,
 )
-from src.conductance import build_axes_simulations, build_axes_nevian_reconstruction, build_axes_transfer_functions
+from src.conductance import (
+    build_axes_simulations,
+    build_axes_nevian_reconstruction,
+    build_axes_transfer_functions,
+    NMDAR,
+    VGCC,
+)
 from src.iaf.plotting import (
     create_dpratio_colors,
     build_ax_latent_correlation_demonstration,
@@ -29,6 +35,7 @@ from src.iaf.plotting import (
     build_ax_weight_summary,
     build_ax_weight_fits,
     build_ax_sigmoid_example,
+    build_plasticity_rule_axes,
 )
 from src.iaf.analysis import gather_metadata, gather_results, gather_rates, gather_weights
 
@@ -80,7 +87,7 @@ def figure1(fig_params: Figure1Params, show_fig: bool = True, save_fig: bool = F
 
     # Add schematic figure
     neuron = Neuron(linewidth=FigParams.linewidth)
-    _ = neuron.plot(ax_schematic, origin=(0, 0), scale=1.0)
+    _ = neuron.plot(ax_schematic, origin=(0, 0))
 
     y_proximal = fig_params.schematic_text_ystart
     y_distal_simple = y_proximal + fig_params.schematic_text_ydelta
@@ -568,6 +575,160 @@ def figure2_option2(fig_params: Figure2Params, show_fig: bool = True, save_fig: 
 
 
 @dataclass
+class Figure3Params:
+    main_neuron_label_style: str = "label"
+    main_neuron_label_offset: float = 0.27
+    main_neuron_label_fontsize: float = FigParams.fontsize
+    num_neurons: int = 5
+    neurons_xoffset: float = 1
+    neurons_yoffset: float = 0
+    neurons_xshift: float = 0.6
+    neurons_yshift: float = 0.85
+    small_neuron_linewidth: float = FigParams.thinlinewidth
+    small_neuron_soma_size: float = 0.5
+    small_neuron_trunk_height: float = 0.75
+    small_neuron_tuft_height: float = 0.75
+    dp_max_ratio: float = 0.4
+    dp_width: float = 2
+    dp_pinch: float = 0.175
+    dp_xoffset: float = -0.3
+    dp_linewidth: float = FigParams.thicklinewidth * 2
+    dp_markersize: float = 25
+    dp_xlabel_yoffset: float = -0.15
+    dp_ytitle_yoffset: float = 0.29
+    dp_yschema_shift: float = 2.6
+    dp_color_inset_position: tuple[float] = (0.535, 0.05, 0.0875, 0.4)
+    dp_color_label_padding: float = 1
+    dp_label_fontsize: float = FigParams.fontsize
+    dp_title_fontsize: float = FigParams.fontsize
+    xrange_buffer: float = 0.05
+    yrange_buffer: float = 0.05
+    plasticity_time_constant: float = 20
+    plasticity_max_delay: float = 100
+    plasticity_depression_ratio: float = 1.1
+    plasticity_homeostasis_max_ratio: float = 5
+    plasticity_ltp_color: str = NMDAR.color()
+    plasticity_ltd_color: str = VGCC.color()
+    plasticity_homeostasis_color: str = "k"
+    plasticity_markersize: float = 7
+
+
+def figure3(fig_params: Figure3Params, show_fig: bool = True, save_fig: bool = True):
+    # Define parameters for 2 x 3 figure with 1.5 column width
+    fig_width = FigParams.onepointfive_width
+    fig_height = fig_width / 3 * 2 / 1.5 * 6 / 5
+    fontsize = FigParams.fontsize
+
+    # Build figure and axes
+    fig = plt.figure(figsize=(fig_width, fig_height), **FigParams.all_fig_params())
+    gs = fig.add_gridspec(1, 2, width_ratios=[1, 1.5])
+    gs_plasticity = gs[0].subgridspec(4, 1, height_ratios=[0.1, 1, 0.175, 1])
+    gs_schematic = gs[1].subgridspec(2, 1, height_ratios=[5, 1])
+    ax_stdp = fig.add_subplot(gs_plasticity[1])
+    ax_homeostasis = fig.add_subplot(gs_plasticity[3])
+    ax_schematic = fig.add_subplot(gs_schematic[0])
+    ax_table = fig.add_subplot(gs_schematic[1])
+
+    build_integrated_schematic_axis(
+        ax_schematic,
+        ax_table,
+        main_neuron_label_style=fig_params.main_neuron_label_style,
+        main_neuron_label_offset=fig_params.main_neuron_label_offset,
+        main_neuron_label_fontsize=fig_params.main_neuron_label_fontsize,
+        num_neurons=fig_params.num_neurons,
+        neurons_xoffset=fig_params.neurons_xoffset,
+        neurons_yoffset=fig_params.neurons_yoffset,
+        neurons_xshift=fig_params.neurons_xshift,
+        neurons_yshift=fig_params.neurons_yshift,
+        small_neuron_linewidth=fig_params.small_neuron_linewidth,
+        small_neuron_soma_size=fig_params.small_neuron_soma_size,
+        small_neuron_trunk_height=fig_params.small_neuron_trunk_height,
+        small_neuron_tuft_height=fig_params.small_neuron_tuft_height,
+        dp_max_ratio=fig_params.dp_max_ratio,
+        dp_width=fig_params.dp_width,
+        dp_pinch=fig_params.dp_pinch,
+        dp_xoffset=fig_params.dp_xoffset,
+        dp_markersize=fig_params.dp_markersize,
+        dp_linewidth=fig_params.dp_linewidth,
+        dp_xlabel_yoffset=fig_params.dp_xlabel_yoffset,
+        dp_ytitle_yoffset=fig_params.dp_ytitle_yoffset,
+        dp_yschema_shift=fig_params.dp_yschema_shift,
+        dp_color_inset_position=fig_params.dp_color_inset_position,
+        dp_color_label_padding=fig_params.dp_color_label_padding,
+        dp_label_fontsize=fig_params.dp_label_fontsize,
+        dp_title_fontsize=fig_params.dp_title_fontsize,
+        xrange_buffer=fig_params.xrange_buffer,
+        yrange_buffer=fig_params.yrange_buffer,
+    )
+
+    build_plasticity_rule_axes(
+        ax_stdp,
+        ax_homeostasis,
+        time_constant=fig_params.plasticity_time_constant,
+        max_delay=fig_params.plasticity_max_delay,
+        depression_ratio=fig_params.plasticity_depression_ratio,
+        homeostasis_max_ratio=fig_params.plasticity_homeostasis_max_ratio,
+        ltp_color=fig_params.plasticity_ltp_color,
+        ltd_color=fig_params.plasticity_ltd_color,
+        homeostasis_color=fig_params.plasticity_homeostasis_color,
+        markersize=fig_params.plasticity_markersize,
+        fontsize=fontsize,
+    )
+
+    xlims = ax_stdp.get_xlim()
+    ylims = ax_stdp.get_ylim()
+    format_spines(
+        ax_stdp,
+        x_pos=0.5,
+        y_pos=0.5,
+        xticks=[-xlims[1], xlims[1]],
+        yticks=[-1, 1],
+        ylabels=[],
+        xbounds=(-xlims[1], xlims[1]),
+        ybounds=(-ylims[1], ylims[1]),
+        spine_linewidth=FigParams.linewidth,
+        tick_length=FigParams.tick_length * 2.25,
+        tick_width=FigParams.tick_width,
+        tick_direction="inout",
+        tick_fontsize=FigParams.tick_fontsize,
+    )
+
+    xlims = ax_homeostasis.get_xlim()
+    ylims = ax_homeostasis.get_ylim()
+    format_spines(
+        ax_homeostasis,
+        x_pos=0.5,
+        y_pos=0.5,
+        xticks=[-xlims[1], xlims[1]],
+        yticks=[],
+        xbounds=(-xlims[1], xlims[1]),
+        ybounds=ylims,
+        spine_linewidth=FigParams.linewidth,
+        tick_length=FigParams.tick_length,
+        tick_width=FigParams.tick_width,
+        tick_direction="inout",
+        tick_fontsize=FigParams.tick_fontsize,
+    )
+
+    # Maybe an example of inputs and spiking?
+
+    # Remove white backgrounds
+    ax_stdp.set_facecolor("none")
+    ax_homeostasis.set_facecolor("none")
+    ax_schematic.set_facecolor("none")
+    ax_table.set_facecolor("none")
+
+    if show_fig:
+        plt.show(block=True)
+
+    if save_fig:
+        fig_path = get_figure_dir("core_figures") / "figure3"
+        save_figure(fig, fig_path)
+
+    return fig
+
+
+@dataclass
 class Figure4Params:
     example_simulations: str = "20250324"
     full_simulations: str = "20250320"
@@ -634,8 +795,8 @@ def figure4(fig_params: Figure4Params, show_fig: bool = True, save_fig: bool = F
     ax_fits_basal = fig.add_subplot(gs_results[0, 2])
     ax_fits_dsimple = fig.add_subplot(gs_results[1, 2])
     ax_fits_dcomplex = fig.add_subplot(gs_results[2, 2])
-    ax_inset_sigmoid = ax_fits_dsimple.inset_axes((0.175, 0.1, 0.75, 0.3))
-    ax_inset_features = ax_fits_dsimple.inset_axes((0.175, 0.05, 0.75, 0.03))
+    ax_inset_sigmoid = ax_fits_dsimple.inset_axes((0.4, 0.1, 0.55, 0.3))
+    ax_inset_features = ax_fits_dsimple.inset_axes((0.4, 0.05, 0.55, 0.03))
 
     ax_schematic = build_ax_latent_correlation_demonstration(
         ax_schematic,
@@ -672,9 +833,11 @@ def figure4(fig_params: Figure4Params, show_fig: bool = True, save_fig: bool = F
         )
     idx_to_example = idx_to_example[0]
     num_ratios = len(example_metadata["dp_ratios"])
-    colors = create_dpratio_colors(num_ratios, cmap=fig_params.summary_cmap, cmap_pinch=fig_params.summary_cmap_pinch)[
-        0
-    ]
+    colors = create_dpratio_colors(
+        num_ratios,
+        cmap=fig_params.summary_cmap,
+        cmap_pinch=fig_params.summary_cmap_pinch,
+    )[0]
     example_color = colors[fig_params.example_idpratio]
 
     _ = build_ax_corrcoef(
@@ -933,6 +1096,10 @@ if __name__ == "__main__":
     # figure2(fig2params, show_fig=show_fig, save_fig=save_fig)
     # figure2_option2(fig2params, show_fig=show_fig, save_fig=save_fig)
 
+    # Build Figure 3
+    fig3params = Figure3Params()
+    figure3(fig3params, show_fig=show_fig, save_fig=save_fig)
+
     # Build Figure 4
-    fig4params = Figure4Params()
-    figure4(fig4params, show_fig=show_fig, save_fig=save_fig)
+    # fig4params = Figure4Params()
+    # figure4(fig4params, show_fig=show_fig, save_fig=save_fig)

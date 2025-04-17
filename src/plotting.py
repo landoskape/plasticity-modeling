@@ -60,7 +60,7 @@ def add_group_legend(
     ha: str = "center",
     va: str = "center",
     fontsize: float = FigParams.fontsize,
-    label_type: Literal["normal", "nl", "short", "experimental"] = "normal",
+    label_type: Literal["normal", "nl", "short", "experimental", "tiny"] = "normal",
     extra_label_simple: str = "",
     extra_label_complex: str = "",
 ):
@@ -68,28 +68,27 @@ def add_group_legend(
     y_distal_simple = y_start + y_offset
     y_distal_complex = y_start + 2 * y_offset + y_extra
 
-    if label_type == "normal":
-        label_proximal = Proximal.label
-        label_simple = DistalSimple.label
-        label_complex = DistalComplex.label
-    elif label_type == "nl":
-        label_proximal = Proximal.labelnl
-        label_simple = DistalSimple.labelnl
-        label_complex = DistalComplex.labelnl
-    elif label_type == "short":
-        label_proximal = Proximal.shortlabel
-        label_simple = DistalSimple.shortlabel
-        label_complex = DistalComplex.shortlabel
-    elif label_type == "experimental":
-        label_proximal = Proximal.experimental
-        label_simple = DistalSimple.experimental
-        label_complex = DistalComplex.experimental
-    else:
-        raise ValueError("Didn't recognized label_type! received: {label_type}")
+    attribute = dict(
+        normal="label",
+        nl="labelnl",
+        short="shortlabel",
+        experimental="experimental",
+        tiny="tinylabel",
+    )
+    attr = attribute.get(label_type, None)
+    if attr is None:
+        raise ValueError(f"Invalid label_type: {label_type}. Choose from {list(attribute.keys())}.")
 
+    # Get default labels
+    label_proximal = getattr(Proximal, attr)
+    label_simple = getattr(DistalSimple, attr)
+    label_complex = getattr(DistalComplex, attr)
+
+    # Add extra info to distal labels if requested
     label_simple += extra_label_simple
     label_complex += extra_label_complex
 
+    # Plot them
     ax.text(x, y_proximal, label_proximal, color=Proximal.color, ha=ha, va=va, fontsize=fontsize)
     ax.text(x, y_distal_simple, label_simple, color=DistalSimple.color, ha=ha, va=va, fontsize=fontsize)
     ax.text(x, y_distal_complex, label_complex, color=DistalComplex.color, ha=ha, va=va, fontsize=fontsize)
@@ -129,6 +128,7 @@ class Proximal:
     """
 
     color: str = "black"
+    tinylabel: str = "p"
     shortlabel: str = "prox"
     label: str = "proximal"
     labelnl: str = "proximal"
@@ -167,7 +167,8 @@ class DistalSimple:
     # - teal
 
     color: str = "teal"
-    shortlabel: str = "d-s"
+    tinylabel: str = "d-s"
+    shortlabel: str = "dist-simp"
     label: str = "distal-simple"
     labelnl: str = "distal\nsimple"
     experimental: str = "high $\Delta Ca_{AP}$"
@@ -188,7 +189,8 @@ class DistalComplex:
     """
 
     color: str = "blue"
-    shortlabel: str = "d-c"
+    tinylabel: str = "d-c"
+    shortlabel: str = "dist-comp"
     label: str = "distal-complex"
     labelnl: str = "distal\ncomplex"
     experimental: str = "low $\Delta Ca_{AP}$"
@@ -352,6 +354,7 @@ def format_spines(
     spine_linewidth=1,
     tick_length=6,
     tick_width=1,
+    tick_direction="out",
     tick_fontsize=None,
 ):
     """
@@ -399,6 +402,8 @@ def format_spines(
         Length of the tick marks
     tick_width : int or float, optional
         Width of the tick marks
+    tick_direction : str, optional
+        Direction of the tick marks
     tick_fontsize : int or float, optional
         Font size of the tick labels
 
@@ -447,10 +452,50 @@ def format_spines(
     ax.tick_params(
         axis="both",
         which="major",
-        direction="out",
+        direction=tick_direction,
         length=tick_length,
         width=tick_width,
         labelsize=tick_fontsize,
     )
 
     return ax
+
+
+def add_dpratio_inset(
+    ax: plt.Axes,
+    inset_position: list[float],
+    dpratio_colors: list[np.ndarray],
+    dpratios: list[float] | np.ndarray,
+    label: str = "Extra LTD (%)",
+    fontsize: float = FigParams.tick_fontsize,
+    reverse: bool = True,
+    label_padding: float = -1,
+):
+    num_ratios = len(dpratio_colors)
+
+    color_stack = np.stack(dpratio_colors)
+    if reverse:
+        color_stack = color_stack[::-1]
+
+    inset = ax.inset_axes(inset_position)
+    inset.imshow(
+        color_stack[:, None],
+        aspect="auto",
+        extent=[0, 1, -0.5, num_ratios - 0.5],
+    )
+    for iratio, ratio in enumerate(dpratios):
+        inset.text(
+            0.5,
+            iratio,
+            f"{ratio*10:1g}",
+            ha="center",
+            va="center",
+            fontsize=fontsize,
+            color="w",
+        )
+
+    inset.set_xticks([])
+    inset.set_yticks([])
+    inset.set_ylabel(label, fontsize=fontsize, labelpad=label_padding)
+    for spine in inset.spines.values():
+        spine.set_visible(False)

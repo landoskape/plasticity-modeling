@@ -4,8 +4,9 @@ from scipy.signal import filtfilt
 from matplotlib import pyplot as plt
 from matplotlib import colormaps
 from matplotlib import colors as mcolors
-from ..plotting import FigParams, beeswarm
 from .analysis import get_norm_factor, get_groupnames, get_sigmoid_params, sigmoid
+from ..plotting import FigParams, beeswarm
+from ..conductance import NMDAR, VGCC
 
 
 def create_dpratio_colors(num_ratios: int, cmap: str = "plasma_r", cmap_pinch: float = 0.25):
@@ -442,3 +443,103 @@ def build_ax_sigmoid_example(
         color="black",
         fontsize=FigParams.fontsize,
     )
+
+
+def build_plasticity_rule_axes(
+    ax_stdp: plt.Axes,
+    ax_homeostasis: plt.Axes,
+    time_constant: float = 20,
+    max_delay: float = 100,
+    depression_ratio: float = 1.1,
+    homeostasis_max_ratio: float = 5,
+    ltp_color: str = NMDAR.color,
+    ltd_color: str = VGCC.color,
+    homeostasis_color: str = "k",
+    markersize: float = 10,
+    fontsize: float = FigParams.fontsize,
+):
+    xvals = np.linspace(0, max_delay, 501)
+    ltp_curve = np.exp(-xvals / time_constant)
+    ltd_curve = -depression_ratio * np.exp(-xvals / time_constant)
+
+    ylim = depression_ratio * 1.1
+    ax_stdp.plot(-xvals, ltp_curve, color=ltp_color, linewidth=FigParams.linewidth)
+    ax_stdp.plot(xvals, ltd_curve, color=ltd_color, linewidth=FigParams.linewidth)
+    ax_stdp.plot(0, 1, color=ltp_color, marker=".", markersize=markersize, zorder=10)
+    ax_stdp.plot(0, -depression_ratio, color=ltd_color, marker=".", markersize=markersize, zorder=10)
+    ax_stdp.text(
+        -xvals[-1] * 0.1,
+        ylim * 0.8,
+        r"$Pre \rightarrow Post$",
+        ha="right",
+        va="top",
+        color=ltp_color,
+        fontsize=fontsize,
+    )
+    ax_stdp.text(
+        xvals[-1] * 0.1,
+        -ylim * 0.8,
+        r"$Post \rightarrow Pre$",
+        ha="left",
+        va="bottom",
+        color=ltd_color,
+        fontsize=fontsize,
+    )
+    text = ax_stdp.text(xvals[-1] * 0.05, 0.8, "LTP", ha="left", va="top", color=ltp_color, fontsize=fontsize)
+    ax_stdp.annotate("LTD", xycoords=text, xy=(0, 0), ha="left", va="top", color=ltd_color, fontsize=fontsize)
+    ax_stdp.text(
+        xvals[-1] * 0.98,
+        ylim * 0.025,
+        r"$\Delta T$ (ms)",
+        ha="right",
+        va="bottom",
+        color="black",
+        fontsize=fontsize,
+    )
+    ax_stdp.text(
+        -xvals[-1] * 0.05,
+        -ylim * 0.5,
+        r"$+\Delta W$" + "\n" + r"$\propto max$",
+        ha="right",
+        va="center",
+        rotation=90,
+        color="black",
+        fontsize=fontsize,
+    )
+    ax_stdp.set_xlim(-xvals[-1], xvals[-1])
+    ax_stdp.set_ylim(-ylim, ylim)
+
+    xvals = np.linspace(-homeostasis_max_ratio, homeostasis_max_ratio, 1001)
+    homeostasis_curve = -xvals / homeostasis_max_ratio / 0.8
+    ylim = max(np.abs(homeostasis_curve)) * 1.1
+    ax_homeostasis.plot(xvals, homeostasis_curve, color=homeostasis_color, linewidth=FigParams.linewidth)
+    ax_homeostasis.text(
+        xvals[-1],
+        ylim * 0.99,
+        "Homeostasic\nScaling",
+        ha="right",
+        va="top",
+        color=homeostasis_color,
+        fontsize=fontsize,
+    )
+    ax_homeostasis.text(
+        xvals[-1] * 0.98,
+        ylim * 0.05,
+        r"$log(\frac{rate}{setpoint})$",
+        ha="right",
+        va="bottom",
+        color="black",
+        fontsize=fontsize,
+    )
+    ax_homeostasis.text(
+        -xvals[-1] * 0.025,
+        -ylim * 0.5,
+        r"x$\Delta W$" + "\n" + r"$\propto W$",
+        ha="right",
+        va="center",
+        rotation=90,
+        color="black",
+        fontsize=fontsize,
+    )
+    ax_homeostasis.set_xlim(xvals[0], xvals[-1])
+    ax_homeostasis.set_ylim(-ylim, ylim)
