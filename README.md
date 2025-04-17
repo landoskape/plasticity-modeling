@@ -6,7 +6,7 @@ for keeping the modeling code and figure-making scripts well organized. So, with
 README is going to just be a map of figures and how to make them. 
 
 ## Installation
-I didn't include pytorch in the pyproject.toml dependencies for the usual reason. 
+I didn't include pytorch in the pyproject.toml dependencies for the usual reason.
 
 ## Section on STDP Predictions
 This figure is meant to serve as a link between our experimental data, biophysical modeling, and
@@ -42,17 +42,6 @@ d/p ratios and locations on the branch. It works!!!
 ## Section on Hofer Reconstructions
 - Results / iaf_runs / hofer / 20250320 has the results for the hofer experiment
 
-## Software Development Goals
-- Massive progress on configuration. Got some finishing touches I think, then ready. 
-  - Create system for updating specific parameters based on an otherwise completed config (or maybe just after?)
-    - (See the commented function in src/iaf/experiments.py)
-- Parallelization plan:
-  - Also check if concatenating synapse groups makes them faster... (e.g. 10x100 synapses vs 1x1000...)
-  - If so might be good to add a "concatenate" and "chunk" method that can be used to speed up parallel simulations
-- Analysis organization:
-  - Right now the iaf_correlation.ipynb and the iaf_hofer.ipynb are both doing hard coded analysis stuff with a lot
-    of repeated code. Gotta create centralized analysis functions that can be reused (preferably across experiments?) 
-
 # Figure Mapping
 - Overall Notes: 
   - Show correlation matrix of inputs IFF it's easy to see how the input correlations
@@ -76,15 +65,5 @@ d/p ratios and locations on the branch. It works!!!
     - (Will need to break this into different plots for different edges -- might just show distal-complex!)
   - Panel C: Overall summary heatmap comparing edge probability and D/P ratio to net weight on co-axial
   - Panel D: Replication of Figure 3D from Iacaruso showing how orientation tuning is aligned in co-axial space
-
-
--- Need to figure out what's up with the new no-replacement hofer runs... (see iaf_testing_sims)
-   -- problem is that there's too much requirement for inputs? Maybe not enough decorrelation?
-   -- Solution ideas:
-      - Increase "concentration" of input tuning
-      - Vary the baseline vs driven rate of the inputs
-      - Check what's going on with homeostatic tuning as well
-
-
 
 -- Try hofer_noinhibition.yaml
