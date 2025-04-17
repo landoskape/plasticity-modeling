@@ -1,8 +1,6 @@
-# Simulation parameters
 num_simulations: 1
 dt: 1e-3
 
-# Neuron configuration
 neuron:
   time_constant: 20e-3
   resistance: 100e6
@@ -13,7 +11,6 @@ neuron:
   homeostasis_tau: 20.0
   homeostasis_set_point: 10.0
 
-# Source population configuration
 sources:
   excitatory: 
     type: gabor
@@ -29,9 +26,8 @@ sources:
     rates: 10.0
     tau_stim: inf
 
-# Synapse group configurations
 synapses:
-  basal:
+  proximal:
     type: sourced
     plastic: true
     num_synapses: 100
@@ -51,7 +47,6 @@ synapses:
       min_weight: 0.0
       max_weight: 1.0
 
-    # Plasticity configuration for basal synapses
     plasticity:
       use_stdp: true
       stdp_rate: 0.01
@@ -62,13 +57,12 @@ synapses:
       homeostasis_tau: 20.0
       homeostasis_scale: 1.0
 
-    # Replacement configuration for basal synapses
     replacement:
       use_replacement: true
       lose_synapse_ratio: 0.01
       new_synapse_ratio: 0.01
 
-  apical-simple:
+  distal-simple:
     type: sourced
     plastic: true
     num_synapses: 250
@@ -87,7 +81,6 @@ synapses:
       min_weight: 0.0
       max_weight: 1.0
 
-    # Plasticity configuration for basal synapses
     plasticity:
       use_stdp: true
       stdp_rate: 0.01
@@ -98,13 +91,12 @@ synapses:
       homeostasis_tau: 20.0
       homeostasis_scale: 1.0
 
-    # Replacement configuration for basal synapses
     replacement:
       use_replacement: true
       lose_synapse_ratio: 0.01
       new_synapse_ratio: 0.01
 
-  apical-complex:
+  distal-complex:
     type: sourced
     plastic: true
     num_synapses: 250
@@ -123,7 +115,6 @@ synapses:
       min_weight: 0.0
       max_weight: 1.0
 
-    # Plasticity configuration for basal synapses
     plasticity:
       use_stdp: true
       stdp_rate: 0.01
@@ -134,13 +125,11 @@ synapses:
       homeostasis_tau: 20.0
       homeostasis_scale: 1.0
 
-    # Replacement configuration for basal synapses
     replacement:
       use_replacement: true
       lose_synapse_ratio: 0.01
       new_synapse_ratio: 0.01
 
-  # Inhibitory synapses
   inhibitory:
     type: direct
     plastic: false
@@ -156,7 +145,6 @@ synapses:
       min_weight: 1.0
       max_weight: 1.0
 
-    # Plasticity configuration for inhibitory synapses
     plasticity:
       use_stdp: false
       use_homeostasis: false
