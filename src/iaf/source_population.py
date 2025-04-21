@@ -322,6 +322,17 @@ class SourcePopulationGabor(SourcePopulation):
             outer0, outer1 = cls.stimulus_to_edge_positions(stimulus_orientation[1, 1])
             stimulus_orientation[outer0[0], outer0[1]] = stimulus_orientation[1, 1]
             stimulus_orientation[outer1[0], outer1[1]] = stimulus_orientation[1, 1]
+        else:
+            # If not edge, make sure the edge positions are not the same as the center
+            center = stimulus_orientation[1, 1]
+            edge1, edge2 = cls.stimulus_to_edge_positions(center)
+            while True:
+                if stimulus_orientation[edge1] == center and stimulus_orientation[edge2] == center:
+                    new_edges = rng.integers(0, 4, size=2)
+                    stimulus_orientation[edge1] = new_edges[0]
+                    stimulus_orientation[edge2] = new_edges[1]
+                else:
+                    break
         return stimulus_orientation
 
     def generate_stimulus(self, edge_probability: Optional[float] = None) -> np.ndarray:
