@@ -39,24 +39,13 @@ amount of plasticity evoked by positive pairings (LTP) or negative pairings (LTD
 ## Section on Hofer Reconstructions
 - Results / iaf_runs / hofer / 20250320 has the results for the hofer experiment
 - Results / iaf_runs / hofer / 20250417 has full_output results for hofer with source rates included
+- Results / iaf_runs / hofer / 20250421 has the results for the hofer experiment with forced no edge!
 
 # Figure Mapping
 - Overall Notes: 
   - Show correlation matrix of inputs IFF it's easy to see how the input correlations
     map onto learned weights in the weight trajectory graph...
   - It would be cool to do hierarchical clustering and then show it with this order!
-
-- Figure 5: Hofer Prediction Exposition
-  - Panel A: Illustration of visual environment and receptive fields
-  - ???????: Correlation matrix of inputs?
-  - Panel B: Show how we display "net receptive fields"
-  - Panel C: Show example initial / post-learning weight maps for each group (low edge, high D/P ratio)
-  - Panel D: Same as above but for high edge probability and low D/P ratio
-
-  - **NOTE** To get a nice plot of stimuli over time, I want to highlight the "edges". To do so I'm going
-  to need to rework the gabor generation code so that it's easy to detect the edge. In addition, I think 
-  I should force the stimulus to not have an edge when it's not requested, which would demand a rerun of
-  the simulations....
 
 - Figure 6: Hofer Summary Results
   - Panel A: Schematic of "co-axial space" (try to make it look like Figure 3 from Iacaruso)
