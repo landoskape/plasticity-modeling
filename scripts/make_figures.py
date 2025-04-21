@@ -38,8 +38,11 @@ from src.iaf.plotting import (
     build_environment_compartment_mapping_ax,
     build_receptive_field_ax,
     build_tuning_representation_ax,
+    build_stimulus_trajectory_ax,
+    build_orientation_confusion_axes,
+    build_weights_ax,
 )
-from src.iaf.analysis import gather_metadata, gather_results, gather_rates, gather_weights
+from src.iaf.analysis import gather_metadata, gather_results, gather_rates, gather_weights, get_groupnames
 
 
 @dataclass
@@ -270,12 +273,10 @@ def figure2(fig_params: Figure2Params, show_fig: bool = True, save_fig: bool = F
     ax_vgcc.set_xlabel("Time (ms)", fontsize=fontsize, labelpad=-6)
     ax_vgcc.set_ylabel("VGCC P(open)", fontsize=fontsize, labelpad=-10)
 
-    nmdar_ylims = ax_nmdar.get_ylim()
-    vgcc_ylims = ax_vgcc.get_ylim()
-    min_ylim_prob = min(nmdar_ylims[0], vgcc_ylims[0])
-    max_ylim_prob = np.round(max(nmdar_ylims[1], vgcc_ylims[1]) * 10) / 10 * 1.05
-    ax_nmdar.set_ylim(min_ylim_prob, max_ylim_prob)
-    ax_vgcc.set_ylim(min_ylim_prob, max_ylim_prob)
+    nmdar_ylims = (0, 1)
+    vgcc_ylims = (0, 1)
+    ax_nmdar.set_ylim(nmdar_ylims)
+    ax_vgcc.set_ylim(vgcc_ylims)
 
     format_spines(
         ax_voltage,
@@ -296,9 +297,9 @@ def figure2(fig_params: Figure2Params, show_fig: bool = True, save_fig: bool = F
         x_pos=FigParams.spine_pos,
         y_pos=FigParams.spine_pos,
         xticks=[fig_params.t_start, fig_params.t_end],
-        yticks=[0, max_ylim_prob],
+        yticks=[0, 1],
         xbounds=(fig_params.t_start, fig_params.t_end),
-        ybounds=(0, max_ylim_prob),
+        ybounds=(0, 1),
         spine_linewidth=FigParams.linewidth,
         tick_length=FigParams.tick_length,
         tick_width=FigParams.tick_width,
@@ -310,9 +311,9 @@ def figure2(fig_params: Figure2Params, show_fig: bool = True, save_fig: bool = F
         x_pos=FigParams.spine_pos,
         y_pos=FigParams.spine_pos,
         xticks=[fig_params.t_start, fig_params.t_end],
-        yticks=[0, max_ylim_prob],
+        yticks=[0, 1],
         xbounds=(fig_params.t_start, fig_params.t_end),
-        ybounds=(0, max_ylim_prob),
+        ybounds=(0, 1),
         spine_linewidth=FigParams.linewidth,
         tick_length=FigParams.tick_length,
         tick_width=FigParams.tick_width,
@@ -322,8 +323,8 @@ def figure2(fig_params: Figure2Params, show_fig: bool = True, save_fig: bool = F
     add_group_legend(
         ax_vgcc,
         x=fig_params.t_end * 1.0,
-        y_start=max_ylim_prob * 0.96,
-        y_offset=-(max_ylim_prob / 10),
+        y_start=0.96,
+        y_offset=-(1 / 10),
         ha="right",
         va="center",
         fontsize=fontsize,
@@ -422,12 +423,10 @@ def figure2_option2(fig_params: Figure2Params, show_fig: bool = True, save_fig: 
     ax_vgcc.set_xlabel("Time (ms)", fontsize=fontsize, labelpad=-6)
     ax_vgcc.set_ylabel("VGCC P(open)", fontsize=fontsize, labelpad=-10)
 
-    nmdar_ylims = ax_nmdar.get_ylim()
-    vgcc_ylims = ax_vgcc.get_ylim()
-    min_ylim_prob = min(nmdar_ylims[0], vgcc_ylims[0])
-    max_ylim_prob = np.round(max(nmdar_ylims[1], vgcc_ylims[1]) * 10) / 10 * 1.05
-    ax_nmdar.set_ylim(min_ylim_prob, max_ylim_prob)
-    ax_vgcc.set_ylim(min_ylim_prob, max_ylim_prob)
+    nmdar_ylims = (0, 1)
+    vgcc_ylims = (0, 1)
+    ax_nmdar.set_ylim(nmdar_ylims)
+    ax_vgcc.set_ylim(vgcc_ylims)
 
     format_spines(
         ax_voltage,
@@ -448,9 +447,9 @@ def figure2_option2(fig_params: Figure2Params, show_fig: bool = True, save_fig: 
         x_pos=FigParams.spine_pos,
         y_pos=FigParams.spine_pos,
         xticks=[fig_params.t_start, fig_params.t_end],
-        yticks=[0, max_ylim_prob],
+        yticks=nmdar_ylims,
         xbounds=(fig_params.t_start, fig_params.t_end),
-        ybounds=(0, max_ylim_prob),
+        ybounds=nmdar_ylims,
         spine_linewidth=FigParams.linewidth,
         tick_length=FigParams.tick_length,
         tick_width=FigParams.tick_width,
@@ -462,9 +461,9 @@ def figure2_option2(fig_params: Figure2Params, show_fig: bool = True, save_fig: 
         x_pos=FigParams.spine_pos,
         y_pos=FigParams.spine_pos,
         xticks=[fig_params.t_start, fig_params.t_end],
-        yticks=[0, max_ylim_prob],
+        yticks=vgcc_ylims,
         xbounds=(fig_params.t_start, fig_params.t_end),
-        ybounds=(0, max_ylim_prob),
+        ybounds=vgcc_ylims,
         spine_linewidth=FigParams.linewidth,
         tick_length=FigParams.tick_length,
         tick_width=FigParams.tick_width,
@@ -474,8 +473,8 @@ def figure2_option2(fig_params: Figure2Params, show_fig: bool = True, save_fig: 
     add_group_legend(
         ax_vgcc,
         x=fig_params.t_end * 1.0,
-        y_start=max_ylim_prob * 0.96,
-        y_offset=-(max_ylim_prob / 10),
+        y_start=0.96,
+        y_offset=-(1 / 10),
         ha="right",
         va="center",
         fontsize=fontsize,
@@ -1086,6 +1085,10 @@ def figure4(fig_params: Figure4Params, show_fig: bool = True, save_fig: bool = F
 
 @dataclass
 class Figure5Params:
+    full_simulations: str = "20250320"
+    mapping_simple_tuft_inset_xoffset: float = 0.14
+    mapping_complex_tuft_inset_xoffset: float = -0.14
+    mapping_tuft_yoffset: float = -0.25
     field_width: float = 0.95
     field_scale: float = 1.25
     field_inset_yoffset_fraction: float = 0.08
@@ -1098,6 +1101,14 @@ class Figure5Params:
     gabor_gamma: float = 1.5
     gabor_halfsize: float = 25
     gabor_phase: float = 0
+    gabor_highlight_magnitude: float = 4
+    gabor_vmax_scale: float = 1.5
+    stimulus_stims_per_row: int = 5
+    stimulus_num_edges: int = 7
+    stimulus_hspacing: float = 0.15
+    stimulus_vspacing: float = 0.05
+    stimulus_arrow_width: float = 0.75
+    stimulus_arrow_mutation: float = 6
     x_offset_input_label: float = -0.05
     x_offset_rate_label: float = -0.9
     x_offset_field_label: float = -0.55
@@ -1107,24 +1118,43 @@ class Figure5Params:
     tuning_vspacing: float = 21
     tuning_fontsize_label: float = FigParams.smallfontsize
     tuning_fontsize_title: float = FigParams.smallfontsize
+    confusion_fontsize: float = FigParams.smallfontsize
+    confusion_tickfontsize: float = FigParams.tinyfontsize
+    example_dpratio: tuple[int, int] = (0, 4)
+    example_edge: tuple[int, int] = (1, 1)
+    example_simulation: tuple[int, int] = (0, 0)
+    example_neuron: tuple[int, int] = (0, 0)
 
 
 def figure5(fig_params: Figure5Params, show_fig: bool = True, save_fig: bool = False):
-    fig_width = FigParams.double_width
-    fig_height = fig_width / 4 * 1.25
+    fig_width = FigParams.double_width * 3 / 4
+    fig_height = fig_width / 3 * 1.5
 
-    fig = plt.figure(figsize=(fig_width, fig_height), layout="constrained")
-    gs = fig.add_gridspec(1, 4, width_ratios=[1, 1, 1.25, 1])
-    ax_inputs = fig.add_subplot(gs[0])
-    gs_receptive_field = gs[1].subgridspec(2, 1, height_ratios=[20, 1])
-    ax_receptive_field = fig.add_subplot(gs_receptive_field[0])
-    gs_tuning = gs[2].subgridspec(3, 1, height_ratios=[1.5, 1, 1])
-    ax_tuning_representation = fig.add_subplot(gs_tuning[0])
+    fig = plt.figure(figsize=(fig_width, fig_height), **FigParams.all_fig_params())
+    gs = fig.add_gridspec(1, 3, width_ratios=[1, 1, 1])
+    gs_stim = gs[0].subgridspec(2, 1, height_ratios=[1, 2.75])
+    ax_trajectory = fig.add_subplot(gs_stim[0])
+    ax_receptive_field = fig.add_subplot(gs_stim[1])
+    gs_inputs = gs[1].subgridspec(2, 1, height_ratios=[1, 2.5])
+    ax_tuning = fig.add_subplot(gs_inputs[0])
+    ax_inputs = fig.add_subplot(gs_inputs[1])
+    gs_confusion = gs[2].subgridspec(2, 1)
+    ax_distal_simple = fig.add_subplot(gs_confusion[0])
+    ax_distal_complex = fig.add_subplot(gs_confusion[1])
+    # gs_weights = gs_results[1].subgridspec(2, 3)
+    # ax_proximal_weights_ex0 = fig.add_subplot(gs_weights[0, 0])
+    # ax_simple_weights_ex0 = fig.add_subplot(gs_weights[0, 1])
+    # ax_complex_weights_ex0 = fig.add_subplot(gs_weights[0, 2])
+    # ax_proximal_weights_ex1 = fig.add_subplot(gs_weights[1, 0])
+    # ax_simple_weights_ex1 = fig.add_subplot(gs_weights[1, 1])
+    # ax_complex_weights_ex1 = fig.add_subplot(gs_weights[1, 2])
 
     build_environment_compartment_mapping_ax(
         ax_inputs,
-        simple_tuft_inset_xoffset=0.12,
-        complex_tuft_inset_xoffset=-0.12,
+        simple_tuft_inset_xoffset=fig_params.mapping_simple_tuft_inset_xoffset,
+        complex_tuft_inset_xoffset=fig_params.mapping_complex_tuft_inset_xoffset,
+        tuft_yoffset=fig_params.mapping_tuft_yoffset,
+        gabor_highlight_magnitude=fig_params.gabor_highlight_magnitude,
     )
     build_receptive_field_ax(
         ax_receptive_field,
@@ -1147,12 +1177,86 @@ def figure5(fig_params: Figure5Params, show_fig: bool = True, save_fig: bool = F
         include_arrows=fig_params.include_arrows,
     )
     build_tuning_representation_ax(
-        ax_tuning_representation,
+        ax_tuning,
         hspacing=fig_params.tuning_hspacing,
         vspacing=fig_params.tuning_vspacing,
         fontsize_label=fig_params.tuning_fontsize_label,
         fontsize_title=fig_params.tuning_fontsize_title,
     )
+    build_stimulus_trajectory_ax(
+        ax_trajectory,
+        stims_per_row=fig_params.stimulus_stims_per_row,
+        num_edges=fig_params.stimulus_num_edges,
+        highlight_magnitude=fig_params.gabor_highlight_magnitude,
+        vmax_scale=fig_params.gabor_vmax_scale,
+        hspacing=fig_params.stimulus_hspacing,
+        vspacing=fig_params.stimulus_vspacing,
+        arrow_width=fig_params.stimulus_arrow_width,
+        arrow_mutation=fig_params.stimulus_arrow_mutation,
+    )
+
+    # Analyze main run
+    experiment_folder = results_dir("iaf_runs") / "hofer" / fig_params.full_simulations
+    metadata = gather_metadata(experiment_folder, experiment_type="hofer")
+    weights = gather_weights(
+        metadata,
+        experiment_type="hofer",
+        average_method="fraction",
+        average_window=0.2,
+        normalize=True,
+    )
+    orientation_preference = {sg: np.argmax(weights[sg], axis=-1) % 4 for sg in get_groupnames()}
+    build_orientation_confusion_axes(
+        ax_distal_simple,
+        ax_distal_complex,
+        orientation_preference,
+        fontsize=fig_params.confusion_fontsize,
+        tickfontsize=fig_params.confusion_tickfontsize,
+    )
+
+    # build_weights_ax(
+    #     ax_proximal_weights_ex0,
+    #     ax_simple_weights_ex0,
+    #     ax_complex_weights_ex0,
+    #     weights,
+    #     vmax=fig_params.gabor_vmax_scale,
+    #     dpratio=fig_params.example_dpratio[0],
+    #     edge=fig_params.example_edge[0],
+    #     simulation=fig_params.example_simulation[0],
+    #     neuron=fig_params.example_neuron[0],
+    #     gabor_width=fig_params.gabor_width,
+    #     gabor_envelope=fig_params.gabor_envelope,
+    #     gabor_gamma=fig_params.gabor_gamma,
+    #     gabor_halfsize=fig_params.gabor_halfsize,
+    #     gabor_phase=fig_params.gabor_phase,
+    #     fontsize=fig_params.ylabel_fontsize,
+    # )
+    # build_weights_ax(
+    #     ax_proximal_weights_ex1,
+    #     ax_simple_weights_ex1,
+    #     ax_complex_weights_ex1,
+    #     weights,
+    #     vmax=fig_params.gabor_vmax_scale,
+    #     dpratio=fig_params.example_dpratio[1],
+    #     edge=fig_params.example_edge[1],
+    #     simulation=fig_params.example_simulation[1],
+    #     neuron=fig_params.example_neuron[1],
+    #     gabor_width=fig_params.gabor_width,
+    #     gabor_envelope=fig_params.gabor_envelope,
+    #     gabor_gamma=fig_params.gabor_gamma,
+    #     gabor_halfsize=fig_params.gabor_halfsize,
+    #     gabor_phase=fig_params.gabor_phase,
+    #     fontsize=fig_params.ylabel_fontsize,
+    #     show_titles=False,
+    # )
+
+    # Remove white backgrounds
+    ax_inputs.set_facecolor("none")
+    ax_receptive_field.set_facecolor("none")
+    ax_tuning.set_facecolor("none")
+    ax_trajectory.set_facecolor("none")
+    ax_distal_simple.set_facecolor("none")
+    ax_distal_complex.set_facecolor("none")
 
     if show_fig:
         plt.show(block=True)

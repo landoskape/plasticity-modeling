@@ -1,10 +1,12 @@
 from typing import Optional, List
 import numpy as np
 from scipy.signal import filtfilt
+from sklearn.metrics import ConfusionMatrixDisplay
 from matplotlib import pyplot as plt
 from matplotlib import colormaps
 from matplotlib import colors as mcolors
 from matplotlib.typing import LineStyleType
+from matplotlib.patches import FancyArrowPatch
 from .analysis import get_norm_factor, get_groupnames, get_sigmoid_params, sigmoid
 from .source_population import SourcePopulationGabor, vonmises
 from ..plotting import FigParams, Proximal, DistalSimple, DistalComplex, beeswarm, format_spines
@@ -100,7 +102,7 @@ def create_gabor_grid(
     highlight_edge : bool, optional
         If True, the edge gabors will be highlighted by being multiplied by `highlight_magnitude`.
     highlight_magnitude : int, optional
-        Edge gabors will be multiplied by this value if `highlight_edge` is True.
+        Non-edge gabors will be divided by this value if `highlight_edge` is True.
 
     Returns
     -------
@@ -117,12 +119,19 @@ def create_gabor_grid(
     if orientations.shape != (3, 3):
         raise ValueError("orientations must be a 3x3 array")
 
+    multiplier = np.ones((3, 3))
     if highlight_edge:
         if np.any(np.isnan(orientations)):
             print("Warning: highlight_edge is True, but orientations array contains NaNs")
         else:
-            possible_edge_orientation = orientations[1, 1]
-            edge_positions = SourcePopulationGabor.stimulus_to_edge_positions(possible_edge_orientation)
+            # NOTE this requires SourcePopulationGabor.orientations to be sorted...
+            stimuli = np.searchsorted(SourcePopulationGabor.orientations, orientations)
+            edge0, edge1 = SourcePopulationGabor.stimulus_to_edge_positions(stimuli[1, 1])
+            multiplier /= highlight_magnitude
+            if stimuli[edge0] == stimuli[1, 1] and stimuli[edge1] == stimuli[1, 1]:
+                multiplier[1, 1] = 1
+                multiplier[edge0] = 1
+                multiplier[edge1] = 1
 
     # Create individual Gabors
     gabors = [[np.nan for _ in range(3)] for _ in range(3)]
@@ -130,9 +139,40 @@ def create_gabor_grid(
     for i in range(3):
         for j in range(3):
             if not center_only or (i == 1 and j == 1):
-                gabors[i][j] = create_gabor(orientations[i, j], **gabor_params)
+                gabors[i][j] = create_gabor(orientations[i, j], **gabor_params) * multiplier[i, j]
 
     return stitch_gabor_grid(gabors, spacing), gabors
+
+
+def weights_to_gabor(weights: np.ndarray, orientations: np.ndarray, spacing: int = 2, **params):
+    """Convert a 4x9 array of weights to a 3x3 grid of Gabor patterns.
+
+    Parameters
+    ----------
+    weights : np.ndarray
+        A 4x9 array of weights.
+    orientations : np.ndarray
+        A 9-element array of orientations.
+    spacing : int, optional
+        The spacing between the Gabor patterns, default is 2.
+    params : dict, optional
+        Additional parameters to pass to create_gabor(), default is {}.
+
+    Returns
+    -------
+    np.ndarray
+        A 3x3 grid of Gabor patterns.
+    """
+    weights = weights.T.reshape(9, 4)
+    gabors = [[None for _ in range(weights.shape[1])] for _ in range(weights.shape[0])]
+    for i in range(weights.shape[0]):
+        for j in range(weights.shape[1]):
+            gabor = weights[i, j] * create_gabor(orientation=orientations[j], **params)
+            gabors[i][j] = gabor
+        gabors[i] = np.sum(np.stack(gabors[i]), axis=0)
+    gwidth = gabors[0].shape[0]
+    gabors = np.stack(gabors).reshape(3, 3, gwidth, gwidth)
+    return stitch_gabor_grid(gabors, spacing=spacing)
 
 
 def stitch_gabor_grid(gabors: List[List[np.ndarray]], spacing: int = 1) -> np.ndarray:
@@ -159,19 +199,19 @@ def stitch_gabor_grid(gabors: List[List[np.ndarray]], spacing: int = 1) -> np.nd
     # Place Gabors in grid
     for i in range(3):
         for j in range(3):
-            y_start = i * (gabor_size + spacing)
-            x_start = j * (gabor_size + spacing)
-            output[y_start : y_start + gabor_size, x_start : x_start + gabor_size] = gabors[i][j]
+            if not np.all(np.isnan(gabors[i][j])):
+                y_start = i * (gabor_size + spacing)
+                x_start = j * (gabor_size + spacing)
+                output[y_start : y_start + gabor_size, x_start : x_start + gabor_size] = gabors[i][j]
 
     return output
 
 
 def overlay_empty_pixels_with_x(
     ax: plt.Axes,
-    grid: np.ndarray,
+    gabors: List[List[np.ndarray]],
     spacing: int = 1,
     x_extent_fraction: float = 0.5,
-    gabors: List[List[np.ndarray]] = [],
     color: str = "k",
     linewidth: float = FigParams.linewidth,
     linestyle: LineStyleType = (0, (1, 1)),
@@ -597,6 +637,7 @@ def build_environment_compartment_mapping_ax(
     simple_tuft_inset_xoffset: float = 0.18,
     complex_tuft_inset_xoffset: float = -0.18,
     visual_inset_length: float = 1.35,
+    tuft_yoffset: float = 0.0,
     gabor_width: float = 0.6,
     gabor_envelope: float = 0.4,
     gabor_gamma: float = 1.5,
@@ -606,7 +647,9 @@ def build_environment_compartment_mapping_ax(
     gabor_x_extent_fraction: float = 0.5,
     gabor_spine_linewidth: float = FigParams.thinlinewidth,
     gabor_label_yoffset: float = 0.05,
+    gabor_highlight_magnitude: float = 4,
     fontsize: float = FigParams.smallfontsize,
+    labelfontsize: float = FigParams.tinyfontsize,
 ):
     def set_spine_properties(ax, spine_color: str):
         for spine in ax.spines.values():
@@ -683,6 +726,8 @@ def build_environment_compartment_mapping_ax(
         spacing=gabor_spacing,
         gabor_params=params,
         center_only=True,
+        highlight_edge=True,
+        highlight_magnitude=gabor_highlight_magnitude,
     )
     max_grid = np.nanmax(np.abs(proximal_grid))
     extent = [0, proximal_grid.shape[1], 0, proximal_grid.shape[0]]
@@ -692,15 +737,14 @@ def build_environment_compartment_mapping_ax(
         cmap="bwr",
         vmin=-max_grid,
         vmax=max_grid,
-        interpolation="none",
+        interpolation="bilinear",
         extent=extent,
     )
     overlay_empty_pixels_with_x(
         ax_proximal_environment,
-        proximal_grid,
+        gabors=proximal_gabors,
         spacing=gabor_spacing,
         x_extent_fraction=gabor_x_extent_fraction,
-        gabors=proximal_gabors,
         color="black",
         linewidth=FigParams.thinlinewidth,
         linestyle="-",
@@ -714,17 +758,17 @@ def build_environment_compartment_mapping_ax(
 
     # Simple tuft
     ax.text(
-        simple_tuft_outer_x + simple_tuft_inset_xoffset - visual_inset_length / 2,
-        simple_tuft_ycenter + visual_inset_length / 2 + gabor_label_yoffset,
-        "Simple\nInputs",
-        ha="center",
+        simple_tuft_outer_x + simple_tuft_inset_xoffset - visual_inset_length,
+        simple_tuft_ycenter + visual_inset_length / 2 + gabor_label_yoffset + tuft_yoffset,
+        "Distal\nSimple\nInputs",
+        ha="left",
         va="bottom",
         color=DistalSimple.color,
         fontsize=fontsize,
     )
     simple_tuft_inset_position = [
         simple_tuft_outer_x + simple_tuft_inset_xoffset - visual_inset_length,
-        simple_tuft_ycenter - visual_inset_length / 2,
+        simple_tuft_ycenter - visual_inset_length / 2 + tuft_yoffset,
         visual_inset_length,
         visual_inset_length,
     ]
@@ -738,6 +782,8 @@ def build_environment_compartment_mapping_ax(
         spacing=gabor_spacing,
         gabor_params=params,
         center_only=False,
+        highlight_edge=True,
+        highlight_magnitude=gabor_highlight_magnitude,
     )
     max_grid = np.nanmax(np.abs(simple_tuft_grid))
     extent = [0, simple_tuft_grid.shape[1], 0, simple_tuft_grid.shape[0]]
@@ -747,15 +793,14 @@ def build_environment_compartment_mapping_ax(
         cmap="bwr",
         vmin=-max_grid,
         vmax=max_grid,
-        interpolation="none",
+        interpolation="bilinear",
         extent=extent,
     )
     overlay_empty_pixels_with_x(
         ax_simple_tuft_environment,
-        simple_tuft_grid,
+        gabors=simple_tuft_gabors,
         spacing=gabor_spacing,
         x_extent_fraction=gabor_x_extent_fraction,
-        gabors=simple_tuft_gabors,
         color="black",
         linewidth=FigParams.linewidth,
     )
@@ -768,17 +813,17 @@ def build_environment_compartment_mapping_ax(
 
     # Complex tuft
     ax.text(
-        complex_tuft_outer_x + complex_tuft_inset_xoffset + visual_inset_length / 2,
-        complex_tuft_ycenter + visual_inset_length / 2 + gabor_label_yoffset,
-        "Complex\nInputs",
-        ha="center",
+        complex_tuft_outer_x + complex_tuft_inset_xoffset + visual_inset_length,
+        complex_tuft_ycenter + visual_inset_length / 2 + gabor_label_yoffset + tuft_yoffset,
+        "Distal\nComplex\nInputs",
+        ha="right",
         va="bottom",
         color=DistalComplex.color,
         fontsize=fontsize,
     )
     complex_tuft_inset_position = [
         complex_tuft_outer_x + complex_tuft_inset_xoffset,
-        complex_tuft_ycenter - visual_inset_length / 2,
+        complex_tuft_ycenter - visual_inset_length / 2 + tuft_yoffset,
         visual_inset_length,
         visual_inset_length,
     ]
@@ -792,6 +837,8 @@ def build_environment_compartment_mapping_ax(
         spacing=gabor_spacing,
         gabor_params=params,
         center_only=False,
+        highlight_edge=True,
+        highlight_magnitude=gabor_highlight_magnitude,
     )
     max_grid = np.nanmax(np.abs(complex_tuft_grid))
     extent = [0, complex_tuft_grid.shape[1], 0, complex_tuft_grid.shape[0]]
@@ -801,15 +848,14 @@ def build_environment_compartment_mapping_ax(
         cmap="bwr",
         vmin=-max_grid,
         vmax=max_grid,
-        interpolation="none",
+        interpolation="bilinear",
         extent=extent,
     )
     overlay_empty_pixels_with_x(
         ax_complex_tuft_environment,
-        complex_tuft_grid,
+        gabors=complex_tuft_gabors,
         spacing=gabor_spacing,
         x_extent_fraction=gabor_x_extent_fraction,
-        gabors=complex_tuft_gabors,
         color="black",
         linewidth=FigParams.linewidth,
     )
@@ -828,6 +874,16 @@ def build_environment_compartment_mapping_ax(
     ax.set_xlim(xmin, xmax)
     ax.set_ylim(ymin, ymax)
     ax.set_aspect("equal")
+
+    label_text = "Stimulus\nMapping:\n\nDistal" + r"$\leftarrow$" + "All\nProx." + r"$\leftarrow$" + "Center"
+    ax.text(
+        xmin,
+        trunk_ycenter,
+        label_text,
+        ha="left",
+        va="center",
+        fontsize=fontsize,
+    )
     ax.set_xticks([])
     ax.set_yticks([])
     for spine in ax.spines.values():
@@ -1015,8 +1071,8 @@ def build_tuning_representation_ax(
     net_untuned = np.sum(np.stack([u * g for u, g in zip(untuned, gabors)]), axis=0)
 
     gabor_height = gabors[0].shape[0]
-    hspacer = np.zeros((gabor_height, hspacing))
-    vspacer = np.zeros((vspacing, gabor_height))
+    hspacer = np.full((gabor_height, hspacing), np.nan)
+    vspacer = np.full((vspacing, gabor_height), np.nan)
     gabor_row = []
     for gabor in gabors:
         gabor_row.append(gabor)
@@ -1026,10 +1082,10 @@ def build_tuning_representation_ax(
     gabor_grid = np.hstack(gabor_row)
     tuning_gabor = np.vstack([net_tuned, vspacer, net_untuned])
     height_difference = tuning_gabor.shape[0] - gabor_grid.shape[0]
-    extra_vspacer = np.zeros((height_difference // 2, gabor_grid.shape[1]))
+    extra_vspacer = np.full((height_difference // 2, gabor_grid.shape[1]), np.nan)
 
     full_grid = np.hstack([np.vstack([extra_vspacer, gabor_grid, extra_vspacer]), tuning_gabor])
-    full_grid = np.vstack([np.zeros((vspacing, full_grid.shape[1])), full_grid])
+    full_grid = np.vstack([np.full((vspacing, full_grid.shape[1]), np.nan), full_grid])
 
     extent = (0, full_grid.shape[1], 0, full_grid.shape[0])
 
@@ -1044,8 +1100,10 @@ def build_tuning_representation_ax(
     x_pos_ax_description = gabor_height * 2 + hspacing / 2
     y_pos_ax_description = (full_grid.shape[0] + full_grid.shape[0] - height_difference / 2) / 2
 
-    vmax = np.max(np.abs(full_grid))
-    ax.imshow(full_grid, aspect="equal", cmap="bwr", vmin=-vmax, vmax=vmax, extent=extent, interpolation="bilinear")
+    vmax = np.nanmax(np.abs(full_grid))
+    cmap = plt.get_cmap("bwr")
+    cmap.set_bad("white", alpha=0.0)
+    ax.imshow(full_grid, aspect="equal", cmap=cmap, vmin=-vmax, vmax=vmax, extent=extent, interpolation="bilinear")
 
     for i in range(5):
         if i < 4:
@@ -1102,3 +1160,212 @@ def build_tuning_representation_ax(
     ax.set_xticklabels([])
     ax.set_yticklabels([])
     ax.axis("off")
+
+
+def build_stimulus_trajectory_ax(
+    ax: plt.Axes,
+    stims_per_row: int = 5,
+    num_edges: int = 7,
+    highlight_magnitude: int = 4,
+    hspacing: float = 0.1,
+    vspacing: float = 0.05,
+    arrow_width: float = 0.75,
+    vmax_scale: float = 1.5,
+    arrow_mutation: float = 10,
+):
+    # Determine stimulus indices
+    num_stims = 2 * stims_per_row
+    edge_stims = sorted(np.random.permutation(num_stims)[:num_edges])
+
+    # Generate stimuli and grids
+    stim_grids = [
+        SourcePopulationGabor.orientations[
+            SourcePopulationGabor.make_stimulus(edge_probability=1 if i in edge_stims else 0)
+        ]
+        for i in range(num_stims)
+    ]
+    gabor_grids = [
+        create_gabor_grid(
+            stim_grids[i],
+            spacing=2,
+            highlight_edge=i in edge_stims,
+            highlight_magnitude=highlight_magnitude,
+        )[0]
+        for i in range(num_stims)
+    ]
+    vmax = np.max(np.abs(np.stack(gabor_grids))) * vmax_scale
+
+    # Calculate row positions
+    total_width = stims_per_row + stims_per_row * hspacing + arrow_width
+    total_height = 2 + vspacing
+
+    axs_inset = []
+
+    # Create first row of insets
+    for i in range(stims_per_row):
+        x = i + i * hspacing
+        y = 1 + vspacing
+        inset = ax.inset_axes([x, y, 1, 1], transform=ax.transData)
+        axs_inset.append(inset)
+
+    # Create second row of insets
+    for i in range(stims_per_row):
+        x = arrow_width + hspacing + i + i * hspacing
+        inset = ax.inset_axes([x, 0, 1, 1], transform=ax.transData)
+        axs_inset.append(inset)
+
+    # Create arrow insets
+    arrow_row_one = ax.inset_axes(
+        [stims_per_row + stims_per_row * hspacing, 1 + vspacing, arrow_width, 1], transform=ax.transData
+    )
+    arrow_row_two = ax.inset_axes([0, 0, arrow_width, 1], transform=ax.transData)
+
+    # Display images
+    for inset_ax, grid in zip(axs_inset, gabor_grids):
+        inset_ax.imshow(grid, aspect="equal", cmap="bwr", vmin=-vmax, vmax=vmax, interpolation="bilinear")
+        inset_ax.set_xticks([])
+        inset_ax.set_yticks([])
+        for spine in inset_ax.spines.values():
+            spine.set_visible(True)
+            spine.set_color("k")
+            spine.set_linewidth(FigParams.thinlinewidth)
+
+    for ax_arrow in [arrow_row_one, arrow_row_two]:
+        arrow = FancyArrowPatch(
+            posA=(0, 0),
+            posB=(1.0, 0),
+            arrowstyle="-|>",
+            linewidth=FigParams.thicklinewidth,
+            mutation_scale=arrow_mutation,
+            color="black",
+        )
+        ax_arrow.add_patch(arrow)
+        ax_arrow.axis("off")
+        ax_arrow.set_xlim(0, 1)
+        ax_arrow.set_ylim(-0.1, 0.1)
+
+    ax.set_xlim(0, total_width)
+    ax.set_ylim(0, total_height)
+    ax.axis("off")
+
+    ax.set_title("Stimulus Trajectory", fontsize=FigParams.smallfontsize)
+
+
+def build_orientation_confusion_axes(
+    ax_distal_simple,
+    ax_distal_complex,
+    orientation_preferences,
+    fontsize: float = FigParams.smallfontsize,
+    tickfontsize: float = FigParams.tinyfontsize,
+):
+    ConfusionMatrixDisplay.from_predictions(
+        orientation_preferences["proximal"].reshape(-1),
+        orientation_preferences["distal-simple"].reshape(-1),
+        ax=ax_distal_simple,
+        cmap="gray_r",
+        colorbar=False,
+        normalize="all",
+        text_kw={"fontsize": tickfontsize},
+    )
+    ConfusionMatrixDisplay.from_predictions(
+        orientation_preferences["proximal"].reshape(-1),
+        orientation_preferences["distal-complex"].reshape(-1),
+        ax=ax_distal_complex,
+        cmap="gray_r",
+        colorbar=False,
+        normalize="all",
+        text_kw={"fontsize": tickfontsize},
+    )
+    ax_distal_complex.set_xlabel("Proximal\nPreferred Orientation", fontsize=fontsize)
+    ax_distal_simple.set_xlabel("", fontsize=fontsize)
+    ax_distal_simple.set_ylabel("Distal-Simple\nPreferred Orientation", fontsize=fontsize)
+    ax_distal_complex.set_ylabel("Distal-Complex\nPreferred Orientation", fontsize=fontsize)
+    ticks = np.arange(4)
+    labels = np.array(ticks * 180 / 4, dtype=int)
+    ax_distal_simple.set_xticks(ticks, [])
+    ax_distal_complex.set_xticks(ticks, labels, fontsize=tickfontsize)
+    ax_distal_simple.set_yticks(ticks, labels, fontsize=tickfontsize)
+    ax_distal_complex.set_yticks(ticks, labels, fontsize=tickfontsize)
+
+    for ax in [ax_distal_simple, ax_distal_complex]:
+        ax.tick_params(
+            axis="both",
+            which="major",
+            length=FigParams.tick_length,
+            width=FigParams.tick_width,
+            labelsize=tickfontsize,
+        )
+
+
+def build_weights_ax(
+    ax_proximal: plt.Axes,
+    ax_simple: plt.Axes,
+    ax_complex: plt.Axes,
+    weights: dict[str, np.ndarray],
+    spacing: int = 2,
+    vmax: float = 0.5,
+    dpratio: int = 0,
+    edge: int = 0,
+    simulation: int = 0,
+    neuron: int = 0,
+    gabor_width: float = 0.6,
+    gabor_envelope: float = 0.4,
+    gabor_gamma: float = 1.5,
+    gabor_halfsize: int = 25,
+    gabor_phase: float = 0,
+    gabor_x_extent_fraction: float = 0.5,
+    fontsize: float = FigParams.smallfontsize,
+    show_titles: bool = True,
+):
+    gabor_params = dict(
+        width=gabor_width,
+        envelope=gabor_envelope,
+        gamma=gabor_gamma,
+        halfsize=gabor_halfsize,
+        phase=gabor_phase,
+    )
+    proximal_gabor = weights_to_gabor(
+        weights["proximal"][dpratio, edge, simulation, neuron],
+        SourcePopulationGabor.orientations,
+        spacing=spacing,
+        **gabor_params,
+    )
+    simple_gabor = weights_to_gabor(
+        weights["distal-simple"][dpratio, edge, simulation, neuron],
+        SourcePopulationGabor.orientations,
+        spacing=spacing,
+        **gabor_params,
+    )
+    complex_gabor = weights_to_gabor(
+        weights["distal-complex"][dpratio, edge, simulation, neuron],
+        SourcePopulationGabor.orientations,
+        spacing=spacing,
+        **gabor_params,
+    )
+
+    ax_proximal.imshow(proximal_gabor, vmin=-vmax, vmax=vmax, cmap="bwr")
+    ax_simple.imshow(simple_gabor, vmin=-vmax, vmax=vmax, cmap="bwr")
+    ax_complex.imshow(complex_gabor, vmin=-vmax, vmax=vmax, cmap="bwr")
+    if show_titles:
+        ax_proximal.set_title("Proximal", fontsize=fontsize)
+        ax_simple.set_title("Distal-Simple", fontsize=fontsize)
+        ax_complex.set_title("Distal-Complex", fontsize=fontsize)
+
+    for ax in [ax_proximal, ax_simple, ax_complex]:
+        ax.set_xticks([])
+        ax.set_yticks([])
+        for spine in ax.spines.values():
+            spine.set_visible(True)
+            spine.set_color("k")
+            spine.set_linewidth(FigParams.thinlinewidth)
+
+    xs_gabor = create_gabor_grid(np.random.randn(3, 3), spacing=spacing, gabor_params=gabor_params, center_only=True)[1]
+    overlay_empty_pixels_with_x(
+        ax_proximal,
+        gabors=xs_gabor,
+        spacing=spacing,
+        x_extent_fraction=gabor_x_extent_fraction,
+        color="black",
+        linewidth=FigParams.thinlinewidth,
+        linestyle="-",
+    )
