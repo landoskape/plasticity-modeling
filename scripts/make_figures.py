@@ -14,7 +14,7 @@ from src.plotting import (
     add_group_legend,
     add_dpratio_legend,
 )
-from src.schematics import Neuron, build_integrated_schematic_axis
+from src.schematics import Neuron, build_integrated_schematic_axis, create_dpratio_colors
 from src.experimental import (
     ElifeData,
     build_axes_formatted_elife_data,
@@ -28,7 +28,6 @@ from src.conductance import (
     VGCC,
 )
 from src.iaf.plotting import (
-    create_dpratio_colors,
     build_ax_latent_correlation_demonstration,
     build_ax_corrcoef,
     build_ax_trajectory,
@@ -36,6 +35,9 @@ from src.iaf.plotting import (
     build_ax_weight_fits,
     build_ax_sigmoid_example,
     build_plasticity_rule_axes,
+    build_environment_compartment_mapping_ax,
+    build_receptive_field_ax,
+    build_tuning_representation_ax,
 )
 from src.iaf.analysis import gather_metadata, gather_results, gather_rates, gather_weights
 
@@ -1082,6 +1084,86 @@ def figure4(fig_params: Figure4Params, show_fig: bool = True, save_fig: bool = F
     return fig
 
 
+@dataclass
+class Figure5Params:
+    field_width: float = 0.95
+    field_scale: float = 1.25
+    field_inset_yoffset_fraction: float = 0.08
+    input_inset_yoffset_extra: float = 0.0
+    vonmises_concentration: float = 1.0
+    baseline_rate: float = 5.0
+    driven_rate: float = 45.0
+    gabor_width: float = 0.6
+    gabor_envelope: float = 0.4
+    gabor_gamma: float = 1.5
+    gabor_halfsize: float = 25
+    gabor_phase: float = 0
+    x_offset_input_label: float = -0.05
+    x_offset_rate_label: float = -0.9
+    x_offset_field_label: float = -0.55
+    ylabel_fontsize: float = FigParams.smallfontsize
+    include_arrows: bool = True
+    tuning_hspacing: float = 6
+    tuning_vspacing: float = 21
+    tuning_fontsize_label: float = FigParams.smallfontsize
+    tuning_fontsize_title: float = FigParams.smallfontsize
+
+
+def figure5(fig_params: Figure5Params, show_fig: bool = True, save_fig: bool = False):
+    fig_width = FigParams.double_width
+    fig_height = fig_width / 4 * 1.25
+
+    fig = plt.figure(figsize=(fig_width, fig_height), layout="constrained")
+    gs = fig.add_gridspec(1, 4, width_ratios=[1, 1, 1.25, 1])
+    ax_inputs = fig.add_subplot(gs[0])
+    gs_receptive_field = gs[1].subgridspec(2, 1, height_ratios=[20, 1])
+    ax_receptive_field = fig.add_subplot(gs_receptive_field[0])
+    gs_tuning = gs[2].subgridspec(3, 1, height_ratios=[1.5, 1, 1])
+    ax_tuning_representation = fig.add_subplot(gs_tuning[0])
+
+    build_environment_compartment_mapping_ax(
+        ax_inputs,
+        simple_tuft_inset_xoffset=0.12,
+        complex_tuft_inset_xoffset=-0.12,
+    )
+    build_receptive_field_ax(
+        ax_receptive_field,
+        field_width=fig_params.field_width,
+        field_scale=fig_params.field_scale,
+        field_inset_yoffset_fraction=fig_params.field_inset_yoffset_fraction,
+        input_inset_yoffset_extra=fig_params.input_inset_yoffset_extra,
+        vonmises_concentration=fig_params.vonmises_concentration,
+        baseline_rate=fig_params.baseline_rate,
+        driven_rate=fig_params.driven_rate,
+        gabor_width=fig_params.gabor_width,
+        gabor_envelope=fig_params.gabor_envelope,
+        gabor_gamma=fig_params.gabor_gamma,
+        gabor_halfsize=fig_params.gabor_halfsize,
+        gabor_phase=fig_params.gabor_phase,
+        x_offset_input_label=fig_params.x_offset_input_label,
+        x_offset_rate_label=fig_params.x_offset_rate_label,
+        x_offset_field_label=fig_params.x_offset_field_label,
+        fontsize=fig_params.ylabel_fontsize,
+        include_arrows=fig_params.include_arrows,
+    )
+    build_tuning_representation_ax(
+        ax_tuning_representation,
+        hspacing=fig_params.tuning_hspacing,
+        vspacing=fig_params.tuning_vspacing,
+        fontsize_label=fig_params.tuning_fontsize_label,
+        fontsize_title=fig_params.tuning_fontsize_title,
+    )
+
+    if show_fig:
+        plt.show(block=True)
+
+    if save_fig:
+        fig_path = get_figure_dir("core_figures") / "figure5"
+        save_figure(fig, fig_path)
+
+    return fig
+
+
 if __name__ == "__main__":
     # Set master parameters for showing / saving figures
     show_fig = False
@@ -1097,9 +1179,13 @@ if __name__ == "__main__":
     # figure2_option2(fig2params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 3
-    fig3params = Figure3Params()
-    figure3(fig3params, show_fig=show_fig, save_fig=save_fig)
+    # fig3params = Figure3Params()
+    # figure3(fig3params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 4
     # fig4params = Figure4Params()
     # figure4(fig4params, show_fig=show_fig, save_fig=save_fig)
+
+    # Build Figure 5
+    fig5params = Figure5Params()
+    figure5(fig5params, show_fig=show_fig, save_fig=save_fig)

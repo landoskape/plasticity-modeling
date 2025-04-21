@@ -33,14 +33,12 @@ amount of plasticity evoked by positive pairings (LTP) or negative pairings (LTD
    is fully blocked is probably not 0mM! (E.g. there might be a minimum effective concentration).
 
 ## Section on IaF Correlation
-- In iaf_correlation.ipynb the main result is in the second figure, showing the weight as a function of input correlation for different
-d/p ratios and locations on the branch. It works!!!
-- Need to add the single example figure and a summary plot and a good illustration of the correlated source modell...
 - Results / iaf_runs / correlated / 20250320 has the results for the updated correlation experiment with new names (p, ds, dc)
 - Results / iaf_runs / correlated / 20250324 has full_output results for the correlated model for making example figures
 
 ## Section on Hofer Reconstructions
 - Results / iaf_runs / hofer / 20250320 has the results for the hofer experiment
+- Results / iaf_runs / hofer / 20250417 has full_output results for hofer with source rates included
 
 # Figure Mapping
 - Overall Notes: 
@@ -48,16 +46,17 @@ d/p ratios and locations on the branch. It works!!!
     map onto learned weights in the weight trajectory graph...
   - It would be cool to do hierarchical clustering and then show it with this order!
 
-- Figure 3: STDP Model
-  - Panel A: Schematic of STDP model neuron
-  - Panel B: Schematic of STDP model STDP rules
-
 - Figure 5: Hofer Prediction Exposition
   - Panel A: Illustration of visual environment and receptive fields
   - ???????: Correlation matrix of inputs?
   - Panel B: Show how we display "net receptive fields"
   - Panel C: Show example initial / post-learning weight maps for each group (low edge, high D/P ratio)
   - Panel D: Same as above but for high edge probability and low D/P ratio
+
+  - **NOTE** To get a nice plot of stimuli over time, I want to highlight the "edges". To do so I'm going
+  to need to rework the gabor generation code so that it's easy to detect the edge. In addition, I think 
+  I should force the stimulus to not have an edge when it's not requested, which would demand a rerun of
+  the simulations....
 
 - Figure 6: Hofer Summary Results
   - Panel A: Schematic of "co-axial space" (try to make it look like Figure 3 from Iacaruso)

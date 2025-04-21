@@ -110,7 +110,7 @@ def run_experiment(args):
                     no_distal=no_distal,
                 )
 
-            results = sim.run(duration=duration, save_source_rates=args.save_source_rates)
+            results = sim.run(duration=duration, save_source_rates=save_source_rates)
             results["sim"] = sim
             results["cfg"] = cfg
 

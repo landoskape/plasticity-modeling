@@ -13,6 +13,24 @@ from .config import (
 )
 
 
+def vonmises(circular_offset: np.ndarray, concentration: float) -> np.ndarray:
+    """Calculate von Mises tuning curve values for given orientation offsets.
+
+    Parameters
+    ----------
+    circular_offset : np.ndarray
+        Array of orientation differences (in radians).
+    concentration : float
+        The concentration parameter of the von Mises distribution.
+
+    Returns
+    -------
+    np.ndarray
+        Array of same shape as circular_offset containing von Mises values.
+    """
+    return np.exp(concentration * np.cos(2 * circular_offset)) / (2 * np.pi * np.i0(concentration))
+
+
 def create_source_population(config: SourcePopulationConfig) -> "SourcePopulation":
     """Create a source population instance based on the configuration type.
 
@@ -192,6 +210,7 @@ class SourcePopulationGabor(SourcePopulation):
     num_inputs: int = 36
     tau_stim: float
     dt: float
+    orientations: np.ndarray = np.arange(4) * np.pi / 4
 
     def __init__(
         self,
@@ -220,7 +239,6 @@ class SourcePopulationGabor(SourcePopulation):
             The time step in seconds.
         """
         self.edge_probability = edge_probability
-        self.orientations = np.arange(self.num_orientations) / self.num_orientations * np.pi
         self.concentration = concentration
         self.baseline_rate = baseline_rate
         self.driven_rate = driven_rate
@@ -275,7 +293,8 @@ class SourcePopulationGabor(SourcePopulation):
         else:
             return (x0, y0), (x1, y1)
 
-    def generate_stimulus(self, edge_probability: Optional[float] = None) -> np.ndarray:
+    @classmethod
+    def make_stimulus(cls, edge_probability: float, center_orientation: Optional[int] = None) -> np.ndarray:
         """Generate a 3x3 stimulus array with orientations.
 
         Creates a 3x3 array where each cell contains an orientation index (0-3).
@@ -286,19 +305,33 @@ class SourcePopulationGabor(SourcePopulation):
         ----------
         edge_probability : float, optional
             The probability of generating an edge, overriding the instance value.
+        center_orientation : int, optional
+            The orientation of the center cell. If not provided, a random orientation
+            will be chosen.
 
         Returns
         -------
         np.ndarray
             A 3x3 array of orientation indices (0-3).
         """
-        edge_probability = edge_probability or self.edge_probability
+        edge_probability = edge_probability
         stimulus_orientation = rng.integers(0, 4, size=(3, 3))
+        if center_orientation is not None:
+            stimulus_orientation[1, 1] = center_orientation
         if rng.random() < edge_probability:
-            outer0, outer1 = self.stimulus_to_edge_positions(stimulus_orientation[1, 1])
+            outer0, outer1 = cls.stimulus_to_edge_positions(stimulus_orientation[1, 1])
             stimulus_orientation[outer0[0], outer0[1]] = stimulus_orientation[1, 1]
             stimulus_orientation[outer1[0], outer1[1]] = stimulus_orientation[1, 1]
         return stimulus_orientation
+
+    def generate_stimulus(self, edge_probability: Optional[float] = None) -> np.ndarray:
+        """Generate a 3x3 stimulus array with orientations.
+
+        Calls self.make_stimulus() with the given edge_probability, or the instance's
+        edge_probability if no edge_probability is provided. See self.make_stimulus()
+        for more details.
+        """
+        return self.make_stimulus(edge_probability or self.edge_probability)
 
     def vonmises(self, circular_offset: np.ndarray) -> np.ndarray:
         """Calculate von Mises tuning curve values for given orientation offsets.
@@ -313,7 +346,7 @@ class SourcePopulationGabor(SourcePopulation):
         np.ndarray
             Array of same shape as circular_offset containing von Mises values.
         """
-        return np.exp(self.concentration * np.cos(2 * circular_offset)) / (2 * np.pi * np.i0(self.concentration))
+        return vonmises(circular_offset, self.concentration)
 
     def convert_stimulus_to_rates(self, stimulus: np.ndarray) -> np.ndarray:
         """Convert a stimulus array of orientation indices to firing rates.

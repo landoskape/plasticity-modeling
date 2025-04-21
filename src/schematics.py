@@ -3,9 +3,14 @@ from matplotlib import pyplot as plt
 from matplotlib.patches import Circle
 from matplotlib.lines import Line2D
 from matplotlib.typing import ColorType
-
+from matplotlib import colormaps
 from .plotting import FigParams, Proximal, DistalSimple, DistalComplex, add_dpratio_inset
-from .iaf.plotting import create_dpratio_colors
+
+
+def create_dpratio_colors(num_ratios: int, cmap: str = "plasma_r", cmap_pinch: float = 0.25):
+    cmap = colormaps[cmap]
+    colors = [cmap(ii) for ii in np.linspace(cmap_pinch, 1 - cmap_pinch, num_ratios)]
+    return colors, cmap
 
 
 class Neuron:
