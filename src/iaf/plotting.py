@@ -76,6 +76,36 @@ def create_gabor(
     return gaussian * grating
 
 
+def gabor_rgba(gabor: np.ndarray, cmap: str = "bwr", vmax_scale: float = 1, alpha_power: float = 1) -> np.ndarray:
+    """Convert a Gabor pattern to RGBA format.
+
+    Parameters
+    ----------
+    gabor : np.ndarray
+        The Gabor pattern to convert.
+    cmap : str, optional
+        The colormap to use, default is "bwr".
+    vmax_scale : float, optional
+        How much to scale the maximum value of the colormap, default is 1.
+    alpha_power : float, optional
+        The power to use for the alpha channel, default is 1.
+
+    Returns
+    -------
+    rgba : np.ndarray
+        The Gabor pattern in RGBA format.
+    """
+    vmax = np.nanmax(np.abs(gabor)) * vmax_scale
+    gabor = gabor / vmax
+    norm = mcolors.Normalize(vmin=-1, vmax=1)
+    cmap = colormaps[cmap]
+    rgba = cmap(norm(gabor))
+    alpha = np.abs(gabor) ** alpha_power
+    rgba[..., -1] = alpha
+    rgba[np.isnan(gabor)] = 0
+    return rgba
+
+
 def create_gabor_grid(
     orientations: np.ndarray,
     spacing: int = 1,
@@ -631,7 +661,7 @@ def build_plasticity_rule_axes(
 
 def build_environment_compartment_mapping_ax(
     ax: plt.Axes,
-    xrange_buffer: float = 0.05,
+    xrange_buffer: float = 0.01,
     yrange_buffer: float = 0.05,
     proximal_inset_xoffset: float = 0.2,
     simple_tuft_inset_xoffset: float = 0.18,
@@ -649,7 +679,6 @@ def build_environment_compartment_mapping_ax(
     gabor_label_yoffset: float = 0.05,
     gabor_highlight_magnitude: float = 4,
     fontsize: float = FigParams.smallfontsize,
-    labelfontsize: float = FigParams.tinyfontsize,
 ):
     def set_spine_properties(ax, spine_color: str):
         for spine in ax.spines.values():
@@ -711,6 +740,7 @@ def build_environment_compartment_mapping_ax(
         color=Proximal.color,
         fontsize=fontsize,
     )
+    xmax = max(xmax, trunk_xcenter + proximal_inset_xoffset + visual_inset_length)
     proximal_inset_position = [
         trunk_xcenter + proximal_inset_xoffset,
         trunk_ycenter - visual_inset_length / 2,
@@ -766,6 +796,7 @@ def build_environment_compartment_mapping_ax(
         color=DistalSimple.color,
         fontsize=fontsize,
     )
+    xmin = min(xmin, simple_tuft_outer_x + simple_tuft_inset_xoffset - visual_inset_length)
     simple_tuft_inset_position = [
         simple_tuft_outer_x + simple_tuft_inset_xoffset - visual_inset_length,
         simple_tuft_ycenter - visual_inset_length / 2 + tuft_yoffset,
@@ -777,14 +808,14 @@ def build_environment_compartment_mapping_ax(
         transform=ax.transData,
     )
 
-    simple_tuft_grid, simple_tuft_gabors = create_gabor_grid(
+    simple_tuft_grid = create_gabor_grid(
         stimori,
         spacing=gabor_spacing,
         gabor_params=params,
         center_only=False,
         highlight_edge=True,
         highlight_magnitude=gabor_highlight_magnitude,
-    )
+    )[0]
     max_grid = np.nanmax(np.abs(simple_tuft_grid))
     extent = [0, simple_tuft_grid.shape[1], 0, simple_tuft_grid.shape[0]]
     ax_simple_tuft_environment.imshow(
@@ -795,14 +826,6 @@ def build_environment_compartment_mapping_ax(
         vmax=max_grid,
         interpolation="bilinear",
         extent=extent,
-    )
-    overlay_empty_pixels_with_x(
-        ax_simple_tuft_environment,
-        gabors=simple_tuft_gabors,
-        spacing=gabor_spacing,
-        x_extent_fraction=gabor_x_extent_fraction,
-        color="black",
-        linewidth=FigParams.linewidth,
     )
     ax_simple_tuft_environment.set_xlim(0, simple_tuft_grid.shape[1])
     ax_simple_tuft_environment.set_ylim(0, simple_tuft_grid.shape[0])
@@ -821,6 +844,7 @@ def build_environment_compartment_mapping_ax(
         color=DistalComplex.color,
         fontsize=fontsize,
     )
+    xmax = max(xmax, complex_tuft_outer_x + complex_tuft_inset_xoffset + visual_inset_length)
     complex_tuft_inset_position = [
         complex_tuft_outer_x + complex_tuft_inset_xoffset,
         complex_tuft_ycenter - visual_inset_length / 2 + tuft_yoffset,
@@ -832,14 +856,14 @@ def build_environment_compartment_mapping_ax(
         transform=ax.transData,
     )
 
-    complex_tuft_grid, complex_tuft_gabors = create_gabor_grid(
+    complex_tuft_grid = create_gabor_grid(
         stimori,
         spacing=gabor_spacing,
         gabor_params=params,
         center_only=False,
         highlight_edge=True,
         highlight_magnitude=gabor_highlight_magnitude,
-    )
+    )[0]
     max_grid = np.nanmax(np.abs(complex_tuft_grid))
     extent = [0, complex_tuft_grid.shape[1], 0, complex_tuft_grid.shape[0]]
     ax_complex_tuft_environment.imshow(
@@ -851,14 +875,6 @@ def build_environment_compartment_mapping_ax(
         interpolation="bilinear",
         extent=extent,
     )
-    overlay_empty_pixels_with_x(
-        ax_complex_tuft_environment,
-        gabors=complex_tuft_gabors,
-        spacing=gabor_spacing,
-        x_extent_fraction=gabor_x_extent_fraction,
-        color="black",
-        linewidth=FigParams.linewidth,
-    )
     ax_complex_tuft_environment.set_xlim(0, complex_tuft_grid.shape[1])
     ax_complex_tuft_environment.set_ylim(0, complex_tuft_grid.shape[0])
     ax_complex_tuft_environment.set_xticks([])
@@ -866,8 +882,7 @@ def build_environment_compartment_mapping_ax(
     set_spine_properties(ax_complex_tuft_environment, DistalComplex.color)
     ax_complex_tuft_environment.set_aspect("equal")
 
-    xmin = min(xmin, simple_tuft_outer_x + simple_tuft_inset_xoffset - visual_inset_length)
-    xmax = max(xmax, complex_tuft_outer_x + complex_tuft_inset_xoffset + visual_inset_length)
+    # Set limits
     xrange = xmax - xmin
     xmin = xmin - xrange * xrange_buffer
     xmax = xmax + xrange * xrange_buffer
