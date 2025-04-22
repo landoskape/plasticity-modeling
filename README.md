@@ -51,7 +51,7 @@ amount of plasticity evoked by positive pairings (LTP) or negative pairings (LTD
   - Panel A: Schematic of "co-axial space" (try to make it look like Figure 3 from Iacaruso)
             - DONE
   - Panel B: Summary curves with similar color scheme as Figure 4D showing contribution from each group
-     - (Will need to break this into different plots for different edges -- might just show distal-complex!)
+     - (Will need to break this into different plots for different edge probabilities -- might just show distal-complex!)
   - Panel C: Overall summary heatmap comparing edge probability and D/P ratio to net weight on co-axial
   - Panel D: Replication of Figure 3D from Iacaruso showing how orientation tuning is aligned in co-axial space
 
