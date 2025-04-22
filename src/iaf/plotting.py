@@ -391,6 +391,9 @@ def build_ax_trajectory(
     cmap: str = "gray_r",
     feature_offset_fraction: float = 0.025,
     feature_width_fraction: float = 0.04,
+    color_bar: bool = True,
+    color_bar_offset_fraction: float = 0.025,
+    color_bar_width_fraction: float = 0.08,
 ):
     vmin = 0
     vmax = 1
@@ -417,11 +420,29 @@ def build_ax_trajectory(
     feature_colors = np.repeat(feature_colors[None], width_samples, axis=0)
     rgb_trajs = [np.concatenate((feature_colors, wt), axis=0) for wt in rgb_trajs]
 
+    x_extent = 1
+    if color_bar:
+        cbar_offset_samples = int(num_samples * color_bar_offset_fraction)
+        cbar_width_samples = int(num_samples * color_bar_width_fraction)
+
+        # Add white offset space
+        white_offset = np.ones((cbar_offset_samples, num_features, 4))
+        white_offset[:, :, -1] = 0
+        rgb_trajs = [np.concatenate((wt, white_offset), axis=0) for wt in rgb_trajs]
+
+        # Add colorbar
+        colorbar_rgb = cmap(np.linspace(1, 0, num_features))
+        colorbar_rgb = np.repeat(colorbar_rgb[None], cbar_width_samples, axis=0)
+        rgb_trajs = [np.concatenate((wt, colorbar_rgb), axis=0) for wt in rgb_trajs]
+
+        # Update x_extent
+        x_extent = 1 + color_bar_width_fraction + color_bar_offset_fraction
+
     # Transpose so samples are on the x-axis
     rgb_trajs = [wt.transpose((1, 0, 2)) for wt in rgb_trajs]
 
     # Plot!
-    extent = [-feature_offset_fraction - feature_width_fraction, 1, 0, 1]
+    extent = [-feature_offset_fraction - feature_width_fraction, x_extent, 0, 1]
     if ax_psth is not None:
         ax_psth.plot(np.linspace(0, 1, len(firing_rates)), firing_rates, color="k", linewidth=FigParams.thinlinewidth)
     for a, wt in zip([ax_basal, ax_dsimple, ax_dcomplex], rgb_trajs):

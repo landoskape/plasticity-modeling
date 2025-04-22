@@ -754,6 +754,9 @@ class Figure4Params:
     feature_label_min_value: float = 0.1
     feature_offset_fraction: float = 0.02
     feature_width_fraction: float = 0.025
+    color_bar: bool = True
+    color_bar_offset_fraction: float = 0.02
+    color_bar_width_fraction: float = 0.04
     summary_average_method: str = "fraction"
     summary_average_window: float = 0.2
     summary_cmap: str = "plasma_r"
@@ -773,7 +776,7 @@ def figure4(fig_params: Figure4Params, show_fig: bool = True, save_fig: bool = F
     # Build feature colormap
     feature_cmap = plt.get_cmap(fig_params.feature_colormap)
     feature_colors = feature_cmap(
-        np.linspace(fig_params.feature_label_max_value, fig_params.feature_label_min_value, 40)
+        np.linspace(fig_params.feature_label_max_value, fig_params.feature_label_min_value, 40),
     )
 
     # Build figure and axes
@@ -873,6 +876,9 @@ def figure4(fig_params: Figure4Params, show_fig: bool = True, save_fig: bool = F
         cmap=fig_params.example_cmap,
         feature_offset_fraction=fig_params.feature_offset_fraction,
         feature_width_fraction=fig_params.feature_width_fraction,
+        color_bar=fig_params.color_bar,
+        color_bar_offset_fraction=fig_params.color_bar_offset_fraction,
+        color_bar_width_fraction=fig_params.color_bar_width_fraction,
     )
 
     xoffset = -fig_params.feature_offset_fraction - fig_params.feature_width_fraction
@@ -885,7 +891,10 @@ def figure4(fig_params: Figure4Params, show_fig: bool = True, save_fig: bool = F
         if ax is None:
             continue
         requires_xaxis = iax == 3 or (iax == 2 and not fig_params.example_include_psth)
-        ax.set_xlim(xoffset, 1)
+        ax.set_xlim(
+            xoffset,
+            1 + fig_params.color_bar * (fig_params.color_bar_width_fraction + fig_params.color_bar_offset_fraction),
+        )
         if iax == 3:
             ax.set_ylim(0, np.max(plot_firing_rates) * 1.02)
             ax.set_ylabel("Firing\nRate", fontsize=fontsize, labelpad=-9)
