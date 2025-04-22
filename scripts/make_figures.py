@@ -1135,19 +1135,12 @@ def figure5(fig_params: Figure5Params, show_fig: bool = True, save_fig: bool = F
     gs_stim = gs[0].subgridspec(2, 1, height_ratios=[1, 2.75])
     ax_trajectory = fig.add_subplot(gs_stim[0])
     ax_receptive_field = fig.add_subplot(gs_stim[1])
-    gs_inputs = gs[1].subgridspec(2, 1, height_ratios=[1, 2.5])
+    gs_inputs = gs[1].subgridspec(2, 1, height_ratios=[1, 2.75])
     ax_tuning = fig.add_subplot(gs_inputs[0])
     ax_inputs = fig.add_subplot(gs_inputs[1])
     gs_confusion = gs[2].subgridspec(2, 1)
     ax_distal_simple = fig.add_subplot(gs_confusion[0])
     ax_distal_complex = fig.add_subplot(gs_confusion[1])
-    # gs_weights = gs_results[1].subgridspec(2, 3)
-    # ax_proximal_weights_ex0 = fig.add_subplot(gs_weights[0, 0])
-    # ax_simple_weights_ex0 = fig.add_subplot(gs_weights[0, 1])
-    # ax_complex_weights_ex0 = fig.add_subplot(gs_weights[0, 2])
-    # ax_proximal_weights_ex1 = fig.add_subplot(gs_weights[1, 0])
-    # ax_simple_weights_ex1 = fig.add_subplot(gs_weights[1, 1])
-    # ax_complex_weights_ex1 = fig.add_subplot(gs_weights[1, 2])
 
     build_environment_compartment_mapping_ax(
         ax_inputs,
@@ -1214,42 +1207,6 @@ def figure5(fig_params: Figure5Params, show_fig: bool = True, save_fig: bool = F
         tickfontsize=fig_params.confusion_tickfontsize,
     )
 
-    # build_weights_ax(
-    #     ax_proximal_weights_ex0,
-    #     ax_simple_weights_ex0,
-    #     ax_complex_weights_ex0,
-    #     weights,
-    #     vmax=fig_params.gabor_vmax_scale,
-    #     dpratio=fig_params.example_dpratio[0],
-    #     edge=fig_params.example_edge[0],
-    #     simulation=fig_params.example_simulation[0],
-    #     neuron=fig_params.example_neuron[0],
-    #     gabor_width=fig_params.gabor_width,
-    #     gabor_envelope=fig_params.gabor_envelope,
-    #     gabor_gamma=fig_params.gabor_gamma,
-    #     gabor_halfsize=fig_params.gabor_halfsize,
-    #     gabor_phase=fig_params.gabor_phase,
-    #     fontsize=fig_params.ylabel_fontsize,
-    # )
-    # build_weights_ax(
-    #     ax_proximal_weights_ex1,
-    #     ax_simple_weights_ex1,
-    #     ax_complex_weights_ex1,
-    #     weights,
-    #     vmax=fig_params.gabor_vmax_scale,
-    #     dpratio=fig_params.example_dpratio[1],
-    #     edge=fig_params.example_edge[1],
-    #     simulation=fig_params.example_simulation[1],
-    #     neuron=fig_params.example_neuron[1],
-    #     gabor_width=fig_params.gabor_width,
-    #     gabor_envelope=fig_params.gabor_envelope,
-    #     gabor_gamma=fig_params.gabor_gamma,
-    #     gabor_halfsize=fig_params.gabor_halfsize,
-    #     gabor_phase=fig_params.gabor_phase,
-    #     fontsize=fig_params.ylabel_fontsize,
-    #     show_titles=False,
-    # )
-
     # Remove white backgrounds
     ax_inputs.set_facecolor("none")
     ax_receptive_field.set_facecolor("none")
@@ -1263,6 +1220,84 @@ def figure5(fig_params: Figure5Params, show_fig: bool = True, save_fig: bool = F
 
     if save_fig:
         fig_path = get_figure_dir("core_figures") / "figure5"
+        save_figure(fig, fig_path)
+
+    return fig
+
+
+def figure5_supplemental(fig_params: Figure5Params, show_fig: bool = True, save_fig: bool = False):
+    fig_width = FigParams.single_width
+    fig_height = fig_width / 3 * 2
+
+    fig = plt.figure(figsize=(fig_width, fig_height), **FigParams.all_fig_params())
+    gs = fig.add_gridspec(2, 3)
+    ax_proximal_weights_ex0 = fig.add_subplot(gs[0, 0])
+    ax_simple_weights_ex0 = fig.add_subplot(gs[0, 1])
+    ax_complex_weights_ex0 = fig.add_subplot(gs[0, 2])
+    ax_proximal_weights_ex1 = fig.add_subplot(gs[1, 0])
+    ax_simple_weights_ex1 = fig.add_subplot(gs[1, 1])
+    ax_complex_weights_ex1 = fig.add_subplot(gs[1, 2])
+
+    # Analyze main run
+    experiment_folder = results_dir("iaf_runs") / "hofer" / fig_params.full_simulations
+    metadata = gather_metadata(experiment_folder, experiment_type="hofer")
+    weights = gather_weights(
+        metadata,
+        experiment_type="hofer",
+        average_method="fraction",
+        average_window=0.2,
+        normalize=True,
+    )
+
+    build_weights_ax(
+        ax_proximal_weights_ex0,
+        ax_simple_weights_ex0,
+        ax_complex_weights_ex0,
+        weights,
+        vmax=fig_params.gabor_vmax_scale,
+        dpratio=fig_params.example_dpratio[0],
+        edge=fig_params.example_edge[0],
+        simulation=fig_params.example_simulation[0],
+        neuron=fig_params.example_neuron[0],
+        gabor_width=fig_params.gabor_width,
+        gabor_envelope=fig_params.gabor_envelope,
+        gabor_gamma=fig_params.gabor_gamma,
+        gabor_halfsize=fig_params.gabor_halfsize,
+        gabor_phase=fig_params.gabor_phase,
+        fontsize=fig_params.ylabel_fontsize,
+    )
+    build_weights_ax(
+        ax_proximal_weights_ex1,
+        ax_simple_weights_ex1,
+        ax_complex_weights_ex1,
+        weights,
+        vmax=fig_params.gabor_vmax_scale,
+        dpratio=fig_params.example_dpratio[1],
+        edge=fig_params.example_edge[1],
+        simulation=fig_params.example_simulation[1],
+        neuron=fig_params.example_neuron[1],
+        gabor_width=fig_params.gabor_width,
+        gabor_envelope=fig_params.gabor_envelope,
+        gabor_gamma=fig_params.gabor_gamma,
+        gabor_halfsize=fig_params.gabor_halfsize,
+        gabor_phase=fig_params.gabor_phase,
+        fontsize=fig_params.ylabel_fontsize,
+        show_titles=False,
+    )
+
+    # Remove white backgrounds
+    ax_proximal_weights_ex0.set_facecolor("none")
+    ax_simple_weights_ex0.set_facecolor("none")
+    ax_complex_weights_ex0.set_facecolor("none")
+    ax_proximal_weights_ex1.set_facecolor("none")
+    ax_simple_weights_ex1.set_facecolor("none")
+    ax_complex_weights_ex1.set_facecolor("none")
+
+    if show_fig:
+        plt.show(block=True)
+
+    if save_fig:
+        fig_path = get_figure_dir("core_figures") / "figure5_supplemental"
         save_figure(fig, fig_path)
 
     return fig
@@ -1291,5 +1326,8 @@ if __name__ == "__main__":
     # figure4(fig4params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 5
-    fig5params = Figure5Params()
-    figure5(fig5params, show_fig=show_fig, save_fig=save_fig)
+    # fig5params = Figure5Params()
+    # figure5(fig5params, show_fig=show_fig, save_fig=save_fig)
+
+    # Build Figure 5 Supplemental
+    # figure5_supplemental(fig5params, show_fig=show_fig, save_fig=save_fig)
