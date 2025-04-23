@@ -344,21 +344,6 @@ class SourcePopulationGabor(SourcePopulation):
         """
         return self.make_stimulus(edge_probability or self.edge_probability)
 
-    def vonmises(self, circular_offset: np.ndarray) -> np.ndarray:
-        """Calculate von Mises tuning curve values for given orientation offsets.
-
-        Parameters
-        ----------
-        circular_offset : np.ndarray
-            Array of orientation differences (in radians).
-
-        Returns
-        -------
-        np.ndarray
-            Array of same shape as circular_offset containing von Mises values.
-        """
-        return vonmises(circular_offset, self.concentration)
-
     def convert_stimulus_to_rates(self, stimulus: np.ndarray) -> np.ndarray:
         """Convert a stimulus array of orientation indices to firing rates.
 
@@ -375,7 +360,7 @@ class SourcePopulationGabor(SourcePopulation):
         """
         stimulus = self.orientations[stimulus]
         offsets = self.orientations.reshape(1, -1) - np.reshape(stimulus, (-1, 1))
-        drive = self.vonmises(offsets)
+        drive = vonmises(offsets, self.concentration)
         rates = self.baseline_rate + self.driven_rate * drive
         return rates
 
