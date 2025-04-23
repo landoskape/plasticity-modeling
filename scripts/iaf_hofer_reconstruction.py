@@ -64,6 +64,12 @@ def get_args():
         action="store_true",
         help="Whether to save the source rates.",
     )
+    parser.add_argument(
+        "--independent_noise_rate",
+        type=float,
+        default=None,
+        help="The independent noise rate to use for the experiment.",
+    )
     return parser.parse_args()
 
 
@@ -93,6 +99,7 @@ def run_experiment(args):
     duration = args.duration
     no_distal = args.no_distal
     save_source_rates = args.save_source_rates
+    independent_noise_rate = args.independent_noise_rate
 
     # Save the parameters
     joblib.dump(args, experiment_folder / "args.joblib")
@@ -111,6 +118,7 @@ def run_experiment(args):
                         num_simulations=num_neurons,
                         no_distal=no_distal,
                         edge_probability=edge_probability,
+                        independent_noise_rate=independent_noise_rate,
                     )
                 else:
                     sim, cfg = get_experiment(
@@ -119,6 +127,7 @@ def run_experiment(args):
                         num_simulations=num_neurons,
                         no_distal=no_distal,
                         edge_probability=edge_probability,
+                        independent_noise_rate=independent_noise_rate,
                     )
 
                 results = sim.run(duration=duration, save_source_rates=save_source_rates)
