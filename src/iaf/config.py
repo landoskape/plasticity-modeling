@@ -316,6 +316,8 @@ class BaseSynapseConfig(BaseConfig):
     conductance_threshold : float
         Minimum conductance (as a fraction of max_weight) required for
         a synapse to contribute current. Default is 0.1.
+    independent_noise_rate : float, optional
+        The rate of independent noise in units of input rate. Default is None.
     plastic : bool
         Whether synapse weights are modified by plasticity rules. Default is True.
     plasticity : PlasticityConfig, optional
@@ -336,6 +338,11 @@ class BaseSynapseConfig(BaseConfig):
         ge=0,
         le=1,
         description="Conductance threshold in relative units of max_weight",
+    )
+    independent_noise_rate: Optional[float] = Field(
+        None,
+        description="Rate of independent noise in units of input rate",
+        gt=0,
     )
     plastic: bool = Field(True, description="Whether synapse weights are plastic")
     plasticity: Optional[PlasticityConfig] = Field(None, description="Plasticity configuration")

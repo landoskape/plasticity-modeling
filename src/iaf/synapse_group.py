@@ -319,6 +319,8 @@ class SynapseGroup(ABC):
         Synapses with weights below this threshold do not contribute to conductance.
     min_conductance : float
         The minimum conductance in units of conductance (conductance_threshold * max_weight).
+    independent_noise_rate : float | None
+        The rate of independent noise in units of input rate.
     initialization_params : InitializationParams
         Parameters for weight initialization.
     plastic : bool
@@ -342,6 +344,7 @@ class SynapseGroup(ABC):
     source_population: str  # The name of the source population of the synapse group
     conductance_threshold: float  # in relative units of max_weight
     min_conductance: float  # in units of conductance
+    independent_noise_rate: float | None  # in units of input rate
     initialization_params: InitializationParams
 
     # Plasticity related properties
@@ -369,6 +372,7 @@ class SynapseGroup(ABC):
         plastic: bool,
         source_population: str,
         conductance_threshold: Optional[float] = None,
+        independent_noise_rate: Optional[float] = None,
         plasticity_params: Optional[Union[PlasticityParams, Dict[str, Any]]] = None,
         initialization_params: Optional[Union[InitializationParams, Dict[str, Any]]] = None,
     ) -> None:
@@ -394,6 +398,8 @@ class SynapseGroup(ABC):
             simulation to determine which input rates to pass to the synapse group.
         conductance_threshold : float, optional
             Threshold for conductance activation (in relative units of max_weight)
+        independent_noise_rate : float, optional
+            The rate of independent noise in units of input rate.
         plasticity_params : PlasticityParams or dict, optional
             Parameters for plasticity mechanisms
         initialization_params : InitializationParams or dict, optional
@@ -409,7 +415,7 @@ class SynapseGroup(ABC):
         self.conductance_threshold: float = conductance_threshold or 0.0
         self.min_conductance = self.conductance_threshold * self.max_weight
         self.source_population = source_population
-
+        self.independent_noise_rate = independent_noise_rate
         # Set up initialization parameters
         self.initialization_params = resolve_dataclass(initialization_params, InitializationParams)
 
@@ -535,7 +541,11 @@ class SynapseGroup(ABC):
             log ratio between the target rate and estimated rate.
             Only used if homeostasis is enabled.
         """
+        # Map input rates from the source population to the synapse group
         input_rates = self.transform_input_rates(input_rates)
+
+        # Add independent noise to the input rates
+        input_rates = self.add_input_rate_noise(input_rates)
 
         # Get the spikes for each synapse
         spikes = self._spike_generator.get_spikes(input_rates)
@@ -600,6 +610,38 @@ class SynapseGroup(ABC):
         by subclasses that implement synapse replacement mechanisms.
         """
         pass
+
+    def add_input_rate_noise(self, input_rates: np.ndarray) -> np.ndarray:
+        """Add independent noise to the input rates.
+
+        Source populations provide rates of "cell-types", and those cell-types
+        rates might be routed across many synapses. This method allows us to
+        provide independent noise to the input rates at the synapse, which
+        reflects the fact that a "cell-type" represents a collection of neurons
+        with similar tuning properties.
+
+        To generate synapse-specific noise, we sample from a normal distribution
+        with mean 0 and standard deviation equal to the product of the input rate
+        and the independent noise rate.
+
+        Parameters
+        ----------
+        input_rates : np.ndarray
+            Input rates to add noise to.
+
+        Returns
+        -------
+        np.ndarray
+            Input rates with noise added.
+        """
+        if self.independent_noise_rate is None or self.independent_noise_rate == 0:
+            return input_rates
+        else:
+            # Use a cached mechanism to use consistent noise when the rates haven't changed
+            if not hasattr(self, "_last_rates") or not np.allclose(self._last_rates, input_rates):
+                self._last_rates = input_rates
+                self._last_noise = rng.normal(0, self.independent_noise_rate * input_rates)
+            return input_rates + self._last_noise
 
     @abstractmethod
     def transform_input_rates(self, input_rates: np.ndarray) -> np.ndarray:
@@ -670,8 +712,8 @@ class SourcedSynapseGroup(SynapseGroup):
     This group supports synapse replacement, where weak synapses can be
     removed and replaced with new connections to different presynaptic neurons.
 
-    Attributes
-    ----------
+    Additional attributes
+    ---------------------
     source_params : SourceParams
         Parameters controlling how synapses are mapped to presynaptic sources.
     replacement_params : ReplacementParams
@@ -694,6 +736,7 @@ class SourcedSynapseGroup(SynapseGroup):
         dt: float,
         source_population: str,
         conductance_threshold: Optional[float] = None,
+        independent_noise_rate: Optional[float] = None,
         plastic: bool = True,
         plasticity_params: Optional[Union[PlasticityParams, Dict[str, Any]]] = None,
         initialization_params: Optional[Union[InitializationParams, Dict[str, Any]]] = None,
@@ -718,6 +761,8 @@ class SourcedSynapseGroup(SynapseGroup):
             The name of the source population providing inputs to the synapses.
         conductance_threshold : float, optional
             Threshold for conductance activation (in relative units of max_weight).
+        independent_noise_rate : float, optional
+            The rate of independent noise in units of input rate.
         plastic : bool, optional
             Whether the weights are plastic, default is True.
         plasticity_params : PlasticityParams or dict, optional
@@ -743,6 +788,7 @@ class SourcedSynapseGroup(SynapseGroup):
             plastic=plastic,
             source_population=source_population,
             conductance_threshold=conductance_threshold,
+            independent_noise_rate=independent_noise_rate,
             plasticity_params=plasticity_params,
             initialization_params=initialization_params,
         )
@@ -823,6 +869,7 @@ class SourcedSynapseGroup(SynapseGroup):
             dt=config.dt,
             source_population=config.source_population,
             conductance_threshold=config.conductance_threshold,
+            independent_noise_rate=config.independent_noise_rate,
             plastic=config.plastic,
             plasticity_params=plasticity_params,
             initialization_params=initialization_params,
@@ -917,6 +964,7 @@ class DirectSynapseGroup(SynapseGroup):
         dt: float,
         source_population: str,
         conductance_threshold: Optional[float] = None,
+        independent_noise_rate: Optional[float] = None,
         plastic: bool = True,
         plasticity_params: Optional[Union[PlasticityParams, Dict[str, Any]]] = None,
         initialization_params: Optional[Union[InitializationParams, Dict[str, Any]]] = None,
@@ -939,6 +987,8 @@ class DirectSynapseGroup(SynapseGroup):
             The name of the source population providing inputs to the synapses.
         conductance_threshold : float, optional
             Threshold for conductance activation (in relative units of max_weight).
+        independent_noise_rate : float, optional
+            The rate of independent noise in units of input rate.
         plastic : bool, optional
             Whether the weights are plastic, default is True.
         plasticity_params : PlasticityParams or dict, optional
@@ -955,6 +1005,7 @@ class DirectSynapseGroup(SynapseGroup):
             plastic=plastic,
             source_population=source_population,
             conductance_threshold=conductance_threshold,
+            independent_noise_rate=independent_noise_rate,
             plasticity_params=plasticity_params,
             initialization_params=initialization_params,
         )
@@ -1035,6 +1086,7 @@ class DirectSynapseGroup(SynapseGroup):
             dt=config.dt,
             source_population=config.source_population,
             conductance_threshold=config.conductance_threshold,
+            independent_noise_rate=config.independent_noise_rate,
             plastic=config.plastic,
             plasticity_params=plasticity_params,
             initialization_params=initialization_params,
