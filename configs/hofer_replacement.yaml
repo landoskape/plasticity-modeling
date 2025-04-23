@@ -37,6 +37,7 @@ synapses:
     dt: 1e-3
     source_population: excitatory
     conductance_threshold: 0.1
+    independent_noise_rate: null
     source: 
       num_presynaptic_neurons: 36
       num_synapses: 100
@@ -72,6 +73,7 @@ synapses:
     dt: 1e-3
     source_population: excitatory
     conductance_threshold: 0.1
+    independent_noise_rate: null
     source: 
       num_presynaptic_neurons: 36
       num_synapses: 250
@@ -106,6 +108,7 @@ synapses:
     dt: 1e-3
     source_population: excitatory
     conductance_threshold: 0.1
+    independent_noise_rate: null
     source: 
       num_presynaptic_neurons: 36
       num_synapses: 250
