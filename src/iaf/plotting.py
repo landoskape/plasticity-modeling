@@ -399,7 +399,7 @@ def build_ax_trajectory(
     vmax = 1
     norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
     weight_names = get_groupnames()
-    norm_factor = get_norm_factor(results["sim"].neurons[ineuron], normalize=True)
+    norm_factor = get_norm_factor(results["sim"].neurons[ineuron], norm_by_max_weight=True, norm_by_num_synapses=True)
     weight_trajs = [results["weights"][ineuron][name] / norm_factor[name] for name in weight_names]
 
     num_samples = weight_trajs[0].shape[0]
@@ -558,7 +558,7 @@ def build_ax_sigmoid_example(
     color: str,
 ):
     # Get weights
-    norm_factor = get_norm_factor(results["sim"].neurons[ineuron], normalize=True)
+    norm_factor = get_norm_factor(results["sim"].neurons[ineuron], norm_by_max_weight=True, norm_by_num_synapses=True)
     proximal_weights = results["weights"][ineuron]["proximal"]
     num_samples = proximal_weights.shape[0]
     weights = np.mean(proximal_weights[-int(num_samples * 0.1) :], axis=0) / norm_factor["proximal"]

@@ -47,12 +47,43 @@ def gather_weights(
     experiment_type: Literal["correlation", "hofer"],
     average_method: Literal["fraction", "samples"] = "fraction",
     average_window: int | float = 0.2,
-    normalize: bool = True,
+    norm_by_max_weight: bool = True,
+    norm_by_num_synapses: bool = False,
+    norm_by_total_synapses: bool = False,
+    num_connections: dict[str, np.ndarray] | None = None,
 ) -> dict[str, np.ndarray]:
     if experiment_type == "hofer":
-        return _gather_weights_hofer(metadata, average_method, average_window, normalize)
+        return _gather_weights_hofer(
+            metadata,
+            average_method,
+            average_window,
+            norm_by_max_weight,
+            norm_by_num_synapses,
+            norm_by_total_synapses,
+            num_connections,
+        )
     elif experiment_type == "correlation":
-        return _gather_weights_correlation(metadata, average_method, average_window, normalize)
+        return _gather_weights_correlation(
+            metadata,
+            average_method,
+            average_window,
+            norm_by_max_weight,
+            norm_by_num_synapses,
+            norm_by_total_synapses,
+            num_connections,
+        )
+    else:
+        raise ValueError(f"Invalid experiment type: {experiment_type}")
+
+
+def gather_num_connections(
+    metadata: dict,
+    experiment_type: Literal["correlation", "hofer"],
+) -> dict[str, np.ndarray]:
+    if experiment_type == "hofer":
+        return _gather_num_connections_hofer(metadata)
+    elif experiment_type == "correlation":
+        return _gather_num_connections_correlation(metadata)
     else:
         raise ValueError(f"Invalid experiment type: {experiment_type}")
 
@@ -324,7 +355,15 @@ def _gather_rates_hofer(metadata: dict) -> np.ndarray:
     return firing_rates
 
 
-def get_norm_factor(neuron: IaF, normalize: bool = True) -> dict[str, float]:
+def get_norm_factor(
+    neuron: IaF,
+    norm_by_max_weight: bool = True,
+    norm_by_num_synapses: bool = False,
+    norm_by_total_synapses: bool = False,
+) -> dict[str, float]:
+    if norm_by_total_synapses and norm_by_num_synapses:
+        raise ValueError("norm_by_total_synapses and norm_by_num_synapses cannot both be True")
+
     def get_num_inputs(source_params: SourceParams) -> int:
         if "restricted" in source_params.source_rule:
             return len(source_params.valid_sources)
@@ -332,21 +371,33 @@ def get_norm_factor(neuron: IaF, normalize: bool = True) -> dict[str, float]:
             return source_params.num_presynaptic_neurons
 
     groups = get_groupnames()
-    if normalize:
+    norm_factors = {sg: 1 for sg in groups}
+    if norm_by_max_weight:
         max_weight = {sg: neuron.synapse_groups[sg].max_weight for sg in groups}
+        norm_factors = {sg: norm_factors[sg] * max_weight[sg] for sg in groups}
+    if norm_by_num_synapses:
         num_synapses = {sg: neuron.synapse_groups[sg].num_synapses for sg in groups}
         num_inputs = {sg: get_num_inputs(neuron.synapse_groups[sg].source_params) for sg in groups}
-        return {sg: max_weight[sg] * num_synapses[sg] / num_inputs[sg] for sg in groups}
-    else:
-        return {sg: 1 for sg in groups}
+        norm_factors = {sg: norm_factors[sg] * num_synapses[sg] / num_inputs[sg] for sg in groups}
+    if norm_by_total_synapses:
+        num_synapses = {sg: neuron.synapse_groups[sg].num_synapses for sg in groups}
+        norm_factors = {sg: norm_factors[sg] * num_synapses[sg] for sg in groups}
+    return norm_factors
 
 
 def _gather_weights_correlation(
     metadata: dict,
     average_method: Literal["fraction", "samples"],
     average_window: int | float,
-    normalize: bool = True,
+    norm_by_max_weight: bool = True,
+    norm_by_num_synapses: bool = False,
+    norm_by_total_synapses: bool = False,
+    num_connections: dict[str, np.ndarray] | None = None,
 ) -> dict[str, np.ndarray]:
+    if norm_by_num_synapses and num_connections is None:
+        raise ValueError("num_connections must be provided if norm_by_num_synapses is True")
+    if norm_by_total_synapses and norm_by_num_synapses:
+        raise ValueError("norm_by_total_synapses and norm_by_num_synapses cannot both be True")
     num_ratios = len(metadata["dp_ratios"])
     num_inputs = metadata["base_config"].sources["excitatory"].num_inputs
     weights = {
@@ -368,21 +419,59 @@ def _gather_weights_correlation(
         results = joblib.load(path)
         neuron_weights = results["weights"]
         for ineuron in range(metadata["num_neurons"]):
-            norm_factor = get_norm_factor(results["sim"].neurons[ineuron], normalize=normalize)
+            norm_factor = get_norm_factor(
+                results["sim"].neurons[ineuron],
+                norm_by_max_weight=norm_by_max_weight,
+                norm_by_num_synapses=False,
+                norm_by_total_synapses=norm_by_total_synapses,
+            )
             for sg in get_groupnames():
-                weights[sg][ratio, repeat, ineuron] = (
-                    np.mean(neuron_weights[ineuron][sg][-num_timesteps:], axis=0) / norm_factor[sg]
-                )
+                c_weights = np.mean(neuron_weights[ineuron][sg][-num_timesteps:], axis=0) / norm_factor[sg]
+                if norm_by_num_synapses and num_connections is not None:
+                    c_scale = num_connections[sg][ratio, repeat, ineuron]
+                    c_scale[c_scale == 0] = 1
+                    c_weights /= c_scale
+                weights[sg][ratio, repeat, ineuron] = c_weights
 
     return weights
+
+
+def _gather_num_connections_correlation(metadata: dict) -> dict[str, np.ndarray]:
+    num_ratios = len(metadata["dp_ratios"])
+    num_inputs = metadata["base_config"].sources["excitatory"].num_inputs
+    num_connections_per_input = {
+        sg: np.zeros((num_ratios, metadata["num_repeats"], metadata["num_neurons"], num_inputs))
+        for sg in get_groupnames()
+    }
+
+    for ratio, repeat, path in zip(
+        metadata["ratios"],
+        metadata["repeats"],
+        metadata["data_paths"],
+    ):
+        results = joblib.load(path)
+        for ineuron in range(metadata["num_neurons"]):
+            for sg in get_groupnames():
+                presynaptic_source = results["sim"].neurons[ineuron].synapse_groups[sg].source_params.presynaptic_source
+                for isource in presynaptic_source:
+                    num_connections_per_input[sg][ratio, repeat, ineuron, isource] += 1
+
+    return num_connections_per_input
 
 
 def _gather_weights_hofer(
     metadata: dict,
     average_method: Literal["fraction", "samples"],
     average_window: int | float,
-    normalize: bool = True,
+    norm_by_max_weight: bool = True,
+    norm_by_num_synapses: bool = False,
+    norm_by_total_synapses: bool = False,
+    num_connections: dict[str, np.ndarray] | None = None,
 ) -> dict[str, np.ndarray]:
+    if norm_by_num_synapses and num_connections is None:
+        raise ValueError("num_connections must be provided if norm_by_num_synapses is True")
+    if norm_by_total_synapses and norm_by_num_synapses:
+        raise ValueError("norm_by_total_synapses and norm_by_num_synapses cannot both be True")
     num_ratios = len(metadata["dp_ratios"])
     num_edges = len(metadata["edge_probabilities"])
     num_inputs = SourcePopulationGabor.num_inputs
@@ -410,10 +499,43 @@ def _gather_weights_hofer(
         results = joblib.load(path)
         neuron_weights = results["weights"]
         for ineuron in range(metadata["num_neurons"]):
-            norm_factor = get_norm_factor(results["sim"].neurons[ineuron], normalize=normalize)
+            norm_factor = get_norm_factor(
+                results["sim"].neurons[ineuron],
+                norm_by_max_weight=norm_by_max_weight,
+                norm_by_num_synapses=False,
+                norm_by_total_synapses=norm_by_total_synapses,
+            )
             for sg in get_groupnames():
-                weights[sg][ratio, edge, repeat, ineuron] = (
-                    np.mean(neuron_weights[ineuron][sg][-num_timesteps:], axis=0) / norm_factor[sg]
-                )
+                c_weights = np.mean(neuron_weights[ineuron][sg][-num_timesteps:], axis=0) / norm_factor[sg]
+                if norm_by_num_synapses and num_connections is not None:
+                    c_scale = num_connections[sg][ratio, edge, repeat, ineuron]
+                    c_scale[c_scale == 0] = 1
+                    c_weights /= c_scale
+                weights[sg][ratio, edge, repeat, ineuron] = c_weights
 
     return weights
+
+
+def _gather_num_connections_hofer(metadata: dict) -> dict[str, np.ndarray]:
+    num_ratios = len(metadata["dp_ratios"])
+    num_edges = len(metadata["edge_probabilities"])
+    num_inputs = SourcePopulationGabor.num_inputs
+    num_connections_per_input = {
+        sg: np.zeros((num_ratios, num_edges, metadata["num_repeats"], metadata["num_neurons"], num_inputs))
+        for sg in get_groupnames()
+    }
+
+    for ratio, edge, repeat, path in zip(
+        metadata["ratios"],
+        metadata["edges"],
+        metadata["repeats"],
+        metadata["data_paths"],
+    ):
+        results = joblib.load(path)
+        for ineuron in range(metadata["num_neurons"]):
+            for sg in get_groupnames():
+                presynaptic_source = results["sim"].neurons[ineuron].synapse_groups[sg].source_params.presynaptic_source
+                for isource in presynaptic_source:
+                    num_connections_per_input[sg][ratio, edge, repeat, ineuron, isource] += 1
+
+    return num_connections_per_input
