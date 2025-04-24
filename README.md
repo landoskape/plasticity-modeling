@@ -42,6 +42,7 @@ amount of plasticity evoked by positive pairings (LTP) or negative pairings (LTD
 - Results / iaf_runs / hofer / 20250421 has the results for the hofer experiment with forced no edge!
 - Results / iaf_runs / hofer_replacement / 20250423 has the results for the hofer replacement experiment (typical parameters)
 - Results / iaf_runs / hofer / 20250423 has the results for the hofer replacement experiment with independent noise (at 0.1)
+- Results / iaf_runs / hofer_replacement / 20250424 has longer results for hofer replacement experiment
 
 # Figure Mapping
 - Overall Notes: 

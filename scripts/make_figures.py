@@ -41,8 +41,19 @@ from src.iaf.plotting import (
     build_stimulus_trajectory_ax,
     build_orientation_confusion_axes,
     build_weights_ax,
+    build_tuning_type_axes,
+    build_visual_tuning_summary_ax,
 )
-from src.iaf.analysis import gather_metadata, gather_results, gather_rates, gather_weights, get_groupnames
+from src.iaf.analysis import (
+    gather_metadata,
+    gather_results,
+    gather_rates,
+    gather_weights,
+    gather_num_connections,
+    get_groupnames,
+    sort_orientation_preference,
+    summarize_weights,
+)
 
 
 @dataclass
@@ -1312,6 +1323,74 @@ def figure5_supplemental(fig_params: Figure5Params, show_fig: bool = True, save_
     return fig
 
 
+@dataclass
+class Figure6Params:
+    full_config: str = "hofer_replacement"
+    full_simulations: str = "20250423"
+    label_fontsize: float = FigParams.smallfontsize
+
+
+def figure6(fig_params: Figure6Params, show_fig: bool = True, save_fig: bool = False):
+    fig_width = FigParams.double_width
+    fig_height = fig_width / 4 * 2
+
+    if fig_params.full_config == "hofer_replacement":
+        norm_by_max_weight = True
+        norm_by_num_synapses = False
+        norm_by_total_synapses = True
+    else:
+        norm_by_max_weight = True
+        norm_by_num_synapses = True
+        norm_by_total_synapses = False
+
+    experiment_folder = results_dir("iaf_runs") / fig_params.full_config / fig_params.full_simulations
+    metadata = gather_metadata(experiment_folder, experiment_type="hofer")
+    # firing_rates = gather_rates(metadata, experiment_type="hofer")
+    num_connections = gather_num_connections(metadata, experiment_type="hofer")
+    weights = gather_weights(
+        metadata,
+        experiment_type="hofer",
+        average_method="fraction",
+        average_window=0.2,
+        norm_by_max_weight=norm_by_max_weight,
+        norm_by_num_synapses=norm_by_num_synapses,
+        norm_by_total_synapses=norm_by_total_synapses,
+        num_connections=num_connections,
+    )
+    # results = gather_results(metadata)
+    orientation_preference = {sg: np.argmax(weights[sg], axis=-1) % 4 for sg in get_groupnames()}
+    weights_preferred = sort_orientation_preference(weights, orientation_preference["proximal"])
+    summary = summarize_weights(weights, orientation_preference["proximal"])
+
+    fig = plt.figure(figsize=(fig_width, fig_height), **FigParams.all_fig_params())
+    gs = fig.add_gridspec(2, 1)
+    gs_top = gs[0].subgridspec(1, 4)
+    ax_tuning_type = fig.add_subplot(gs_top[0])
+    gs_bottom = gs[1].subgridspec(1, 3)
+    ax_visual_summary = [fig.add_subplot(gs_bottom[i]) for i in range(3)]
+
+    build_tuning_type_axes(ax_tuning_type, fontsize=fig_params.label_fontsize)
+
+    build_visual_tuning_summary_ax(
+        axes=ax_visual_summary,
+        metadata=metadata,
+        summary=summary,
+        main_name="distal-complex",
+        inset_name="distal-simple",
+        cmap="plasma_r",
+        cmap_pinch=0.25,
+    )
+
+    if show_fig:
+        plt.show(block=True)
+
+    if save_fig:
+        fig_path = get_figure_dir("core_figures") / "figure6"
+        save_figure(fig, fig_path)
+
+    return fig
+
+
 if __name__ == "__main__":
     # Set master parameters for showing / saving figures
     show_fig = False
@@ -1340,3 +1419,7 @@ if __name__ == "__main__":
 
     # Build Figure 5 Supplemental
     # figure5_supplemental(fig5params, show_fig=show_fig, save_fig=save_fig)
+
+    # Build Figure 6
+    fig6params = Figure6Params()
+    figure6(fig6params, show_fig=show_fig, save_fig=save_fig)

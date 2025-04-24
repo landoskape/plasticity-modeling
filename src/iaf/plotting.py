@@ -9,7 +9,7 @@ from matplotlib.typing import LineStyleType
 from matplotlib.patches import FancyArrowPatch
 from .analysis import get_norm_factor, get_groupnames, get_sigmoid_params, sigmoid
 from .source_population import SourcePopulationGabor, vonmises
-from ..plotting import FigParams, Proximal, DistalSimple, DistalComplex, beeswarm, format_spines
+from ..plotting import FigParams, Proximal, DistalSimple, DistalComplex, beeswarm, format_spines, errorPlot
 from ..conductance import NMDAR, VGCC
 from ..schematics import Neuron, neuron_color_kwargs, create_dpratio_colors
 
@@ -1405,3 +1405,157 @@ def build_weights_ax(
         linewidth=FigParams.thinlinewidth,
         linestyle="-",
     )
+
+
+def build_tuning_type_axes(
+    ax: plt.Axes,
+    spacing: int = 2,
+    halfsize: int = 51,
+    gabor_envelope: float = 0.4,
+    gabor_width: float = 0.6,
+    vmax_scale: float = 1.35,
+    fontsize: int = 7,
+    label_other_inputs: bool = True,
+):
+    central_stimulus = 0  # Must be hard-coded because of the way the hstacks & vstacks work!
+    central_orientation = SourcePopulationGabor.orientations[central_stimulus]
+    stimulus = SourcePopulationGabor.make_stimulus(edge_probability=1.0, center_orientation=central_stimulus)
+    gabor_grid = create_gabor_grid(stimulus, spacing=spacing, gabor_params=dict(halfsize=halfsize), center_only=True)[0]
+    vmax = np.max(np.abs(gabor_grid)) * vmax_scale
+    gabor_grid = gabor_grid / vmax
+    norm = mcolors.Normalize(vmin=-1, vmax=1)
+    cmap = colormaps["bwr"]
+    rgba_grid = cmap(norm(gabor_grid))
+    width = int(gabor_grid.shape[0] - 2 * spacing) // 3
+    (edge1x, edge1y), (edge2x, edge2y) = SourcePopulationGabor.stimulus_to_edge_positions(central_stimulus)
+
+    for i in range(3):
+        for j in range(3):
+            if i == 1 and j == 1:
+                background_color = np.array([0.35, 0.35, 0.35, 0.3])
+            elif (i == edge1x and j == edge1y) or (i == edge2x and j == edge2y):
+                background_color = np.array([0.25, 0.8, 0.25, 0.3])
+            else:
+                if label_other_inputs:
+                    background_color = np.array([0.8, 0.25, 0.25, 0.3])
+                else:
+                    background_color = np.array([1.0, 1.0, 1.0, 0.0])
+            for ii in range(width):
+                for jj in range(width):
+                    rgba_grid[i * (width + spacing) + ii, j * (width + spacing) + jj] = background_color
+
+    coaxial_gabor = create_gabor(central_orientation, halfsize=halfsize, envelope=gabor_envelope, width=gabor_width)
+    needed_vertical = gabor_grid.shape[0] - coaxial_gabor.shape[0]
+    needed_horizontal = gabor_grid.shape[1] - coaxial_gabor.shape[1]
+    coaxial_gabor_1 = np.vstack([coaxial_gabor, np.full((needed_vertical, coaxial_gabor.shape[1]), np.nan)])
+    coaxial_gabor_1 = np.hstack([coaxial_gabor_1, np.full((gabor_grid.shape[0], needed_horizontal), np.nan)])
+    rgba_1 = gabor_rgba(coaxial_gabor_1)
+
+    coaxial_gabor_2 = np.vstack([np.full((needed_vertical, coaxial_gabor.shape[1]), np.nan), coaxial_gabor])
+    coaxial_gabor_2 = np.hstack([np.full((gabor_grid.shape[0], needed_horizontal), np.nan), coaxial_gabor_2])
+    rgba_2 = gabor_rgba(coaxial_gabor_2)
+
+    proximal_gabor = np.vstack(
+        [
+            np.full((width + spacing, coaxial_gabor.shape[1]), np.nan),
+            coaxial_gabor,
+            np.full((width + spacing, coaxial_gabor.shape[1]), np.nan),
+        ]
+    )
+    proximal_gabor = np.hstack(
+        [
+            np.full((proximal_gabor.shape[0], width + spacing), np.nan),
+            proximal_gabor,
+            np.full((proximal_gabor.shape[0], width + spacing), np.nan),
+        ]
+    )
+    rgba_proximal = gabor_rgba(proximal_gabor)
+
+    ax.imshow(rgba_grid, interpolation="bilinear")
+    ax.imshow(rgba_1, interpolation="bilinear")
+    ax.imshow(rgba_2, interpolation="bilinear")
+    ax.imshow(rgba_proximal, interpolation="bilinear")
+    central_text_x = width + spacing + width / 2
+    central_text_y = width + spacing + width / 20
+    edge1_text_x = edge1x * (width + spacing) + width / 2
+    edge1_text_y = edge1y * (width + spacing) + width / 20
+    edge2_text_x = edge2x * (width + spacing) + width / 2
+    edge2_text_y = edge2y * (width + spacing) + width / 20
+    off_text_x = edge1x * (width + spacing) + width / 2 + 2 * width + 2 * spacing
+    off_text_y = edge1y * (width + spacing) + width / 2
+    ax.text(central_text_x, central_text_y, "Proximal RF", ha="center", va="top", fontsize=fontsize)
+    ax.text(edge1_text_x, edge1_text_y, "Co-axial RF", ha="center", va="top", fontsize=fontsize)
+    ax.text(edge2_text_x, edge2_text_y, "Co-axial RF", ha="center", va="top", fontsize=fontsize)
+
+    if label_other_inputs:
+        ax.text(off_text_x, off_text_y, "All\nOther\nPossible\nInputs", ha="center", va="center", fontsize=fontsize)
+
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+
+def build_visual_tuning_summary_ax(
+    axes: list[plt.Axes],
+    metadata: dict,
+    summary: dict,
+    main_name: str,
+    inset_name: str,
+    cmap: str = "plasma_r",
+    cmap_pinch: float = 0.25,
+    inset_position: list[float] = [0.5, 0.5, 0.4, 0.4],
+):
+    weight_types = {
+        "Proximal RF": ["central-preferred"],
+        "Coaxial RF": ["edge-preferred"],
+        "Other": [k for k in summary.keys() if k not in ["central-preferred", "edge-preferred"]],
+    }
+    num_edges = len(metadata["edge_probabilities"])
+    num_ratios = len(metadata["dp_ratios"])
+    cmap = colormaps["plasma_r"]
+    colors = [cmap(ii) for ii in np.linspace(cmap_pinch, 1 - cmap_pinch, num_ratios)]
+    igroup_main = get_groupnames().index(main_name)
+    igroup_inset = get_groupnames().index(inset_name)
+
+    if len(axes) != num_edges:
+        raise ValueError(f"Expected {num_edges} axes, got {len(axes)}")
+
+    insets = [ax.inset_axes(inset_position, transform=ax.transAxes) for ax in axes]
+
+    for iedge in range(num_edges):
+        for iratio in range(num_ratios):
+            data = {}
+            inset = {}
+            for wt in weight_types:
+                data[wt] = []
+                inset[wt] = []
+                for wg in weight_types[wt]:
+                    data[wt].append(np.reshape(summary[wg][igroup_main, iratio, iedge], -1))
+                    inset[wt].append(np.reshape(summary[wg][igroup_inset, iratio, iedge], -1))
+                data[wt] = np.mean(np.stack(data[wt]), axis=0)
+                inset[wt] = np.mean(np.stack(inset[wt]), axis=0)
+
+            data = np.stack(list(data.values()))
+            inset = np.stack(list(inset.values()))
+            errorPlot(
+                range(len(weight_types)),
+                data,
+                axis=1,
+                ax=axes[iedge],
+                color=colors[iratio],
+                linewidth=1.0,
+                alpha=0.3,
+            )
+            errorPlot(
+                range(len(weight_types)),
+                inset,
+                axis=1,
+                ax=insets[iedge],
+                color=colors[iratio],
+                linewidth=1.0,
+                alpha=0.3,
+            )
+
+    for iedge in range(num_edges):
+        axes[iedge].set_ylabel(f"P(E)={metadata['edge_probabilities'][iedge]:.2f}\nWeight")
