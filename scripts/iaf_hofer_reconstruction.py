@@ -11,7 +11,7 @@ def get_args():
         "--config",
         type=str,
         default="hofer",
-        choices=["hofer", "hofer_explore"],
+        choices=["hofer", "hofer_replacement"],
         help="Which configuration to use for the experiment",
     )
     parser.add_argument(
