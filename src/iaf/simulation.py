@@ -312,7 +312,7 @@ class Simulation:
             source_intervals_full = {source_name: [] for source_name in sources_to_update}
 
         # Run the simulation
-        seconds_progress = tqdm(range(duration)) if progress_bar else range(duration)
+        seconds_progress = tqdm(range(duration), leave=False) if progress_bar else range(duration)
 
         for second in seconds_progress:
             for subsecond in range(steps_per_second):

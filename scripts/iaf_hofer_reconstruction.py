@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from datetime import datetime
+from tqdm import tqdm
 import joblib
 from src.files import results_dir, save_repo_snapshot
 from src.iaf.experiments import get_experiment
@@ -108,9 +109,9 @@ def run_experiment(args):
     save_repo_snapshot(experiment_folder / "repo.zip", verbose=False)
 
     # Run all the requested experiments
-    for iratio, distal_dp_ratio in enumerate(distal_dp_ratios):
-        for iedge, edge_probability in enumerate(edge_probabilities):
-            for repeat in range(repeats):
+    for iratio, distal_dp_ratio in enumerate(tqdm(distal_dp_ratios, desc="Distal DP Ratios")):
+        for iedge, edge_probability in enumerate(tqdm(edge_probabilities, desc="Edge Probabilities")):
+            for repeat in tqdm(range(repeats), desc="Repeats"):
                 if not no_distal:
                     sim, cfg = get_experiment(
                         config,
