@@ -1414,18 +1414,35 @@ def build_tuning_type_axes(
     gabor_envelope: float = 0.4,
     gabor_width: float = 0.6,
     vmax_scale: float = 1.35,
+    weight_group_colors: list[str] = ["maroon", "red", "black"],
     fontsize: int = 7,
-    label_other_inputs: bool = True,
+    alternate_pinch: float = 0.2,
+    alternate_drop: float = 0.07,
+    do_background: bool = False,
+    other_label_pad: float = -0.1,
 ):
+    # Create gabor to display coaxial tuning
     central_stimulus = 0  # Must be hard-coded because of the way the hstacks & vstacks work!
     central_orientation = SourcePopulationGabor.orientations[central_stimulus]
     stimulus = SourcePopulationGabor.make_stimulus(edge_probability=1.0, center_orientation=central_stimulus)
     gabor_grid = create_gabor_grid(stimulus, spacing=spacing, gabor_params=dict(halfsize=halfsize), center_only=True)[0]
+
+    # Create alternate orientation gabors
+    alternate_orientations = [SourcePopulationGabor.orientations[ii] for ii in [0, 1, 2, 3]]
+    alternate_stimulus = [ao * np.ones((3, 3)) for ao in alternate_orientations]
+    alternate_gabor_grids = [
+        create_gabor_grid(astim, spacing=spacing, gabor_params=dict(halfsize=halfsize), center_only=False)[0]
+        for astim in alternate_stimulus
+    ]
+
+    # Normalize and display gabors
     vmax = np.max(np.abs(gabor_grid)) * vmax_scale
     gabor_grid = gabor_grid / vmax
+    alternate_gabor_grids = [ag / vmax for ag in alternate_gabor_grids]
     norm = mcolors.Normalize(vmin=-1, vmax=1)
     cmap = colormaps["bwr"]
     rgba_grid = cmap(norm(gabor_grid))
+    rgba_alternate = [cmap(norm(ag)) for ag in alternate_gabor_grids]
     width = int(gabor_grid.shape[0] - 2 * spacing) // 3
     (edge1x, edge1y), (edge2x, edge2y) = SourcePopulationGabor.stimulus_to_edge_positions(central_stimulus)
 
@@ -1433,17 +1450,23 @@ def build_tuning_type_axes(
         for j in range(3):
             if i == 1 and j == 1:
                 background_color = np.array([0.35, 0.35, 0.35, 0.3])
+                background_color_alternate = np.array([1.0, 1.0, 1.0, 0.0])
             elif (i == edge1x and j == edge1y) or (i == edge2x and j == edge2y):
                 background_color = np.array([0.25, 0.8, 0.25, 0.3])
+                background_color_alternate = np.array([1.0, 1.0, 1.0, 0.0])
             else:
-                if label_other_inputs:
-                    background_color = np.array([0.8, 0.25, 0.25, 0.3])
-                else:
-                    background_color = np.array([1.0, 1.0, 1.0, 0.0])
+                background_color = np.array([1.0, 1.0, 1.0, 0.0])
+                background_color_alternate = None
             for ii in range(width):
                 for jj in range(width):
-                    rgba_grid[i * (width + spacing) + ii, j * (width + spacing) + jj] = background_color
+                    xx = i * (width + spacing) + ii
+                    yy = j * (width + spacing) + jj
+                    if do_background:
+                        rgba_grid[xx, yy] = background_color
+                    if background_color_alternate is not None:
+                        rgba_alternate[0][xx, yy] = background_color_alternate
 
+    # Display coaxial gabor
     coaxial_gabor = create_gabor(central_orientation, halfsize=halfsize, envelope=gabor_envelope, width=gabor_width)
     needed_vertical = gabor_grid.shape[0] - coaxial_gabor.shape[0]
     needed_horizontal = gabor_grid.shape[1] - coaxial_gabor.shape[1]
@@ -1471,7 +1494,7 @@ def build_tuning_type_axes(
     )
     rgba_proximal = gabor_rgba(proximal_gabor)
 
-    ax.imshow(rgba_grid, interpolation="bilinear")
+    # ax.imshow(rgba_grid, interpolation="bilinear")
     ax.imshow(rgba_1, interpolation="bilinear")
     ax.imshow(rgba_2, interpolation="bilinear")
     ax.imshow(rgba_proximal, interpolation="bilinear")
@@ -1481,19 +1504,146 @@ def build_tuning_type_axes(
     edge1_text_y = edge1y * (width + spacing) + width / 20
     edge2_text_x = edge2x * (width + spacing) + width / 2
     edge2_text_y = edge2y * (width + spacing) + width / 20
-    off_text_x = edge1x * (width + spacing) + width / 2 + 2 * width + 2 * spacing
-    off_text_y = edge1y * (width + spacing) + width / 2
-    ax.text(central_text_x, central_text_y, "Proximal RF", ha="center", va="top", fontsize=fontsize)
-    ax.text(edge1_text_x, edge1_text_y, "Co-axial RF", ha="center", va="top", fontsize=fontsize)
-    ax.text(edge2_text_x, edge2_text_y, "Co-axial RF", ha="center", va="top", fontsize=fontsize)
-
-    if label_other_inputs:
-        ax.text(off_text_x, off_text_y, "All\nOther\nPossible\nInputs", ha="center", va="center", fontsize=fontsize)
-
+    rf_text_x = 0 * (width + spacing) + width / 2
+    rf_text_y = 1 * (width + spacing) + width / 2
+    ax.text(
+        central_text_x,
+        central_text_y,
+        "Proximal",
+        ha="center",
+        va="top",
+        color=weight_group_colors[0],
+        fontsize=fontsize,
+        fontweight="bold",
+    )
+    ax.text(
+        edge1_text_x,
+        edge1_text_y,
+        "Co-axial",
+        ha="center",
+        va="top",
+        color=weight_group_colors[1],
+        fontsize=fontsize,
+        fontweight="bold",
+    )
+    ax.text(
+        edge2_text_x,
+        edge2_text_y,
+        "Co-axial",
+        ha="center",
+        va="top",
+        color=weight_group_colors[1],
+        fontsize=fontsize,
+        fontweight="bold",
+    )
+    ax.text(
+        rf_text_x,
+        rf_text_y,
+        "RF\nGroups",
+        ha="center",
+        va="center",
+        color="black",
+        fontsize=fontsize,
+        fontweight="bold",
+    )
     ax.set_xticks([])
     ax.set_yticks([])
     for spine in ax.spines.values():
-        spine.set_visible(False)
+        spine.set_color("k")
+        spine.set_linewidth(FigParams.thinlinewidth)
+
+    # Create insets
+    inset_x = [0, 2, 2, 1]
+    inset_y = [2, 1, 0, 0]
+    insets = []
+    pinch_width = width * alternate_pinch
+    drop_width = width * alternate_drop
+    for idx_alternate, (i, j) in enumerate(zip(inset_x, inset_y)):
+        position = [
+            i * (width + spacing) + pinch_width,
+            j * (width + spacing) + pinch_width + drop_width,
+            width - pinch_width * 2,
+            width - pinch_width * 2,
+        ]
+        inset = ax.inset_axes(position, transform=ax.transData)
+        insets.append(inset)
+        inset.imshow(rgba_alternate[idx_alternate], aspect="auto", interpolation="bilinear")
+        inset.set_xticks([])
+        inset.set_yticks([])
+        for spine in inset.spines.values():
+            spine.set_visible(True)
+            spine.set_color("k")
+            spine.set_linewidth(FigParams.thinlinewidth)
+        inset.set_title(
+            "Other",
+            fontsize=fontsize,
+            color=weight_group_colors[2],
+            pad=other_label_pad,
+            fontweight="bold",
+        )
+
+
+def build_tuning_group_trajectory_axes(
+    ax_proximal: plt.Axes,
+    ax_simple: plt.Axes,
+    ax_complex: plt.Axes,
+    trajectory: dict,
+    example_ratio: int = 0,
+    example_edge: int = 2,
+    weight_group_colors: list[str] = ["maroon", "red", "black"],
+    labeltype: str = "label",
+    linewidth: float = 1.0,
+    alpha: float = 0.3,
+    fontsize: float = FigParams.smallfontsize,
+):
+    ax_list = [ax_proximal, ax_simple, ax_complex]
+    group_list = [Proximal, DistalSimple, DistalComplex]
+
+    for igroup, sgname in enumerate(get_groupnames()):
+        for iwg, wg in enumerate(trajectory):
+            if igroup == 0 and wg == "edge-preferred":
+                continue
+            ctraj = trajectory[wg][igroup, example_ratio, example_edge]
+            ctraj = 100 * np.reshape(ctraj, (-1, ctraj.shape[-1]))
+            errorPlot(
+                range(ctraj.shape[1]),
+                ctraj,
+                axis=0,
+                ax=ax_list[igroup],
+                color=weight_group_colors[iwg],
+                linewidth=linewidth,
+                alpha=alpha,
+            )
+
+        ax_list[1].set_ylabel("Weight (%)", fontsize=fontsize)
+
+        ylims = ax_list[igroup].get_ylim()
+        new_ylim_max = np.ceil(ylims[1] * 1.2 / 10) * 10
+        ax_list[igroup].set_ylim(0, new_ylim_max)
+
+        ax_list[igroup].text(
+            0,
+            new_ylim_max * 0.95,
+            getattr(group_list[igroup], labeltype),
+            color=group_list[igroup].color,
+            fontsize=fontsize,
+            ha="left",
+            va="top",
+        )
+
+        format_spines(
+            ax_list[igroup],
+            x_pos=FigParams.spine_pos,
+            y_pos=FigParams.spine_pos,
+            xbounds=(0, ctraj.shape[1]),
+            ybounds=(0, new_ylim_max),
+            xticks=(0, ctraj.shape[1]) if igroup == 2 else [],
+            yticks=(0, new_ylim_max),
+            tick_length=FigParams.tick_length,
+            tick_width=FigParams.tick_width,
+            tick_fontsize=FigParams.tick_fontsize,
+            spine_linewidth=FigParams.thinlinewidth,
+        )
 
 
 def build_visual_tuning_summary_ax(
@@ -1559,3 +1709,105 @@ def build_visual_tuning_summary_ax(
 
     for iedge in range(num_edges):
         axes[iedge].set_ylabel(f"P(E)={metadata['edge_probabilities'][iedge]:.2f}\nWeight")
+
+
+def build_relative_edge_weights_axes(
+    ax_simple: plt.Axes,
+    ax_complex: plt.Axes,
+    metadata: dict,
+    summary: dict,
+    cmap: str = "plasma_r",
+    cmap_pinch: float = 0.25,
+    labeltype: str = "label",
+    fontsize: float = FigParams.smallfontsize,
+):
+    num_edges = len(metadata["edge_probabilities"])
+    num_ratios = len(metadata["dp_ratios"])
+    cmap = colormaps["plasma_r"]
+    cmap_pinch = 0.2
+    colors = [cmap(ii) for ii in np.linspace(cmap_pinch, 1 - cmap_pinch, num_ratios)]
+
+    groups_to_plot = ["distal-simple", "distal-complex"]
+    axes_to_plot = [ax_simple, ax_complex]
+    idx_to_group = [1, 2]
+
+    max_ratio = 0
+    for iratio in range(num_ratios):
+        for igroup, sgname in enumerate(groups_to_plot):
+            idxgroup = idx_to_group[igroup]
+            edge_preferred = np.reshape(summary["edge-preferred"][idxgroup, iratio], (num_edges, -1))
+            total_weight = np.sum(
+                np.stack([np.reshape(summary[wg][idxgroup, iratio], (num_edges, -1)) for wg in summary]), axis=0
+            )
+            ratio_edge_preferred = edge_preferred / total_weight
+            errorPlot(
+                range(num_edges),
+                100 * ratio_edge_preferred,
+                axis=1,
+                ax=axes_to_plot[igroup],
+                color=colors[iratio],
+                linewidth=1.0,
+                alpha=0.3,
+            )
+            max_ratio = max(max_ratio, np.max(ratio_edge_preferred))
+
+    axes_to_plot[0].set_xlim(-0.25, num_edges - 0.75)
+    axes_to_plot[1].set_xlim(-0.25, num_edges - 0.75)
+    axes_to_plot[0].set_xlabel("Edge Probability", fontsize=fontsize)
+    axes_to_plot[1].set_xlabel("Edge Probability", fontsize=fontsize)
+    axes_to_plot[0].set_ylabel("Coaxial Weight (% Total)", fontsize=fontsize)
+    axes_to_plot[0].set_ylabel("Coaxial Weight (% Total)", fontsize=fontsize)
+
+    ylim_max = max([a.get_ylim()[1] for a in axes_to_plot])
+    ylim = [0, ylim_max]
+    simple_label = getattr(DistalSimple, labeltype)
+    complex_label = getattr(DistalComplex, labeltype)
+    axes_to_plot[0].text(
+        0,
+        ylim_max * 0.95,
+        simple_label,
+        color=DistalSimple.color,
+        fontsize=fontsize,
+        ha="left",
+        va="top",
+    )
+    axes_to_plot[1].text(
+        0,
+        ylim_max * 0.95,
+        complex_label,
+        color=DistalComplex.color,
+        fontsize=fontsize,
+        ha="left",
+        va="top",
+    )
+
+    format_spines(
+        axes_to_plot[0],
+        x_pos=FigParams.spine_pos,
+        y_pos=FigParams.spine_pos,
+        xbounds=(0, num_edges - 1),
+        ybounds=ylim,
+        xticks=range(num_edges),
+        yticks=ylim,
+        xlabels=metadata["edge_probabilities"],
+        ylabels=["0", f"{ylim_max:.0f}"],
+        tick_length=FigParams.tick_length,
+        tick_width=FigParams.tick_width,
+        tick_fontsize=FigParams.tick_fontsize,
+        spine_linewidth=FigParams.thinlinewidth,
+    )
+    format_spines(
+        axes_to_plot[1],
+        x_pos=FigParams.spine_pos,
+        y_pos=FigParams.spine_pos,
+        xbounds=(0, num_edges - 1),
+        ybounds=ylim,
+        xticks=range(num_edges),
+        yticks=ylim,
+        xlabels=metadata["edge_probabilities"],
+        ylabels=["0", f"{ylim_max:.0f}"],
+        tick_length=FigParams.tick_length,
+        tick_width=FigParams.tick_width,
+        tick_fontsize=FigParams.tick_fontsize,
+        spine_linewidth=FigParams.thinlinewidth,
+    )

@@ -169,7 +169,17 @@ def sort_orientation_preference(
     return weights_preferred
 
 
-def summarize_weights(weights: dict[str, np.ndarray], orientation_preference: np.ndarray) -> dict[str, np.ndarray]:
+def summarize_weights(
+    weights: dict[str, np.ndarray],
+    results: list[dict],
+    metadata: dict,
+    orientation_preference: np.ndarray,
+    consolidate_other: bool = True,
+    norm_by_max_weight: bool = True,
+    norm_by_num_synapses: bool = False,
+    norm_by_total_synapses: bool = False,
+    num_connections: dict[str, np.ndarray] | None = None,
+) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
     """Summarize weights according to orientation preference.
 
     Groups weights into 6 categories:
@@ -180,23 +190,46 @@ def summarize_weights(weights: dict[str, np.ndarray], orientation_preference: np
     - Outer-Preferred: weights in the outer positions for the preferred orientation
     - Outer-Other: weights in the outer positions for other orientations
 
+    If consolidate_other is True, then the other orientations are consolidated into a single category
+    (so it'll be central-preferred, edge-preferred, and other)
+
     Measures the average weight for each category for each experiment in the three synapse groups.
 
     Parameters
     ----------
     weights : dict[str, np.ndarray]
         Weights to summarize.
+    results : list[dict]
+        Results to summarize
+    metadata : dict
+        Metadata describing the experiment.
     orientation_preference : np.ndarray
         Orientation preference of the neurons.
+    norm_by_max_weight: bool = True
+        Normalize by the maximum weight.
+    norm_by_num_synapses: bool = False
+        Normalize by the number of synapses.
+    norm_by_total_synapses: bool = False
+        Normalize by the total number of synapses.
+    num_connections: dict[str, np.ndarray] | None = None
+        Number of connections for each synapse group.
 
     Returns
     -------
     weight_summary : dict[str, np.ndarray]
         Summary of weights.
+    trajectory_summary : dict[str, np.ndarray]
+        Summary of weight trajectories.
     """
+    if norm_by_num_synapses and num_connections is None:
+        raise ValueError("num_connections must be provided if norm_by_num_synapses is True")
+    if norm_by_total_synapses and norm_by_num_synapses:
+        raise ValueError("norm_by_total_synapses and norm_by_num_synapses cannot both be True")
+
     meta_shape = orientation_preference.shape
     num_meta = np.prod(meta_shape)
     group_names = get_groupnames()
+
     weight_groups = [
         "central-preferred",
         "central-other",
@@ -205,16 +238,43 @@ def summarize_weights(weights: dict[str, np.ndarray], orientation_preference: np
         "outer-preferred",
         "outer-other",
     ]
+
+    # Preallocate summary results
+    duration = results[0]["weights"][0]["proximal"].shape[0]
     weight_summary = {weight_group: np.full((len(group_names), num_meta), np.nan) for weight_group in weight_groups}
+    trajectory_summary = {
+        weight_group: np.full((len(group_names), num_meta, duration), np.nan) for weight_group in weight_groups
+    }
 
     central_idx = 4
     orientation_preference = orientation_preference.reshape(-1)
     for isg, sg in enumerate(group_names):
         sgweights = weights[sg].reshape(-1, 9, 4)
         for iexperiment in range(num_meta):
+            # Gather the weight trajectory for this experiment
+            iratio, iedge, irepeat, ineuron = np.unravel_index(iexperiment, meta_shape)
+            valid_ratio = metadata["ratios"] == iratio
+            valid_edge = metadata["edges"] == iedge
+            idx_result = np.where(valid_ratio & valid_edge)[0][irepeat]
+            norm_factor = get_norm_factor(
+                results[idx_result]["sim"].neurons[ineuron],
+                norm_by_max_weight=norm_by_max_weight,
+                norm_by_num_synapses=norm_by_num_synapses,
+                norm_by_total_synapses=norm_by_total_synapses,
+            )
+            c_trajectory = results[idx_result]["weights"][ineuron][sg] / norm_factor[sg]
+            c_trajectory = np.reshape(c_trajectory, (duration, 9, 4)).transpose(1, 2, 0)
+            if norm_by_num_synapses and num_connections is not None:
+                c_scale = num_connections[sg][iratio, iedge, irepeat, ineuron]
+                c_scale[c_scale == 0] = 1
+                c_trajectory /= np.reshape(c_scale, (9, 4, 1))
+
             # Total weight in central position for preferred / other orientations
             central_preferred = sgweights[iexperiment, central_idx, orientation_preference[iexperiment]]
             central_other = np.sum(sgweights[iexperiment, central_idx]) - central_preferred
+            traj_central_preferred = c_trajectory[central_idx, orientation_preference[iexperiment]]
+            traj_central_other = np.sum(c_trajectory[central_idx], axis=0) - traj_central_preferred
+
             # Get indices to edge positions for this orientation preference
             edge0, edge1 = SourcePopulationGabor.stimulus_to_edge_positions(
                 orientation_preference[iexperiment], flattened=True
@@ -224,9 +284,18 @@ def summarize_weights(weights: dict[str, np.ndarray], orientation_preference: np
             preferred1 = sgweights[iexperiment, edge1, orientation_preference[iexperiment]]
             other0 = np.sum(sgweights[iexperiment, edge0]) - preferred0
             other1 = np.sum(sgweights[iexperiment, edge1]) - preferred1
+
+            traj_preferred0 = c_trajectory[edge0, orientation_preference[iexperiment]]
+            traj_preferred1 = c_trajectory[edge1, orientation_preference[iexperiment]]
+            traj_other0 = np.sum(c_trajectory[edge0], axis=0) - traj_preferred0
+            traj_other1 = np.sum(c_trajectory[edge1], axis=0) - traj_preferred1
+
             # Total weight in all positions for preferred / other orientations
             total_preferred = np.sum(sgweights[iexperiment, :, orientation_preference[iexperiment]])
             total_other = np.sum(sgweights[iexperiment]) - total_preferred
+            traj_total_preferred = np.sum(c_trajectory[:, orientation_preference[iexperiment]], axis=0)
+            traj_total_other = np.sum(c_trajectory, axis=(0, 1)) - traj_total_preferred
+
             # Fill up summary matrix
             weight_summary["central-preferred"][isg, iexperiment] = central_preferred
             weight_summary["central-other"][isg, iexperiment] = central_other
@@ -237,20 +306,55 @@ def summarize_weights(weights: dict[str, np.ndarray], orientation_preference: np
             )
             weight_summary["outer-other"][isg, iexperiment] = total_other - central_other - other0 - other1
 
+            trajectory_summary["central-preferred"][isg, iexperiment] = traj_central_preferred
+            trajectory_summary["central-other"][isg, iexperiment] = traj_central_other
+            trajectory_summary["edge-preferred"][isg, iexperiment] = traj_preferred0 + traj_preferred1
+            trajectory_summary["edge-other"][isg, iexperiment] = traj_other0 + traj_other1
+            trajectory_summary["outer-preferred"][isg, iexperiment] = (
+                traj_total_preferred - traj_central_preferred - traj_preferred0 - traj_preferred1
+            )
+            trajectory_summary["outer-other"][isg, iexperiment] = (
+                traj_total_other - traj_central_other - traj_other0 - traj_other1
+            )
+
     # Normalize so we summarize the average weight for each of these groups
     # We can always remultiply it to get the net weight if needed
-    weight_summary["central-other"] /= 3  # 3 other orientations
     weight_summary["edge-preferred"] /= 2  # 2 positions in each edge
+    weight_summary["central-other"] /= 3  # 3 other orientations
     weight_summary["edge-other"] /= 2 * 3  # 2 positions in each edge, 3 other orientations
     weight_summary["outer-preferred"] /= 6  # 6 outer positions not in edge
     weight_summary["outer-other"] /= 6 * 3  # 6 outer positions not in edge, 3 other orientations
+
+    trajectory_summary["edge-preferred"] /= 2  # 2 positions in each edge
+    trajectory_summary["central-other"] /= 3  # 3 other orientations
+    trajectory_summary["edge-other"] /= 2 * 3  # 2 positions in each edge, 3 other orientations
+    trajectory_summary["outer-preferred"] /= 6  # 6 outer positions not in edge
+    trajectory_summary["outer-other"] /= 6 * 3  # 6 outer positions not in edge, 3 other orientations
 
     # Reshape to match the shape of the orientation preference
     # Which reflects the experiment structure
     for weight_group in weight_groups:
         weight_summary[weight_group] = np.reshape(weight_summary[weight_group], (len(group_names), *meta_shape))
+        trajectory_summary[weight_group] = np.reshape(
+            trajectory_summary[weight_group], (len(group_names), *meta_shape, duration)
+        )
 
-    return weight_summary
+    if consolidate_other:
+        groups_to_consolidate = [
+            "central-other",
+            "edge-other",
+            "outer-preferred",
+            "outer-other",
+        ]
+        weight_summary["other"] = np.mean(np.stack([weight_summary[group] for group in groups_to_consolidate]), axis=0)
+        trajectory_summary["other"] = np.mean(
+            np.stack([trajectory_summary[group] for group in groups_to_consolidate]), axis=0
+        )
+        for group in groups_to_consolidate:
+            weight_summary.pop(group)
+            trajectory_summary.pop(group)
+
+    return weight_summary, trajectory_summary
 
 
 def _gather_metadata_correlation(experiment_folder):

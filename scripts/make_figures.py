@@ -43,6 +43,8 @@ from src.iaf.plotting import (
     build_weights_ax,
     build_tuning_type_axes,
     build_visual_tuning_summary_ax,
+    build_tuning_group_trajectory_axes,
+    build_relative_edge_weights_axes,
 )
 from src.iaf.analysis import (
     gather_metadata,
@@ -1326,8 +1328,14 @@ def figure5_supplemental(fig_params: Figure5Params, show_fig: bool = True, save_
 @dataclass
 class Figure6Params:
     full_config: str = "hofer_replacement"
-    full_simulations: str = "20250423"
-    label_fontsize: float = FigParams.smallfontsize
+    full_simulations: str = "20250424"
+    trajectory_example_ratio: int = 0
+    trajectory_example_edge: int = 2
+    trajectory_linewidth: float = 1.0
+    trajectory_alpha: float = 0.3
+    labeltype: str = "label"
+    fontsize: float = FigParams.fontsize
+    label_fontsize: float = FigParams.fontsize
 
 
 def figure6(fig_params: Figure6Params, show_fig: bool = True, save_fig: bool = False):
@@ -1345,7 +1353,6 @@ def figure6(fig_params: Figure6Params, show_fig: bool = True, save_fig: bool = F
 
     experiment_folder = results_dir("iaf_runs") / fig_params.full_config / fig_params.full_simulations
     metadata = gather_metadata(experiment_folder, experiment_type="hofer")
-    # firing_rates = gather_rates(metadata, experiment_type="hofer")
     num_connections = gather_num_connections(metadata, experiment_type="hofer")
     weights = gather_weights(
         metadata,
@@ -1357,28 +1364,58 @@ def figure6(fig_params: Figure6Params, show_fig: bool = True, save_fig: bool = F
         norm_by_total_synapses=norm_by_total_synapses,
         num_connections=num_connections,
     )
-    # results = gather_results(metadata)
+    results = gather_results(metadata)
     orientation_preference = {sg: np.argmax(weights[sg], axis=-1) % 4 for sg in get_groupnames()}
-    weights_preferred = sort_orientation_preference(weights, orientation_preference["proximal"])
-    summary = summarize_weights(weights, orientation_preference["proximal"])
+    summary, trajectory = summarize_weights(
+        weights,
+        results,
+        metadata,
+        orientation_preference["proximal"],
+        consolidate_other=True,
+        norm_by_max_weight=norm_by_max_weight,
+        norm_by_num_synapses=norm_by_num_synapses,
+        norm_by_total_synapses=norm_by_total_synapses,
+        num_connections=num_connections,
+    )
 
     fig = plt.figure(figsize=(fig_width, fig_height), **FigParams.all_fig_params())
-    gs = fig.add_gridspec(2, 1)
-    gs_top = gs[0].subgridspec(1, 4)
-    ax_tuning_type = fig.add_subplot(gs_top[0])
-    gs_bottom = gs[1].subgridspec(1, 3)
-    ax_visual_summary = [fig.add_subplot(gs_bottom[i]) for i in range(3)]
+    gs_leftright = fig.add_gridspec(1, 2)
+    gs_left_topbottom = gs_leftright[0].subgridspec(2, 1)
+    gs_left_top = gs_left_topbottom[0].subgridspec(1, 2)
+    gs_left_bottom = gs_left_topbottom[1].subgridspec(1, 2)
+    gs_traj = gs_left_top[1].subgridspec(3, 1)
+    ax_tuning_type = fig.add_subplot(gs_left_top[0])
+    ax_proximal_traj = fig.add_subplot(gs_traj[0])
+    ax_simple_traj = fig.add_subplot(gs_traj[1])
+    ax_complex_traj = fig.add_subplot(gs_traj[2])
+    ax_simple_relative = fig.add_subplot(gs_left_bottom[0])
+    ax_complex_relative = fig.add_subplot(gs_left_bottom[1])
+    ax_complex_relative.sharey(ax_simple_relative)
 
     build_tuning_type_axes(ax_tuning_type, fontsize=fig_params.label_fontsize)
 
-    build_visual_tuning_summary_ax(
-        axes=ax_visual_summary,
+    build_tuning_group_trajectory_axes(
+        ax_proximal=ax_proximal_traj,
+        ax_simple=ax_simple_traj,
+        ax_complex=ax_complex_traj,
+        trajectory=trajectory,
+        example_ratio=fig_params.trajectory_example_ratio,
+        example_edge=fig_params.trajectory_example_edge,
+        linewidth=fig_params.trajectory_linewidth,
+        alpha=fig_params.trajectory_alpha,
+        fontsize=fig_params.fontsize,
+        labeltype=fig_params.labeltype,
+    )
+
+    build_relative_edge_weights_axes(
+        ax_simple=ax_simple_relative,
+        ax_complex=ax_complex_relative,
         metadata=metadata,
         summary=summary,
-        main_name="distal-complex",
-        inset_name="distal-simple",
         cmap="plasma_r",
         cmap_pinch=0.25,
+        fontsize=fig_params.fontsize,
+        labeltype=fig_params.labeltype,
     )
 
     if show_fig:
