@@ -35,6 +35,7 @@ amount of plasticity evoked by positive pairings (LTP) or negative pairings (LTD
 ## Section on IaF Correlation
 - Results / iaf_runs / correlated / 20250320 has the results for the updated correlation experiment with new names (p, ds, dc)
 - Results / iaf_runs / correlated / 20250324 has full_output results for the correlated model for making example figures
+- Results / iaf_runs / correlated / 20250509 has long time scale results (duration = 7200s)
 
 ## Section on Hofer Reconstructions
 - Results / iaf_runs / hofer / 20250320 has the results for the hofer experiment (this without no edge enforced)
