@@ -446,8 +446,7 @@ def build_ax_trajectory(
     if ax_psth is not None:
         ax_psth.plot(np.linspace(0, 1, len(firing_rates)), firing_rates, color="k", linewidth=FigParams.thinlinewidth)
     for a, wt in zip([ax_basal, ax_dsimple, ax_dcomplex], rgb_trajs):
-        a.imshow(wt, aspect="auto", interpolation="none", extent=extent, origin="upper")
-
+        a.imshow(wt, aspect="auto", interpolation="none", extent=extent, origin="upper", vmin=0, vmax=1)
     return ax_psth, ax_basal, ax_dsimple, ax_dcomplex
 
 

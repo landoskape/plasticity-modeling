@@ -745,7 +745,7 @@ def figure3(fig_params: Figure3Params, show_fig: bool = True, save_fig: bool = T
 @dataclass
 class Figure4Params:
     example_simulations: str = "20250324"
-    full_simulations: str = "20250320"
+    full_simulations: str = "20250509"
     schematic_T: int = 300
     schematic_N: int = 6
     schematic_sigma_latent: int = 15
@@ -760,6 +760,9 @@ class Figure4Params:
     example_idpratio: int = 2
     example_irepeat: int = 0
     example_ineuron: int = 0
+    summary_idpratio: int = 2
+    summary_irepeat: int = 6
+    summary_ineuron: int = 0
     example_cmap: str = "gray_r"
     example_include_psth: bool = False
     feature_colormap: str = "Reds"
@@ -835,11 +838,27 @@ def figure4(fig_params: Figure4Params, show_fig: bool = True, save_fig: bool = F
     for spine in ax_schematic.spines.values():
         spine.set_visible(False)
 
+    # Get example results
     example_folder = results_dir("iaf_runs") / "correlated" / fig_params.example_simulations
     example_metadata = gather_metadata(example_folder, experiment_type="correlation")
-    example_firing_rates = gather_rates(example_metadata, experiment_type="correlation")
     example_results = gather_results(example_metadata)
     max_correlation = example_metadata["base_config"].sources["excitatory"].max_correlation
+
+    # Get results for summary data (and trajectory example)
+    summary_folder = results_dir("iaf_runs") / "correlated" / fig_params.full_simulations
+    summary_metadata = gather_metadata(summary_folder, experiment_type="correlation")
+    summary_firing_rates = gather_rates(summary_metadata, experiment_type="correlation")
+    summary_num_connections = gather_num_connections(summary_metadata, experiment_type="correlation")
+    summary_weights = gather_weights(
+        summary_metadata,
+        experiment_type="correlation",
+        average_method=fig_params.summary_average_method,
+        average_window=fig_params.summary_average_window,
+        norm_by_max_weight=True,
+        norm_by_num_synapses=True,
+        num_connections=summary_num_connections,
+    )
+    summary_results = gather_results(summary_metadata)
 
     idx_to_example_ratio = np.array(example_metadata["ratios"]) == fig_params.example_idpratio
     idx_to_example_repeat = np.array(example_metadata["repeats"]) == fig_params.example_irepeat
@@ -855,7 +874,22 @@ def figure4(fig_params: Figure4Params, show_fig: bool = True, save_fig: bool = F
         cmap=fig_params.summary_cmap,
         cmap_pinch=fig_params.summary_cmap_pinch,
     )[0]
-    example_color = colors[fig_params.example_idpratio]
+
+    idx_to_summary_example_ratio = np.array(summary_metadata["ratios"]) == fig_params.summary_idpratio
+    idx_to_summary_example_repeat = np.array(summary_metadata["repeats"]) == fig_params.summary_irepeat
+    idx_to_summary_example = np.where(idx_to_summary_example_ratio & idx_to_summary_example_repeat)[0]
+    if len(idx_to_summary_example) != 1:
+        raise ValueError(
+            f"No example found for idpratio {fig_params.summary_idpratio} and irepeat {fig_params.summary_irepeat}"
+        )
+    idx_to_summary_example = idx_to_summary_example[0]
+    num_ratios = len(summary_metadata["dp_ratios"])
+    colors = create_dpratio_colors(
+        num_ratios,
+        cmap=fig_params.summary_cmap,
+        cmap_pinch=fig_params.summary_cmap_pinch,
+    )[0]
+    summary_example_color = colors[fig_params.summary_idpratio]
 
     _ = build_ax_corrcoef(
         ax_corrcoef,
@@ -874,17 +908,17 @@ def figure4(fig_params: Figure4Params, show_fig: bool = True, save_fig: bool = F
         for spine in ax.spines.values():
             spine.set_visible(False)
 
-    plot_firing_rates = example_firing_rates[
-        fig_params.example_idpratio, fig_params.example_irepeat, fig_params.example_ineuron
+    plot_firing_rates = summary_firing_rates[
+        fig_params.summary_idpratio, fig_params.summary_irepeat, fig_params.summary_ineuron
     ]
     _ = build_ax_trajectory(
         None,
         ax_basal,
         ax_dsimple,
         ax_dcomplex,
-        example_results[idx_to_example],
+        summary_results[idx_to_summary_example],
         plot_firing_rates,
-        ineuron=fig_params.example_ineuron,
+        ineuron=fig_params.summary_ineuron,
         feature_colors=feature_colors,
         cmap=fig_params.example_cmap,
         feature_offset_fraction=fig_params.feature_offset_fraction,
@@ -895,7 +929,7 @@ def figure4(fig_params: Figure4Params, show_fig: bool = True, save_fig: bool = F
     )
 
     xoffset = -fig_params.feature_offset_fraction - fig_params.feature_width_fraction
-    num_seconds = example_firing_rates.shape[-1]
+    num_seconds = summary_firing_rates.shape[-1]
     xticks = [0, 1]
     xlabels = [0, num_seconds]
     for iax, (ax, wg) in enumerate(
@@ -937,18 +971,6 @@ def figure4(fig_params: Figure4Params, show_fig: bool = True, save_fig: bool = F
             ax.set_xticks(xticks, labels=xlabels)
         else:
             ax.spines["bottom"].set_visible(False)
-
-    # Now build summary axes for the weights at the end of the simulations
-    summary_folder = results_dir("iaf_runs") / "correlated" / fig_params.full_simulations
-    summary_metadata = gather_metadata(summary_folder, experiment_type="correlation")
-    summary_weights = gather_weights(
-        summary_metadata,
-        experiment_type="correlation",
-        average_method=fig_params.summary_average_method,
-        average_window=fig_params.summary_average_window,
-        normalize=True,
-    )
-    max_correlation = example_metadata["base_config"].sources["excitatory"].max_correlation
 
     build_ax_weight_summary(
         ax_summary_basal,
@@ -1051,9 +1073,9 @@ def figure4(fig_params: Figure4Params, show_fig: bool = True, save_fig: bool = F
 
     build_ax_sigmoid_example(
         ax_inset_sigmoid,
-        example_results[idx_to_example],
-        ineuron=fig_params.example_ineuron,
-        color=example_color,
+        summary_results[idx_to_summary_example],
+        ineuron=fig_params.summary_ineuron,
+        color=summary_example_color,
     )
     ax_inset_sigmoid.set_xlim(0, 0.4)
     format_spines(
@@ -1447,8 +1469,8 @@ if __name__ == "__main__":
     # figure3(fig3params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 4
-    # fig4params = Figure4Params()
-    # figure4(fig4params, show_fig=show_fig, save_fig=save_fig)
+    fig4params = Figure4Params()
+    figure4(fig4params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 5
     # fig5params = Figure5Params()
@@ -1458,5 +1480,5 @@ if __name__ == "__main__":
     # figure5_supplemental(fig5params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 6
-    fig6params = Figure6Params()
-    figure6(fig6params, show_fig=show_fig, save_fig=save_fig)
+    # fig6params = Figure6Params()
+    # figure6(fig6params, show_fig=show_fig, save_fig=save_fig)
