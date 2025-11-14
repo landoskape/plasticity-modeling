@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib.typing import ColorType
 
 from src.files import get_figure_dir, data_dir
-from src.plotting import save_figure, FigParams, Proximal, DistalSimple, DistalComplex
+from src.plotting import save_figure, FigParams
 from src.experimental import ElifeData
 from src.utils import get_closest_idx
 
@@ -697,6 +697,15 @@ def plasticity_transfer_function(
     blocked (e.g. just over 1 mM for LTP data, see Nevian reconstruction). Let the associated
     calcium at this buffer concentration be Ca_{threshold}.
 
+    The thing that this returns is simply the calcium concentration remaining as a function
+    of adding buffer and the plasticity magnitude as a function of calcium concentration. The
+    idea is that we can use this as a lookup to map the effective calcium dose to the expected
+    plasticity magnitude, using the output of this function as an X/Y lookup table.
+
+    Note that the results are relative, so the calcium remaining for zero buffer is 1.0, and the
+    maximum plasticity magnitude is 1.0 (well, approximately 1 because it's a sigmoid fit of the
+    nevian/sakmann data which doesn't go perfectly to 1.0 at 0 buffer).
+
     Parameters
     ----------
     params : tuple[float]
@@ -721,7 +730,6 @@ def plasticity_transfer_function(
         A tuple containing:
         - transfer_function: Normalized sigmoid values (0-1 range)
         - buffer_concentration: Buffer concentration values
-        -
     """
     # Set up effective calcium dose values
     buffer_concentration = np.linspace(0, max_buffer_concentration, num_points)
