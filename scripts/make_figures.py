@@ -243,165 +243,21 @@ class Figure2Params:
 
 
 def figure2(fig_params: Figure2Params, show_fig: bool = True, save_fig: bool = False):
-    # Define parameters for 2 x 3 figure with 1.5 column width
+    # Define parameters for 2 x 4 figure with 2 column width
     fig_width = FigParams.double_width
-    fig_height = fig_width / 5
+    fig_height = fig_width / 2
     fontsize = FigParams.fontsize
 
     # Build figure and axes
     fig = plt.figure(figsize=(fig_width, fig_height), **FigParams.all_fig_params())
-    gs = fig.add_gridspec(1, 4)
-    ax_nevian = fig.add_subplot(gs[0])
-    ax_voltage = fig.add_subplot(gs[1])
-    ax_nmdar = fig.add_subplot(gs[2])
-    ax_vgcc = fig.add_subplot(gs[3])
-
-    ap_amplitudes = [
-        fig_params.amplitude_proximal,
-        fig_params.amplitude_distal_simple,
-        fig_params.amplitude_distal_complex,
-    ]
-
-    # Build axes for simulation
-    build_axes_simulations(
-        ax_voltage,
-        ax_nmdar,
-        ax_vgcc,
-        t_start=fig_params.t_start,
-        t_end=fig_params.t_end,
-        dt=fig_params.dt,
-        ap_peak_time=fig_params.ap_peak_time,
-        ap_amplitudes=ap_amplitudes,
-        v_base=fig_params.v_base,
-        colors=[Proximal.color, DistalSimple.color, DistalComplex.color],
-        labels=[Proximal.label, DistalSimple.label, DistalComplex.label],
-        linewidth=FigParams.linewidth,
-    )
-
-    # Format AP response plots
-    ax_voltage.set_xlabel("Time (ms)", fontsize=fontsize, labelpad=-6)
-    ax_voltage.set_ylabel("AP Voltage (mV)", fontsize=fontsize, labelpad=-10)
-    ax_nmdar.set_xlabel("Time (ms)", fontsize=fontsize, labelpad=-6)
-    ax_nmdar.set_ylabel("NMDAR P(open)", fontsize=fontsize, labelpad=-10)
-    ax_vgcc.set_xlabel("Time (ms)", fontsize=fontsize, labelpad=-6)
-    ax_vgcc.set_ylabel("VGCC P(open)", fontsize=fontsize, labelpad=-10)
-
-    nmdar_ylims = (0, 1)
-    vgcc_ylims = (0, 1)
-    ax_nmdar.set_ylim(nmdar_ylims)
-    ax_vgcc.set_ylim(vgcc_ylims)
-
-    format_spines(
-        ax_voltage,
-        x_pos=FigParams.spine_pos,
-        y_pos=FigParams.spine_pos,
-        xticks=[fig_params.t_start, fig_params.t_end],
-        yticks=[fig_params.v_base, fig_params.v_base + max(ap_amplitudes)],
-        xbounds=(fig_params.t_start, fig_params.t_end),
-        ybounds=(fig_params.v_base, fig_params.v_base + max(ap_amplitudes)),
-        spine_linewidth=FigParams.linewidth,
-        tick_length=FigParams.tick_length,
-        tick_width=FigParams.tick_width,
-        tick_fontsize=FigParams.tick_fontsize,
-    )
-
-    format_spines(
-        ax_nmdar,
-        x_pos=FigParams.spine_pos,
-        y_pos=FigParams.spine_pos,
-        xticks=[fig_params.t_start, fig_params.t_end],
-        yticks=[0, 1],
-        xbounds=(fig_params.t_start, fig_params.t_end),
-        ybounds=(0, 1),
-        spine_linewidth=FigParams.linewidth,
-        tick_length=FigParams.tick_length,
-        tick_width=FigParams.tick_width,
-        tick_fontsize=FigParams.tick_fontsize,
-    )
-
-    format_spines(
-        ax_vgcc,
-        x_pos=FigParams.spine_pos,
-        y_pos=FigParams.spine_pos,
-        xticks=[fig_params.t_start, fig_params.t_end],
-        yticks=[0, 1],
-        xbounds=(fig_params.t_start, fig_params.t_end),
-        ybounds=(0, 1),
-        spine_linewidth=FigParams.linewidth,
-        tick_length=FigParams.tick_length,
-        tick_width=FigParams.tick_width,
-        tick_fontsize=FigParams.tick_fontsize,
-    )
-
-    add_group_legend(
-        ax_vgcc,
-        x=fig_params.t_end * 1.0,
-        y_start=0.96,
-        y_offset=-(1 / 10),
-        ha="right",
-        va="center",
-        fontsize=fontsize,
-    )
-
-    # Build nevian axes
-    build_axes_nevian_reconstruction(
-        ax_nevian,
-        buffer=fig_params.nevian_buffer_type,
-        x_legend=fig_params.x_legend,
-        y_legend=fig_params.y_legend,
-        y_offset=fig_params.y_offset,
-        ha_legend=fig_params.ha_legend,
-        va_legend=fig_params.va_legend,
-    )
-
-    ax_nevian.set_xlabel("[buffer] (mM)", fontsize=FigParams.fontsize, labelpad=-5)
-    ax_nevian.set_ylabel("plasticity", fontsize=FigParams.fontsize, labelpad=-1)
-
-    format_spines(
-        ax_nevian,
-        x_pos=FigParams.spine_pos,
-        y_pos=FigParams.spine_pos,
-        xticks=[0.0, 2.0],
-        yticks=[0.0, 1.0],
-        xbounds=(0.0, 2.0),
-        ybounds=(0.0, 1.0),
-        spine_linewidth=FigParams.linewidth,
-        tick_length=FigParams.tick_length,
-        tick_width=FigParams.tick_width,
-        tick_fontsize=FigParams.tick_fontsize,
-    )
-
-    # Remove white backgrounds
-    ax_voltage.set_facecolor("none")
-    ax_nmdar.set_facecolor("none")
-    ax_vgcc.set_facecolor("none")
-    ax_nevian.set_facecolor("none")
-
-    if show_fig:
-        plt.show(block=True)
-
-    if save_fig:
-        fig_path = get_figure_dir("core_figures") / "figure2"
-        save_figure(fig, fig_path)
-
-    return fig
-
-
-def figure2_option2(fig_params: Figure2Params, show_fig: bool = True, save_fig: bool = False):
-    # Define parameters for 2 x 3 figure with 1.5 column width
-    fig_width = FigParams.onepointfive_width
-    fig_height = fig_width / 3 * 2
-    fontsize = FigParams.fontsize
-
-    # Build figure and axes
-    fig = plt.figure(figsize=(fig_width, fig_height), **FigParams.all_fig_params())
-    gs = fig.add_gridspec(2, 3)
+    gs = fig.add_gridspec(2, 4)
     ax_voltage = fig.add_subplot(gs[0, 0])
     ax_nmdar = fig.add_subplot(gs[0, 1])
     ax_vgcc = fig.add_subplot(gs[0, 2])
-    ax_nevian = fig.add_subplot(gs[1, 0])
-    ax_transfer = fig.add_subplot(gs[1, 1])
-    ax_ltpltd = fig.add_subplot(gs[1, 2])
+    ax_integrated = fig.add_subplot(gs[0, 3])
+    ax_nevian = fig.add_subplot(gs[1, 1])
+    ax_transfer = fig.add_subplot(gs[1, 2])
+    ax_ltpltd = fig.add_subplot(gs[1, 3])
 
     # Get data for transfer function plots
     conductance_data = joblib.load(data_dir() / "conductance_runs.joblib")
@@ -417,12 +273,15 @@ def figure2_option2(fig_params: Figure2Params, show_fig: bool = True, save_fig: 
         ax_voltage,
         ax_nmdar,
         ax_vgcc,
+        ax_integrated,
         t_start=fig_params.t_start,
         t_end=fig_params.t_end,
         dt=fig_params.dt,
         ap_peak_time=fig_params.ap_peak_time,
         ap_amplitudes=ap_amplitudes,
         v_base=fig_params.v_base,
+        ca_in=conductance_data["ca_in"],
+        ca_out=conductance_data["ca_out"],
         colors=[Proximal.color, DistalSimple.color, DistalComplex.color],
         labels=[Proximal.label, DistalSimple.label, DistalComplex.label],
         linewidth=FigParams.linewidth,
@@ -492,6 +351,22 @@ def figure2_option2(fig_params: Figure2Params, show_fig: bool = True, save_fig: 
         va="center",
         fontsize=fontsize,
     )
+
+    format_spines(
+        ax_integrated,
+        x_pos=FigParams.spine_pos,
+        y_pos=FigParams.spine_pos,
+        xticks=[0, 1, 2],
+        yticks=[0.0, 1.0],
+        xbounds=(0.0, 2.0),
+        ybounds=(0.0, 1.0),
+        spine_linewidth=FigParams.linewidth,
+        tick_length=FigParams.tick_length,
+        tick_width=FigParams.tick_width,
+        tick_fontsize=FigParams.tick_fontsize,
+    )
+    ax_integrated.set_xticks([0, 1, 2])
+    ax_integrated.set_ylabel("[Ca] Influx")
 
     # Build nevian axes
     build_axes_nevian_reconstruction(
@@ -574,6 +449,7 @@ def figure2_option2(fig_params: Figure2Params, show_fig: bool = True, save_fig: 
     ax_voltage.set_facecolor("none")
     ax_nmdar.set_facecolor("none")
     ax_vgcc.set_facecolor("none")
+    ax_integrated.set_facecolor("none")
     ax_nevian.set_facecolor("none")
     ax_transfer.set_facecolor("none")
     ax_ltpltd.set_facecolor("none")
@@ -582,7 +458,7 @@ def figure2_option2(fig_params: Figure2Params, show_fig: bool = True, save_fig: 
         plt.show(block=True)
 
     if save_fig:
-        fig_path = get_figure_dir("core_figures") / "figure2_option2"
+        fig_path = get_figure_dir("core_figures") / "figure2"
         save_figure(fig, fig_path)
 
     return fig
@@ -1129,6 +1005,7 @@ def figure4(fig_params: Figure4Params, show_fig: bool = True, save_fig: bool = F
 
 @dataclass
 class Figure5Params:
+    full_config: str = "hofer"
     full_simulations: str = "20250320"
     mapping_simple_tuft_inset_xoffset: float = 0.14
     mapping_complex_tuft_inset_xoffset: float = -0.14
@@ -1174,14 +1051,23 @@ def figure5(fig_params: Figure5Params, show_fig: bool = True, save_fig: bool = F
     fig_width = FigParams.double_width * 3 / 4
     fig_height = fig_width / 3 * 1.5
 
+    if fig_params.full_config == "hofer_replacement":
+        norm_by_max_weight = True
+        norm_by_num_synapses = False
+        norm_by_total_synapses = True
+    else:
+        norm_by_max_weight = True
+        norm_by_num_synapses = True
+        norm_by_total_synapses = False
+
     fig = plt.figure(figsize=(fig_width, fig_height), **FigParams.all_fig_params())
     gs = fig.add_gridspec(1, 3, width_ratios=[1, 1, 1])
     gs_stim = gs[0].subgridspec(2, 1, height_ratios=[1, 2.75])
     ax_trajectory = fig.add_subplot(gs_stim[0])
     ax_receptive_field = fig.add_subplot(gs_stim[1])
-    gs_inputs = gs[1].subgridspec(2, 1, height_ratios=[1, 2.75])
-    ax_tuning = fig.add_subplot(gs_inputs[0])
-    ax_inputs = fig.add_subplot(gs_inputs[1])
+    gs_inputs = gs[1].subgridspec(2, 1, height_ratios=[2.75, 1])
+    ax_tuning = fig.add_subplot(gs_inputs[1])
+    ax_inputs = fig.add_subplot(gs_inputs[0])
     gs_confusion = gs[2].subgridspec(2, 1)
     ax_distal_simple = fig.add_subplot(gs_confusion[0])
     ax_distal_complex = fig.add_subplot(gs_confusion[1])
@@ -1233,14 +1119,18 @@ def figure5(fig_params: Figure5Params, show_fig: bool = True, save_fig: bool = F
     )
 
     # Analyze main run
-    experiment_folder = results_dir("iaf_runs") / "hofer" / fig_params.full_simulations
+    experiment_folder = results_dir("iaf_runs") / fig_params.full_config / fig_params.full_simulations
     metadata = gather_metadata(experiment_folder, experiment_type="hofer")
+    num_connections = gather_num_connections(metadata, experiment_type="hofer")
     weights = gather_weights(
         metadata,
         experiment_type="hofer",
         average_method="fraction",
         average_window=0.2,
-        normalize=True,
+        norm_by_max_weight=norm_by_max_weight,
+        norm_by_num_synapses=norm_by_num_synapses,
+        norm_by_total_synapses=norm_by_total_synapses,
+        num_connections=num_connections,
     )
     orientation_preference = {sg: np.argmax(weights[sg], axis=-1) % 4 for sg in get_groupnames()}
     build_orientation_confusion_axes(
@@ -1273,6 +1163,15 @@ def figure5_supplemental(fig_params: Figure5Params, show_fig: bool = True, save_
     fig_width = FigParams.single_width
     fig_height = fig_width / 3 * 2
 
+    if fig_params.full_config == "hofer_replacement":
+        norm_by_max_weight = True
+        norm_by_num_synapses = False
+        norm_by_total_synapses = True
+    else:
+        norm_by_max_weight = True
+        norm_by_num_synapses = True
+        norm_by_total_synapses = False
+
     fig = plt.figure(figsize=(fig_width, fig_height), **FigParams.all_fig_params())
     gs = fig.add_gridspec(2, 3)
     ax_proximal_weights_ex0 = fig.add_subplot(gs[0, 0])
@@ -1283,14 +1182,18 @@ def figure5_supplemental(fig_params: Figure5Params, show_fig: bool = True, save_
     ax_complex_weights_ex1 = fig.add_subplot(gs[1, 2])
 
     # Analyze main run
-    experiment_folder = results_dir("iaf_runs") / "hofer" / fig_params.full_simulations
+    experiment_folder = results_dir("iaf_runs") / fig_params.full_config / fig_params.full_simulations
     metadata = gather_metadata(experiment_folder, experiment_type="hofer")
+    num_connections = gather_num_connections(metadata, experiment_type="hofer")
     weights = gather_weights(
         metadata,
         experiment_type="hofer",
         average_method="fraction",
         average_window=0.2,
-        normalize=True,
+        norm_by_max_weight=norm_by_max_weight,
+        norm_by_num_synapses=norm_by_num_synapses,
+        norm_by_total_synapses=norm_by_total_synapses,
+        num_connections=num_connections,
     )
 
     build_weights_ax(
@@ -1462,15 +1365,14 @@ if __name__ == "__main__":
     # Build Figure 2
     # fig2params = Figure2Params()
     # figure2(fig2params, show_fig=show_fig, save_fig=save_fig)
-    # figure2_option2(fig2params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 3
-    # fig3params = Figure3Params()
-    # figure3(fig3params, show_fig=show_fig, save_fig=save_fig)
+    fig3params = Figure3Params()
+    figure3(fig3params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 4
-    fig4params = Figure4Params()
-    figure4(fig4params, show_fig=show_fig, save_fig=save_fig)
+    # fig4params = Figure4Params()
+    # figure4(fig4params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 5
     # fig5params = Figure5Params()
