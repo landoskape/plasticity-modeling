@@ -42,7 +42,7 @@ synapses:
       num_presynaptic_neurons: 36
       num_synapses: 200
       source_rule: divided-restricted
-      valid_sources: [16, 17, 18, 19]
+      valid_sources: [16, 17, 18, 19] # these are the 4 input neurons in the central pixel
     
     initialization:
       min_weight: 0.0
