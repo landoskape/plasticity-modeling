@@ -1,3 +1,4 @@
+from __future__ import annotations
 import joblib
 from src.conductance import run_simulations
 from src.files import data_dir

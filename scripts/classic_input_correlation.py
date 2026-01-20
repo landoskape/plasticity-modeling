@@ -1,3 +1,4 @@
+from __future__ import annotations
 from tqdm import tqdm
 import torch
 from matplotlib import pyplot as plt

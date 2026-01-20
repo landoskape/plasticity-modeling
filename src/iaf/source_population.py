@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Literal, List, Tuple, Optional, Union
 from pathlib import Path
 import yaml

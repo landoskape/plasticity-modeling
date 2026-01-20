@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Tuple
 from src.iaf.config import SimulationConfig
 from src.iaf.simulation import Simulation

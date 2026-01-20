@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Integrate-and-Fire Neural Network Simulation Package.
 
 This package provides tools for simulating integrate-and-fire neural networks with

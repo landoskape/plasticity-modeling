@@ -1,3 +1,4 @@
+from __future__ import annotations
 from enum import Enum
 from time import perf_counter, time
 from IPython.display import display, Markdown

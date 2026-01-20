@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Any, Dict, Type, TypeVar, Union, List, Tuple
 from pydantic import BaseModel
 import numpy as np

@@ -1,3 +1,4 @@
+from __future__ import annotations
 from src.experimental import ElifeData, plot_amplification_demonstration, plot_formatted_elife_data
 
 

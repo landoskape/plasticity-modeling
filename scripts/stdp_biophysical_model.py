@@ -1,3 +1,4 @@
+from __future__ import annotations
 import numpy as np
 from src.conductance import plot_channel_properties, plot_simulations
 

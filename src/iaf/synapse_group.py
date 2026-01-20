@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Dict, Any, Literal, Union, Optional, List, Type, Tuple, ClassVar
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod

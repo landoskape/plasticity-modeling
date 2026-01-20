@@ -1,3 +1,4 @@
+from __future__ import annotations
 from src.simulation import run_simulation
 
 if __name__ == "__main__":

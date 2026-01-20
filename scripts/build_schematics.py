@@ -1,3 +1,4 @@
+from __future__ import annotations
 import matplotlib.pyplot as plt
 from src.schematics import Neuron
 from src.files import get_figure_dir

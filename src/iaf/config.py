@@ -1,3 +1,4 @@
+from __future__ import annotations
 from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional, Dict, List, Literal, Union, TypeVar, Type
 from pathlib import Path
