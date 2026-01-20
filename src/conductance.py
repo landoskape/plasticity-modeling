@@ -894,6 +894,9 @@ def plot_simulations(
     dt: float = 0.01,
     ap_peak_time: float = 1.0,
     ap_amplitudes: np.ndarray = np.linspace(10, 100, 10),
+    v_base: float = -70,
+    ca_in: float = 75e-9,
+    ca_out: float = 1.5e-6,
     colors: list[ColorType] | ColorType = "black",
     labels: list[str] | None = None,
     show_fig: bool = True,
@@ -913,6 +916,12 @@ def plot_simulations(
         Time of AP peak in ms, by default 1.0
     ap_amplitudes : np.ndarray, optional
         AP amplitudes to test, by default np.linspace(10, 100, 10)
+    v_base : float, optional
+        Base voltage in mV, by default -70
+    ca_in : float, optional
+        Intracellular calcium concentration in M, by default 75e-9
+    ca_out : float, optional
+        Extracellular calcium concentration in M, by default 1.5e-6
     colors : list[ColorType] | ColorType, optional
         Colors to use for the traces, by default "black". If a list,
         must be the same length as ap_amplitudes.
@@ -929,16 +938,20 @@ def plot_simulations(
     plt.Figure
         The figure containing the simulations plot
     """
-    fig, (ax_voltage, ax_nmdar, ax_vgcc) = plt.subplots(1, 3, figsize=(8, 3.5), sharex=True)
+    fig, (ax_voltage, ax_nmdar, ax_vgcc, ax_integrated) = plt.subplots(1, 4, figsize=(9, 3.5), sharex=True)
     build_axes_simulations(
         ax_voltage,
         ax_nmdar,
         ax_vgcc,
+        ax_integrated,
         t_start,
         t_end,
         dt,
         ap_peak_time,
         ap_amplitudes,
+        v_base,
+        ca_in,
+        ca_out,
         colors,
         labels,
     )
@@ -1001,12 +1014,15 @@ def build_axes_simulations(
     ax_voltage: plt.Axes,
     ax_nmdar: plt.Axes,
     ax_vgcc: plt.Axes,
+    ax_integrated: plt.Axes,
     t_start: float = 0,
     t_end: float = 3,
     dt: float = 0.01,
     ap_peak_time: float = 1.0,
     ap_amplitudes: np.ndarray = np.linspace(10, 100, 10),
     v_base: float = -70,
+    ca_in: float = 75e-9,
+    ca_out: float = 1.5e-6,
     colors: list[ColorType] | ColorType = "black",
     labels: list[str] | None = None,
     linewidth: float = 1.0,
@@ -1021,6 +1037,8 @@ def build_axes_simulations(
         Axes for the NMDAR plot
     ax_vgcc : plt.Axes
         Axes for the VGCC plot
+    ax_integrated : plt.Axes
+        Axes for the integrated calcium plot
     t_start : float, optional
         Start time in ms, by default 0
     t_end : float, optional
@@ -1064,6 +1082,9 @@ def build_axes_simulations(
 
     t_range = np.linspace(t_start, t_end, int((t_end - t_start) / dt))
 
+    nmdar_ica_sums = []
+    vgcc_ica_sums = []
+
     # Generate voltage traces and responses for different AP amplitudes
     for amp, color, label in zip(ap_amplitudes, colors, labels):
         # Create AP waveform
@@ -1101,7 +1122,39 @@ def build_axes_simulations(
         ax_nmdar.plot(t_range, nmdar_p, color=color, label=label, linewidth=linewidth)
         ax_vgcc.plot(t_range, vgcc_p, color=color, label=label, linewidth=linewidth)
 
-    return ax_voltage, ax_nmdar, ax_vgcc
+        vgcc_ica = -compute_current(v_trace, vgcc_p, ca_in, ca_out)
+        nmdar_ica = -compute_current(v_trace, nmdar_p, ca_in, ca_out)
+
+        nmdar_ica_sums.append(np.sum(nmdar_ica - nmdar_ica[0]))
+        vgcc_ica_sums.append(np.sum(vgcc_ica - vgcc_ica[0]))
+
+    nmdar_ica_sums = np.array(nmdar_ica_sums)
+    vgcc_ica_sums = np.array(vgcc_ica_sums)
+    nmdar_ica_sums = nmdar_ica_sums / np.max(nmdar_ica_sums)
+    vgcc_ica_sums = vgcc_ica_sums / np.max(vgcc_ica_sums)
+
+    ax_integrated.plot(
+        range(len(nmdar_ica_sums)),
+        nmdar_ica_sums,
+        color=NMDAR.color(),
+        linewidth=linewidth,
+        marker="o",
+        markersize=FigParams.markersize,
+        zorder=0,
+    )
+    ax_integrated.plot(
+        range(len(vgcc_ica_sums)),
+        vgcc_ica_sums,
+        color=VGCC.color(),
+        linewidth=linewidth,
+        marker="o",
+        markersize=FigParams.markersize,
+        zorder=0,
+    )
+    ax_integrated.set_xlim(-0.2, 2.2)
+    ax_integrated.set_ylim(-0.1, 1.1)
+
+    return ax_voltage, ax_nmdar, ax_vgcc, ax_integrated
 
 
 def build_axes_nevian_reconstruction(

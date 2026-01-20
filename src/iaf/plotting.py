@@ -631,9 +631,9 @@ def build_plasticity_rule_axes(
         fontsize=fontsize,
     )
     ax_stdp.text(
-        -xvals[-1] * 0.05,
+        -xvals[-1] * 0.025,
         -ylim * 0.5,
-        r"$+\Delta W$" + "\n" + r"$\propto max$",
+        "add",
         ha="right",
         va="center",
         rotation=90,
@@ -668,7 +668,7 @@ def build_plasticity_rule_axes(
     ax_homeostasis.text(
         -xvals[-1] * 0.025,
         -ylim * 0.5,
-        r"x$\Delta W$" + "\n" + r"$\propto W$",
+        "multiply",
         ha="right",
         va="center",
         rotation=90,
@@ -1477,26 +1477,26 @@ def build_tuning_type_axes(
     coaxial_gabor_2 = np.hstack([np.full((gabor_grid.shape[0], needed_horizontal), np.nan), coaxial_gabor_2])
     rgba_2 = gabor_rgba(coaxial_gabor_2)
 
-    proximal_gabor = np.vstack(
+    central_gabor = np.vstack(
         [
             np.full((width + spacing, coaxial_gabor.shape[1]), np.nan),
             coaxial_gabor,
             np.full((width + spacing, coaxial_gabor.shape[1]), np.nan),
         ]
     )
-    proximal_gabor = np.hstack(
+    central_gabor = np.hstack(
         [
-            np.full((proximal_gabor.shape[0], width + spacing), np.nan),
-            proximal_gabor,
-            np.full((proximal_gabor.shape[0], width + spacing), np.nan),
+            np.full((central_gabor.shape[0], width + spacing), np.nan),
+            central_gabor,
+            np.full((central_gabor.shape[0], width + spacing), np.nan),
         ]
     )
-    rgba_proximal = gabor_rgba(proximal_gabor)
+    rgba_central = gabor_rgba(central_gabor)
 
     # ax.imshow(rgba_grid, interpolation="bilinear")
     ax.imshow(rgba_1, interpolation="bilinear")
     ax.imshow(rgba_2, interpolation="bilinear")
-    ax.imshow(rgba_proximal, interpolation="bilinear")
+    ax.imshow(rgba_central, interpolation="bilinear")
     central_text_x = width + spacing + width / 2
     central_text_y = width + spacing + width / 20
     edge1_text_x = edge1x * (width + spacing) + width / 2
@@ -1508,7 +1508,7 @@ def build_tuning_type_axes(
     ax.text(
         central_text_x,
         central_text_y,
-        "Proximal",
+        "Central\nPreferred",
         ha="center",
         va="top",
         color=weight_group_colors[0],

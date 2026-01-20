@@ -636,6 +636,12 @@ def build_ax_amplification_demonstration_with_spines(
         color=curve_colors["syn2"],
         linewidth=FigParams.thinlinewidth,
     )
+    ax.fill_between(
+        data.tvec[start_offset:] - 100,
+        c_syn[start_offset:],
+        c_gap[start_offset:],
+        color=(curve_colors["amp"], 0.3),
+    )
 
     def stem(x, y, ystart=0, color="black", linewidth=FigParams.thinlinewidth):
         ax.plot([x, x], [ystart, y], color=color, linewidth=linewidth)
@@ -857,6 +863,43 @@ def build_axes_formatted_elife_data(
         label_type="experimental",
     )
 
+    # Add equation describing dCa_amp
+    x_end_left = 300
+    x_offset_right = 10
+    x_bar_width = 100
+    y_center = 2.0
+    y_offset = 0.05
+    ax_amp_trace.text(
+        x_end_left,
+        y_center,
+        "rel. $\Delta Ca_{amp} = $",
+        ha="right",
+        va="center",
+        fontsize=FigParams.fontsize,
+    )
+    ax_amp_trace.text(
+        x_end_left + x_offset_right,
+        y_center + y_offset,
+        "$\Delta Ca_{amp}$",
+        ha="left",
+        va="bottom",
+        fontsize=FigParams.fontsize,
+    )
+    ax_amp_trace.text(
+        x_end_left + x_offset_right,
+        y_center - y_offset,
+        "$\Delta Ca_{Glu}$",
+        ha="left",
+        va="top",
+        fontsize=FigParams.fontsize,
+    )
+    ax_amp_trace.plot(
+        [x_end_left, x_end_left + x_bar_width],
+        [y_center, y_center],
+        color="k",
+        linewidth=FigParams.thinlinewidth,
+    )
+
     # Plot summary data scatter plot
     nbins = 10
     s = FigParams.scattersize
@@ -931,6 +974,8 @@ def build_axes_formatted_elife_data(
 
     ax_ap_trace.set_ylabel("$\Delta Ca_{AP}$", fontsize=FigParams.fontsize, labelpad=-10)
     ax_amp_trace.set_ylabel("relative $\Delta Ca_{amp}$", fontsize=FigParams.fontsize, labelpad=-5)
+    ax_ap_peaks.set_ylabel("$\Delta Ca_{AP}$", fontsize=FigParams.fontsize, labelpad=-10)
+    ax_amp_peaks.set_ylabel("relative $\Delta Ca_{amp}$", fontsize=FigParams.fontsize, labelpad=-5)
     ax_ap_trace.set_yticks([0.0, 0.3])
     ax_amp_trace.set_yticks([0.0, 3.0])
     ax_ap_peaks.set_yticks([0.0, 0.3])
