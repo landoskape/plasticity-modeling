@@ -206,6 +206,8 @@ class SourceParams:
         - "divided": Evenly divide synapses among sources (requires num_synapses
           to be divisible by num_presynaptic_neurons)
         - "random-restricted": Randomly assign sources from a subset of valid sources
+        - "divided-restricted": Evenly divide synapses among valid sources (requires num_synapses
+          to be divisible by len(valid_sources))
     valid_sources : np.ndarray or None
         Array of valid source indices to sample from when source_rule is
         "random-restricted". Must be provided in that case.
@@ -215,7 +217,7 @@ class SourceParams:
 
     num_synapses: int
     num_presynaptic_neurons: int
-    source_rule: Literal["random", "divided", "random-restricted"]
+    source_rule: Literal["random", "divided", "random-restricted", "divided-restricted"]
     valid_sources: np.ndarray | None = field(repr=False)
     presynaptic_source: np.ndarray = field(init=False, repr=False)
 
