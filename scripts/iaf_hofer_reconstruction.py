@@ -82,7 +82,10 @@ def get_args():
         "--edge_index",
         type=int,
         default=None,
-        help="Index into edge_probabilities for this job (for array jobs).",
+        help=(
+            "Index into edge_probabilities for this job (deprecated). "
+            "Edge probabilities are now looped within each task when dp_ratio_index and repeat are specified."
+        ),
     )
     parser.add_argument(
         "--repeat",
@@ -101,7 +104,7 @@ def get_args():
 
 def get_experiment_folder(args):
     timestamp = datetime.now().strftime("%Y%m%d")
-    
+
     if args.exp_folder is not None:
         # Use {name}_{timestamp} format without increment
         folder_name = f"{args.exp_folder}_{timestamp}"
@@ -115,7 +118,7 @@ def get_experiment_folder(args):
             while exp_folder.exists():
                 exp_folder = results_dir("iaf_runs") / args.config / f"{timestamp}_{i}"
                 i += 1
-    
+
     if not exp_folder.exists():
         exp_folder.mkdir(parents=True, exist_ok=True)
     return exp_folder
@@ -145,45 +148,44 @@ def run_experiment(args):
         # Save the state of the repo (only on first job)
         save_repo_snapshot(experiment_folder / "repo.zip", verbose=False)
 
-    # If dp_ratio_index, edge_index, and repeat are specified, run only that combination
-    if dp_ratio_index is not None and edge_index is not None and repeat is not None:
+    # If dp_ratio_index and repeat are specified, run that combination for all edge probabilities
+    if dp_ratio_index is not None and repeat is not None:
         # Validate indices
         if dp_ratio_index < 0 or dp_ratio_index >= len(distal_dp_ratios):
             raise ValueError(f"dp_ratio_index {dp_ratio_index} out of range [0, {len(distal_dp_ratios)})")
-        if edge_index < 0 or edge_index >= len(edge_probabilities):
-            raise ValueError(f"edge_index {edge_index} out of range [0, {len(edge_probabilities)})")
         if repeat < 0 or repeat >= repeats:
             raise ValueError(f"repeat {repeat} out of range [0, {repeats})")
-        
+
         distal_dp_ratio = distal_dp_ratios[dp_ratio_index]
-        edge_probability = edge_probabilities[edge_index]
-        
-        if not no_distal:
-            sim, cfg = get_experiment(
-                config,
-                distal_dp_ratio=distal_dp_ratio,
-                num_simulations=num_neurons,
-                no_distal=no_distal,
-                edge_probability=edge_probability,
-                independent_noise_rate=independent_noise_rate,
-            )
-        else:
-            sim, cfg = get_experiment(
-                config,
-                base_dp_ratio=distal_dp_ratio,
-                num_simulations=num_neurons,
-                no_distal=no_distal,
-                edge_probability=edge_probability,
-                independent_noise_rate=independent_noise_rate,
-            )
 
-        results = sim.run(duration=duration, save_source_rates=save_source_rates)
-        results["sim"] = sim
-        results["cfg"] = cfg
+        # Loop through all edge probabilities for this ratio and repeat
+        for iedge, edge_probability in enumerate(edge_probabilities):
+            if not no_distal:
+                sim, cfg = get_experiment(
+                    config,
+                    distal_dp_ratio=distal_dp_ratio,
+                    num_simulations=num_neurons,
+                    no_distal=no_distal,
+                    edge_probability=edge_probability,
+                    independent_noise_rate=independent_noise_rate,
+                )
+            else:
+                sim, cfg = get_experiment(
+                    config,
+                    base_dp_ratio=distal_dp_ratio,
+                    num_simulations=num_neurons,
+                    no_distal=no_distal,
+                    edge_probability=edge_probability,
+                    independent_noise_rate=independent_noise_rate,
+                )
 
-        # Save the results
-        results_path = experiment_folder / f"ratio_{dp_ratio_index}_edge_{edge_index}_repeat_{repeat}.joblib"
-        joblib.dump(results, results_path)
+            results = sim.run(duration=duration, save_source_rates=save_source_rates)
+            results["sim"] = sim
+            results["cfg"] = cfg
+
+            # Save the results
+            results_path = experiment_folder / f"ratio_{dp_ratio_index}_edge_{iedge}_repeat_{repeat}.joblib"
+            joblib.dump(results, results_path)
     else:
         # Run all the requested experiments (backward compatibility)
         for iratio, distal_dp_ratio in enumerate(tqdm(distal_dp_ratios, desc="Distal DP Ratios")):
