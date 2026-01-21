@@ -264,6 +264,92 @@ def overlay_empty_pixels_with_x(
                 ax.plot(x_limits, [y_limits[1], y_limits[0]], **x_kwargs)
 
 
+def overlay_edge_orientation_ticks(
+    ax: plt.Axes,
+    orientations: np.ndarray,
+    gabor_size: int,
+    spacing: int = 2,
+    tick_fraction: float = 0.55,
+    color: str = "k",
+    lw: float = 0.8,
+    alpha: float = 0.8,
+):
+    """
+    Draw orientation ticks for edge stimuli at center and edge positions (all three ticks).
+
+    Follows the same pattern as create_gabor_grid for identifying edges, and uses the
+    orientation rule from create_gabor docstring: the input orientation represents the
+    edge direction (3π/4 = vertical).
+
+    Parameters
+    ----------
+    ax : plt.Axes
+        The axes to draw on (should be in pixel coordinates).
+    orientations : np.ndarray
+        A 3x3 array of orientation angles in radians (edge orientations, as per create_gabor).
+    gabor_size : int
+        Size of each Gabor tile in pixels.
+    spacing : int, optional
+        Spacing between tiles, default is 2.
+    tick_fraction : float, optional
+        Fraction of tile width for tick length, default is 0.55.
+    color : str, optional
+        Color of the ticks, default is "k".
+    lw : float, optional
+        Line width, default is 0.8.
+    alpha : float, optional
+        Alpha transparency, default is 0.8.
+    """
+    if np.any(np.isnan(orientations)):
+        return
+
+    # Follow create_gabor_grid pattern: convert orientations to stimulus indices
+    # NOTE: this requires SourcePopulationGabor.orientations to be sorted
+    stimuli = np.searchsorted(SourcePopulationGabor.orientations, orientations)
+    center_stimulus = stimuli[1, 1]
+
+    # Get edge positions using the same method as create_gabor_grid
+    edge0, edge1 = SourcePopulationGabor.stimulus_to_edge_positions(center_stimulus)
+
+    # Check if this is actually an edge (same pattern as create_gabor_grid)
+    is_edge = stimuli[edge0] == center_stimulus and stimuli[edge1] == center_stimulus
+    if not is_edge:
+        return
+
+    # Half-length of tick
+    L = 0.5 * tick_fraction * gabor_size
+
+    # Correct tick orientations
+    tick_orientations = orientations - np.pi / 4
+
+    # Positions to draw ticks: center + two edges
+    tick_positions = [((1, 1), tick_orientations[1, 1])]  # center
+    for edge_pos in [edge0, edge1]:
+        tick_positions.append((edge_pos, tick_orientations[edge_pos[0], edge_pos[1]]))
+
+    # Draw ticks
+    # The orientation represents the edge direction (per create_gabor docstring: 3π/4 = vertical)
+    # For matplotlib imshow with origin='upper', y increases downward, so we negate dy
+    for edge_pos, tick_orientation in tick_positions:
+        # Tile center in stitched coords
+        cx = edge_pos[1] * (gabor_size + spacing) + gabor_size / 2
+        cy = edge_pos[0] * (gabor_size + spacing) + gabor_size / 2
+
+        # Direction vector: orientation directly represents edge direction
+        dx = L * np.cos(tick_orientation)
+        dy = -L * np.sin(tick_orientation)  # Negate for image coordinate system (y increases downward)
+
+        ax.plot(
+            [cx - dx, cx + dx],
+            [cy - dy, cy + dy],
+            color=color,
+            lw=lw,
+            alpha=alpha,
+            solid_capstyle="round",
+            zorder=10,
+        )
+
+
 def build_ax_latent_correlation_demonstration(
     ax: plt.Axes,
     T: int = 250,
@@ -777,8 +863,7 @@ def build_environment_compartment_mapping_ax(
         spacing=gabor_spacing,
         gabor_params=params,
         center_only=True,
-        highlight_edge=True,
-        highlight_magnitude=gabor_highlight_magnitude,
+        highlight_edge=False,
     )
     max_grid = np.nanmax(np.abs(proximal_grid))
     extent = [0, proximal_grid.shape[1], 0, proximal_grid.shape[0]]
@@ -834,8 +919,7 @@ def build_environment_compartment_mapping_ax(
         spacing=gabor_spacing,
         gabor_params=params,
         center_only=False,
-        highlight_edge=True,
-        highlight_magnitude=gabor_highlight_magnitude,
+        highlight_edge=False,
     )[0]
     max_grid = np.nanmax(np.abs(simple_tuft_grid))
     extent = [0, simple_tuft_grid.shape[1], 0, simple_tuft_grid.shape[0]]
@@ -882,8 +966,7 @@ def build_environment_compartment_mapping_ax(
         spacing=gabor_spacing,
         gabor_params=params,
         center_only=False,
-        highlight_edge=True,
-        highlight_magnitude=gabor_highlight_magnitude,
+        highlight_edge=False,
     )[0]
     max_grid = np.nanmax(np.abs(complex_tuft_grid))
     extent = [0, complex_tuft_grid.shape[1], 0, complex_tuft_grid.shape[0]]
@@ -1208,6 +1291,11 @@ def build_stimulus_trajectory_ax(
     arrow_width: float = 0.75,
     vmax_scale: float = 1.5,
     arrow_mutation: float = 10,
+    use_edge_ticks: bool = True,
+    edge_tick_fraction: float = 0.55,
+    edge_tick_color: str = "k",
+    edge_tick_lw: float = 0.8,
+    edge_tick_alpha: float = 0.8,
 ):
     # Determine stimulus indices
     num_stims = 2 * stims_per_row
@@ -1224,7 +1312,7 @@ def build_stimulus_trajectory_ax(
         create_gabor_grid(
             stim_grids[i],
             spacing=2,
-            highlight_edge=i in edge_stims,
+            highlight_edge=i in edge_stims if not use_edge_ticks else False,
             highlight_magnitude=highlight_magnitude,
         )[0]
         for i in range(num_stims)
@@ -1256,8 +1344,12 @@ def build_stimulus_trajectory_ax(
     )
     arrow_row_two = ax.inset_axes([0, 0, arrow_width, 1], transform=ax.transData)
 
-    # Display images
-    for inset_ax, grid in zip(axs_inset, gabor_grids):
+    # Display images and overlay edge ticks
+    # Calculate gabor_size from grid dimensions: grid_size = 3 * gabor_size + 2 * spacing
+    spacing_used = 2
+    gabor_size = (gabor_grids[0].shape[0] - 2 * spacing_used) // 3
+
+    for i, (inset_ax, grid) in enumerate(zip(axs_inset, gabor_grids)):
         inset_ax.imshow(grid, aspect="equal", cmap="bwr", vmin=-vmax, vmax=vmax, interpolation="bilinear")
         inset_ax.set_xticks([])
         inset_ax.set_yticks([])
@@ -1265,6 +1357,19 @@ def build_stimulus_trajectory_ax(
             spine.set_visible(True)
             spine.set_color("k")
             spine.set_linewidth(FigParams.thinlinewidth)
+
+        # Overlay edge orientation ticks for edge stimuli
+        if use_edge_ticks and i in edge_stims:
+            overlay_edge_orientation_ticks(
+                inset_ax,
+                stim_grids[i],
+                gabor_size=gabor_size,
+                spacing=spacing_used,
+                tick_fraction=edge_tick_fraction,
+                color=edge_tick_color,
+                lw=edge_tick_lw,
+                alpha=edge_tick_alpha,
+            )
 
     for ax_arrow in [arrow_row_one, arrow_row_two]:
         arrow = FancyArrowPatch(

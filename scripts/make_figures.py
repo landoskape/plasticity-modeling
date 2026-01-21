@@ -1023,7 +1023,7 @@ class Figure5Params:
     gabor_gamma: float = 1.5
     gabor_halfsize: float = 25
     gabor_phase: float = 0
-    gabor_highlight_magnitude: float = 4
+    gabor_highlight_magnitude: float = 1  # 4 if not using edge_ticks!!!
     gabor_vmax_scale: float = 1.5
     stimulus_stims_per_row: int = 5
     stimulus_num_edges: int = 7
@@ -1031,6 +1031,11 @@ class Figure5Params:
     stimulus_vspacing: float = 0.05
     stimulus_arrow_width: float = 0.75
     stimulus_arrow_mutation: float = 6
+    stimulus_use_edge_ticks: bool = True
+    stimulus_edge_tick_fraction: float = 0.55
+    stimulus_edge_tick_color: str = "k"
+    stimulus_edge_tick_lw: float = 0.8
+    stimulus_edge_tick_alpha: float = 0.8
     x_offset_input_label: float = -0.05
     x_offset_rate_label: float = -0.9
     x_offset_field_label: float = -0.55
@@ -1117,6 +1122,11 @@ def figure5(fig_params: Figure5Params, show_fig: bool = True, save_fig: bool = F
         vspacing=fig_params.stimulus_vspacing,
         arrow_width=fig_params.stimulus_arrow_width,
         arrow_mutation=fig_params.stimulus_arrow_mutation,
+        use_edge_ticks=fig_params.stimulus_use_edge_ticks,
+        edge_tick_fraction=fig_params.stimulus_edge_tick_fraction,
+        edge_tick_color=fig_params.stimulus_edge_tick_color,
+        edge_tick_lw=fig_params.stimulus_edge_tick_lw,
+        edge_tick_alpha=fig_params.stimulus_edge_tick_alpha,
     )
 
     # Analyze main run
@@ -1368,16 +1378,16 @@ if __name__ == "__main__":
     # figure2(fig2params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 3
-    fig3params = Figure3Params()
-    figure3(fig3params, show_fig=show_fig, save_fig=save_fig)
+    # fig3params = Figure3Params()
+    # figure3(fig3params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 4
     # fig4params = Figure4Params()
     # figure4(fig4params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 5
-    # fig5params = Figure5Params()
-    # figure5(fig5params, show_fig=show_fig, save_fig=save_fig)
+    fig5params = Figure5Params()
+    figure5(fig5params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 5 Supplemental
     # figure5_supplemental(fig5params, show_fig=show_fig, save_fig=save_fig)

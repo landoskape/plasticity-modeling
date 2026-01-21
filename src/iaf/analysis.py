@@ -48,6 +48,7 @@ def gather_weights(
     experiment_type: Literal["correlation", "hofer"],
     average_method: Literal["fraction", "samples"] = "fraction",
     average_window: int | float = 0.2,
+    average_window_end: int | float | None = None,
     norm_by_max_weight: bool = True,
     norm_by_num_synapses: bool = False,
     norm_by_total_synapses: bool = False,
@@ -58,6 +59,7 @@ def gather_weights(
             metadata,
             average_method,
             average_window,
+            average_window_end,
             norm_by_max_weight,
             norm_by_num_synapses,
             norm_by_total_synapses,
@@ -68,6 +70,7 @@ def gather_weights(
             metadata,
             average_method,
             average_window,
+            average_window_end,
             norm_by_max_weight,
             norm_by_num_synapses,
             norm_by_total_synapses,
@@ -494,6 +497,7 @@ def _gather_weights_correlation(
     metadata: dict,
     average_method: Literal["fraction", "samples"],
     average_window: int | float,
+    average_window_end: int | float | None = None,
     norm_by_max_weight: bool = True,
     norm_by_num_synapses: bool = False,
     norm_by_total_synapses: bool = False,
@@ -520,6 +524,31 @@ def _gather_weights_correlation(
             raise ValueError("Average window must be less than half the duration for full averaging")
         num_timesteps = duration
 
+    # Calculate window indices
+    if average_window_end is None:
+        # Use last num_timesteps (current behavior)
+        start_idx = None
+        end_idx = None
+    else:
+        # Convert average_window_end to timestep index
+        if isinstance(average_window_end, float):
+            # Treat as fraction of duration
+            end_idx = int(duration * average_window_end)
+        else:
+            # Treat as absolute timestep index
+            end_idx = int(average_window_end)
+
+        # Calculate start index
+        start_idx = end_idx - num_timesteps
+
+        # Validate indices
+        if start_idx < 0:
+            raise ValueError(
+                f"Window start index {start_idx} is negative. Adjust average_window_end or average_window."
+            )
+        if end_idx > duration:
+            raise ValueError(f"Window end index {end_idx} exceeds duration {duration}.")
+
     for ratio, repeat, path in zip(metadata["ratios"], metadata["repeats"], metadata["data_paths"]):
         results = joblib.load(path)
         neuron_weights = results["weights"]
@@ -531,7 +560,14 @@ def _gather_weights_correlation(
                 norm_by_total_synapses=norm_by_total_synapses,
             )
             for sg in get_groupnames():
-                c_weights = np.mean(neuron_weights[ineuron][sg][-num_timesteps:], axis=0) / norm_factor[sg]
+                # Select window based on average_window_end
+                if start_idx is None:
+                    # Use last num_timesteps
+                    c_weights = np.mean(neuron_weights[ineuron][sg][-num_timesteps:], axis=0) / norm_factor[sg]
+                else:
+                    # Use specified window
+                    c_weights = np.mean(neuron_weights[ineuron][sg][start_idx:end_idx], axis=0) / norm_factor[sg]
+
                 if norm_by_num_synapses and num_connections is not None:
                     c_scale = num_connections[sg][ratio, repeat, ineuron]
                     c_scale[c_scale == 0] = 1
@@ -568,6 +604,7 @@ def _gather_weights_hofer(
     metadata: dict,
     average_method: Literal["fraction", "samples"],
     average_window: int | float,
+    average_window_end: int | float | None = None,
     norm_by_max_weight: bool = True,
     norm_by_num_synapses: bool = False,
     norm_by_total_synapses: bool = False,
@@ -595,6 +632,31 @@ def _gather_weights_hofer(
             raise ValueError("Average window must be less than half the duration for full averaging")
         num_timesteps = duration
 
+    # Calculate window indices
+    if average_window_end is None:
+        # Use last num_timesteps (current behavior)
+        start_idx = None
+        end_idx = None
+    else:
+        # Convert average_window_end to timestep index
+        if isinstance(average_window_end, float):
+            # Treat as fraction of duration
+            end_idx = int(duration * average_window_end)
+        else:
+            # Treat as absolute timestep index
+            end_idx = int(average_window_end)
+
+        # Calculate start index
+        start_idx = end_idx - num_timesteps
+
+        # Validate indices
+        if start_idx < 0:
+            raise ValueError(
+                f"Window start index {start_idx} is negative. Adjust average_window_end or average_window."
+            )
+        if end_idx > duration:
+            raise ValueError(f"Window end index {end_idx} exceeds duration {duration}.")
+
     for ratio, edge, repeat, path in zip(
         metadata["ratios"],
         metadata["edges"],
@@ -611,7 +673,14 @@ def _gather_weights_hofer(
                 norm_by_total_synapses=norm_by_total_synapses,
             )
             for sg in get_groupnames():
-                c_weights = np.mean(neuron_weights[ineuron][sg][-num_timesteps:], axis=0) / norm_factor[sg]
+                # Select window based on average_window_end
+                if start_idx is None:
+                    # Use last num_timesteps
+                    c_weights = np.mean(neuron_weights[ineuron][sg][-num_timesteps:], axis=0) / norm_factor[sg]
+                else:
+                    # Use specified window
+                    c_weights = np.mean(neuron_weights[ineuron][sg][start_idx:end_idx], axis=0) / norm_factor[sg]
+
                 if norm_by_num_synapses and num_connections is not None:
                     c_scale = num_connections[sg][ratio, edge, repeat, ineuron]
                     c_scale[c_scale == 0] = 1
