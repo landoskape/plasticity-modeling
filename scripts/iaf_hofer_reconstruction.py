@@ -138,7 +138,6 @@ def run_experiment(args):
     save_source_rates = args.save_source_rates
     independent_noise_rate = args.independent_noise_rate
     dp_ratio_index = args.dp_ratio_index
-    edge_index = args.edge_index
     repeat = args.repeat
 
     # Save the parameters (only on first job to avoid overwriting)

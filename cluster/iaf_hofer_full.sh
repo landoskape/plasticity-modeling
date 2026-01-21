@@ -11,7 +11,7 @@ conda activate /home/skgta69/Scratch/conda-envs/iaf
 
 # ---------- user choices ----------
 CONFIG="hofer_replacement"
-EXP_NAME="jan20_full1"
+EXP_NAME="jan21_full1_hofer_replacement"
 R=10  # repeats
 # Default distal_dp_ratios: [1.0, 1.025, 1.05, 1.075, 1.1] = 5 ratios
 # Total tasks = 5 * 10 = 50 (edge probabilities are looped within each task)

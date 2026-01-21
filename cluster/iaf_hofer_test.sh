@@ -10,8 +10,8 @@ module load python/miniconda3/24.3.0-0
 conda activate /home/skgta69/Scratch/conda-envs/iaf
 
 # ---------- user choices ----------
-CONFIG="hofer"
-EXP_NAME="jan21_test1"
+CONFIG="hofer_replacement"
+EXP_NAME="jan21_test1_hofer_replacement"
 R=2  # repeats
 # Default distal_dp_ratios: [1.0, 1.025, 1.05, 1.075, 1.1] = 5 ratios
 # Total tasks = 5 * 2 = 10 (edge probabilities are looped within each task)
