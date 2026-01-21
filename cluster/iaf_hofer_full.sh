@@ -1,5 +1,5 @@
 #!/bin/bash -l
-#$ -l h_rt=03:00:00
+#$ -l h_rt=04:30:00
 #$ -l mem=4G
 #$ -N iaf_hofer_full
 #$ -wd /home/skgta69/Scratch/plasticity-modeling
