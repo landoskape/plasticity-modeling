@@ -367,7 +367,7 @@ def figure2(fig_params: Figure2Params, show_fig: bool = True, save_fig: bool = F
         tick_fontsize=FigParams.tick_fontsize,
     )
     ax_integrated.set_xticks([0, 1, 2])
-    ax_integrated.set_ylabel("[Ca] Influx")
+    ax_integrated.set_ylabel("[Ca] Influx", fontsize=FigParams.fontsize, labelpad=-1)
 
     # Build nevian axes
     build_axes_nevian_reconstruction(
@@ -1007,13 +1007,13 @@ def figure4(fig_params: Figure4Params, show_fig: bool = True, save_fig: bool = F
 @dataclass
 class Figure5Params:
     full_config: str = "hofer"
-    full_simulations: str = "20250320"
+    full_simulations: str = "jan21_full1_hofer_20260121"
     mapping_simple_tuft_inset_xoffset: float = 0.14
     mapping_complex_tuft_inset_xoffset: float = -0.14
     mapping_tuft_yoffset: float = -0.25
     field_width: float = 0.95
     field_scale: float = 1.25
-    field_inset_yoffset_fraction: float = 0.08
+    field_inset_yoffset_fraction: float = 0.15
     input_inset_yoffset_extra: float = 0.0
     vonmises_concentration: float = 1.0
     baseline_rate: float = 5.0
@@ -1170,6 +1170,79 @@ def figure5(fig_params: Figure5Params, show_fig: bool = True, save_fig: bool = F
     return fig
 
 
+def figure5_version2(fig_params: Figure5Params, show_fig: bool = True, save_fig: bool = False):
+    fig_width = FigParams.single_width
+    fig_height = fig_width * 0.75
+
+    fig = plt.figure(figsize=(fig_width, fig_height), **FigParams.all_fig_params())
+    gs = fig.add_gridspec(1, 2)
+    gs_stim = gs[0].subgridspec(2, 1, height_ratios=[1, 1.75])
+    ax_trajectory = fig.add_subplot(gs_stim[0])
+    ax_receptive_field = fig.add_subplot(gs_stim[1])
+    ax_inputs = fig.add_subplot(gs[1])
+
+    build_stimulus_trajectory_ax(
+        ax_trajectory,
+        stims_per_row=fig_params.stimulus_stims_per_row,
+        num_edges=fig_params.stimulus_num_edges,
+        highlight_magnitude=fig_params.gabor_highlight_magnitude,
+        vmax_scale=fig_params.gabor_vmax_scale,
+        hspacing=fig_params.stimulus_hspacing,
+        vspacing=fig_params.stimulus_vspacing,
+        arrow_width=fig_params.stimulus_arrow_width,
+        arrow_mutation=fig_params.stimulus_arrow_mutation,
+        use_edge_ticks=fig_params.stimulus_use_edge_ticks,
+        edge_tick_fraction=fig_params.stimulus_edge_tick_fraction,
+        edge_tick_color=fig_params.stimulus_edge_tick_color,
+        edge_tick_lw=fig_params.stimulus_edge_tick_lw,
+        edge_tick_alpha=fig_params.stimulus_edge_tick_alpha,
+    )
+
+    build_receptive_field_ax(
+        ax_receptive_field,
+        field_width=fig_params.field_width,
+        field_scale=fig_params.field_scale,
+        field_inset_yoffset_fraction=fig_params.field_inset_yoffset_fraction,
+        input_inset_yoffset_extra=fig_params.input_inset_yoffset_extra,
+        vonmises_concentration=fig_params.vonmises_concentration,
+        baseline_rate=fig_params.baseline_rate,
+        driven_rate=fig_params.driven_rate,
+        gabor_width=fig_params.gabor_width,
+        gabor_envelope=fig_params.gabor_envelope,
+        gabor_gamma=fig_params.gabor_gamma,
+        gabor_halfsize=fig_params.gabor_halfsize,
+        gabor_phase=fig_params.gabor_phase,
+        x_offset_input_label=fig_params.x_offset_input_label,
+        x_offset_rate_label=fig_params.x_offset_rate_label,
+        x_offset_field_label=fig_params.x_offset_field_label,
+        fontsize=fig_params.ylabel_fontsize,
+        include_arrows=fig_params.include_arrows,
+    )
+
+    build_environment_compartment_mapping_ax(
+        ax_inputs,
+        simple_tuft_inset_xoffset=fig_params.mapping_simple_tuft_inset_xoffset,
+        complex_tuft_inset_xoffset=fig_params.mapping_complex_tuft_inset_xoffset,
+        tuft_yoffset=fig_params.mapping_tuft_yoffset,
+        gabor_highlight_magnitude=fig_params.gabor_highlight_magnitude,
+        yrange_buffer=0,
+    )
+
+    # Remove white backgrounds
+    ax_trajectory.set_facecolor("none")
+    ax_receptive_field.set_facecolor("none")
+    ax_inputs.set_facecolor("none")
+
+    if show_fig:
+        plt.show(block=True)
+
+    if save_fig:
+        fig_path = get_figure_dir("core_figures") / "figure5_version2"
+        save_figure(fig, fig_path)
+
+    return fig
+
+
 def figure5_supplemental(fig_params: Figure5Params, show_fig: bool = True, save_fig: bool = False):
     fig_width = FigParams.single_width
     fig_height = fig_width / 3 * 2
@@ -1263,8 +1336,8 @@ def figure5_supplemental(fig_params: Figure5Params, show_fig: bool = True, save_
 
 @dataclass
 class Figure6Params:
-    full_config: str = "hofer_replacement"
-    full_simulations: str = "20250424"
+    full_config: str = "hofer"
+    full_simulations: str = "jan21_full1_hofer_20260121"
     trajectory_example_ratio: int = 0
     trajectory_example_edge: int = 2
     trajectory_linewidth: float = 1.0
@@ -1364,6 +1437,213 @@ def figure6(fig_params: Figure6Params, show_fig: bool = True, save_fig: bool = F
     return fig
 
 
+@dataclass
+class Figure6v2Params:
+    full_config: str = "hofer"
+    full_simulations: str = "jan21_full1_hofer_20260121"
+    tuning_hspacing: float = 6
+    tuning_vspacing: float = 21
+    tuning_fontsize_label: float = FigParams.smallfontsize
+    tuning_fontsize_title: float = FigParams.smallfontsize
+    gabor_width: float = 0.6
+    gabor_envelope: float = 0.4
+    gabor_gamma: float = 1.5
+    gabor_halfsize: float = 25
+    gabor_phase: float = 0
+    gabor_vmax_scale: float = 1.5
+    example_dpratio: tuple[int, int] = (0, 4)
+    example_edge: tuple[int, int] = (1, 1)
+    example_simulation: tuple[int, int] = (0, 0)
+    example_neuron: tuple[int, int] = (0, 0)
+    ylabel_fontsize: float = FigParams.smallfontsize
+    label_fontsize: float = FigParams.fontsize
+    fontsize: float = FigParams.fontsize
+    confusion_fontsize: float = FigParams.smallfontsize
+    confusion_tickfontsize: float = FigParams.tinyfontsize
+    trajectory_example_ratio: int = 0
+    trajectory_example_edge: int = 2
+    trajectory_linewidth: float = 1.0
+    trajectory_alpha: float = 0.3
+    labeltype: str = "label"
+
+
+def figure6_version2(fig_params: Figure6v2Params, show_fig: bool = True, save_fig: bool = False):
+    fig_width = FigParams.double_width
+    fig_height = fig_width / 4 * 2
+
+    if fig_params.full_config == "hofer_replacement":
+        norm_by_max_weight = True
+        norm_by_num_synapses = False
+        norm_by_total_synapses = True
+    else:
+        norm_by_max_weight = True
+        norm_by_num_synapses = True
+        norm_by_total_synapses = False
+
+    fig = plt.figure(figsize=(fig_width, fig_height), **FigParams.all_fig_params())
+    gs = fig.add_gridspec(1, 3, width_ratios=[1.5, 1, 1])
+
+    # First column
+    gs_tuning = gs[0].subgridspec(2, 1, height_ratios=[1, 1.25])
+    ax_tune_representation = fig.add_subplot(gs_tuning[0])
+    gs_tuning_weights = gs_tuning[1].subgridspec(2, 3)
+    ax_proximal_weights_ex0 = fig.add_subplot(gs_tuning_weights[0, 0])
+    ax_simple_weights_ex0 = fig.add_subplot(gs_tuning_weights[0, 1])
+    ax_complex_weights_ex0 = fig.add_subplot(gs_tuning_weights[0, 2])
+    ax_proximal_weights_ex1 = fig.add_subplot(gs_tuning_weights[1, 0])
+    ax_simple_weights_ex1 = fig.add_subplot(gs_tuning_weights[1, 1])
+    ax_complex_weights_ex1 = fig.add_subplot(gs_tuning_weights[1, 2])
+    # ax_confusion_distal_simple = fig.add_subplot(gs_tuning_weights[0, 3])
+    # ax_confusion_distal_complex = fig.add_subplot(gs_tuning_weights[1, 3])
+
+    # Second column
+    gs_trajectory = gs[1].subgridspec(4, 1, height_ratios=[2, 1, 1, 1])
+    ax_schema = fig.add_subplot(gs_trajectory[0])
+    ax_proximal_traj = fig.add_subplot(gs_trajectory[1])
+    ax_simple_traj = fig.add_subplot(gs_trajectory[2])
+    ax_complex_traj = fig.add_subplot(gs_trajectory[3])
+
+    # Third column
+    gs_summary = gs[2].subgridspec(2, 1)
+    ax_simple_relative = fig.add_subplot(gs_summary[0])
+    ax_complex_relative = fig.add_subplot(gs_summary[1])
+    ax_complex_relative.sharey(ax_simple_relative)
+
+    # Tuning representation (panel A)
+    build_tuning_representation_ax(
+        ax_tune_representation,
+        hspacing=fig_params.tuning_hspacing,
+        vspacing=fig_params.tuning_vspacing,
+        fontsize_label=fig_params.tuning_fontsize_label,
+        fontsize_title=fig_params.tuning_fontsize_title,
+    )
+
+    # Analyze main run
+    experiment_folder = results_dir("iaf_runs") / fig_params.full_config / fig_params.full_simulations
+    metadata = gather_metadata(experiment_folder, experiment_type="hofer")
+    num_connections = gather_num_connections(metadata, experiment_type="hofer")
+    weights = gather_weights(
+        metadata,
+        experiment_type="hofer",
+        average_method="fraction",
+        average_window=0.2,
+        norm_by_max_weight=norm_by_max_weight,
+        norm_by_num_synapses=norm_by_num_synapses,
+        norm_by_total_synapses=norm_by_total_synapses,
+        num_connections=num_connections,
+    )
+    results = gather_results(metadata)
+    orientation_preference = {sg: np.argmax(weights[sg], axis=-1) % 4 for sg in get_groupnames()}
+    summary, trajectory = summarize_weights(
+        weights,
+        results,
+        metadata,
+        orientation_preference["proximal"],
+        consolidate_other=True,
+        norm_by_max_weight=norm_by_max_weight,
+        norm_by_num_synapses=norm_by_num_synapses,
+        norm_by_total_synapses=norm_by_total_synapses,
+        num_connections=num_connections,
+    )
+
+    build_weights_ax(
+        ax_proximal_weights_ex0,
+        ax_simple_weights_ex0,
+        ax_complex_weights_ex0,
+        weights,
+        vmax=fig_params.gabor_vmax_scale,
+        dpratio=fig_params.example_dpratio[0],
+        edge=fig_params.example_edge[0],
+        simulation=fig_params.example_simulation[0],
+        neuron=fig_params.example_neuron[0],
+        gabor_width=fig_params.gabor_width,
+        gabor_envelope=fig_params.gabor_envelope,
+        gabor_gamma=fig_params.gabor_gamma,
+        gabor_halfsize=fig_params.gabor_halfsize,
+        gabor_phase=fig_params.gabor_phase,
+        fontsize=fig_params.ylabel_fontsize,
+    )
+    build_weights_ax(
+        ax_proximal_weights_ex1,
+        ax_simple_weights_ex1,
+        ax_complex_weights_ex1,
+        weights,
+        vmax=fig_params.gabor_vmax_scale,
+        dpratio=fig_params.example_dpratio[1],
+        edge=fig_params.example_edge[1],
+        simulation=fig_params.example_simulation[1],
+        neuron=fig_params.example_neuron[1],
+        gabor_width=fig_params.gabor_width,
+        gabor_envelope=fig_params.gabor_envelope,
+        gabor_gamma=fig_params.gabor_gamma,
+        gabor_halfsize=fig_params.gabor_halfsize,
+        gabor_phase=fig_params.gabor_phase,
+        fontsize=fig_params.ylabel_fontsize,
+        show_titles=False,
+    )
+
+    # Column 2 starts here
+    build_tuning_type_axes(ax_schema, fontsize=fig_params.label_fontsize)
+
+    # build_orientation_confusion_axes(
+    #     ax_confusion_distal_simple,
+    #     ax_confusion_distal_complex,
+    #     orientation_preference,
+    #     fontsize=fig_params.confusion_fontsize,
+    #     tickfontsize=fig_params.confusion_tickfontsize,
+    # )
+
+    # Column 3 starts here
+    build_tuning_group_trajectory_axes(
+        ax_proximal=ax_proximal_traj,
+        ax_simple=ax_simple_traj,
+        ax_complex=ax_complex_traj,
+        trajectory=trajectory,
+        example_ratio=fig_params.trajectory_example_ratio,
+        example_edge=fig_params.trajectory_example_edge,
+        linewidth=fig_params.trajectory_linewidth,
+        alpha=fig_params.trajectory_alpha,
+        fontsize=fig_params.fontsize,
+        labeltype=fig_params.labeltype,
+    )
+
+    build_relative_edge_weights_axes(
+        ax_simple=ax_simple_relative,
+        ax_complex=ax_complex_relative,
+        metadata=metadata,
+        summary=summary,
+        cmap="plasma_r",
+        cmap_pinch=0.25,
+        fontsize=fig_params.fontsize,
+        labeltype=fig_params.labeltype,
+    )
+
+    # Remove white backgrounds
+    ax_proximal_weights_ex0.set_facecolor("none")
+    ax_simple_weights_ex0.set_facecolor("none")
+    ax_complex_weights_ex0.set_facecolor("none")
+    ax_proximal_weights_ex1.set_facecolor("none")
+    ax_simple_weights_ex1.set_facecolor("none")
+    ax_complex_weights_ex1.set_facecolor("none")
+    ax_schema.set_facecolor("none")
+    # ax_confusion_distal_simple.set_facecolor("none")
+    # ax_confusion_distal_complex.set_facecolor("none")
+    ax_proximal_traj.set_facecolor("none")
+    ax_simple_traj.set_facecolor("none")
+    ax_complex_traj.set_facecolor("none")
+    ax_simple_relative.set_facecolor("none")
+    ax_complex_relative.set_facecolor("none")
+
+    if show_fig:
+        plt.show(block=True)
+
+    if save_fig:
+        fig_path = get_figure_dir("core_figures") / "figure6_version2"
+        save_figure(fig, fig_path)
+
+    return fig
+
+
 if __name__ == "__main__":
     # Set master parameters for showing / saving figures
     show_fig = False
@@ -1386,12 +1666,21 @@ if __name__ == "__main__":
     # figure4(fig4params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 5
-    fig5params = Figure5Params()
-    figure5(fig5params, show_fig=show_fig, save_fig=save_fig)
+    # fig5params = Figure5Params()
+    # figure5(fig5params, show_fig=show_fig, save_fig=save_fig)
+
+    # Build Figure 5 Version 2
+    # fig5params = Figure5Params()
+    # figure5_version2(fig5params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 5 Supplemental
+    # fig5params = Figure5Params()
     # figure5_supplemental(fig5params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 6
     # fig6params = Figure6Params()
     # figure6(fig6params, show_fig=show_fig, save_fig=save_fig)
+
+    # Build Figure 6 Version 2
+    fig6v2params = Figure6v2Params()
+    figure6_version2(fig6v2params, show_fig=show_fig, save_fig=save_fig)

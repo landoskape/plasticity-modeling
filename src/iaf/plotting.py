@@ -1723,7 +1723,7 @@ def build_tuning_group_trajectory_axes(
         ax_list[1].set_ylabel("Weight (%)", fontsize=fontsize)
 
         ylims = ax_list[igroup].get_ylim()
-        new_ylim_max = np.ceil(ylims[1] * 1.2 / 10) * 10
+        new_ylim_max = np.ceil(ylims[1] * 1.2)
         ax_list[igroup].set_ylim(0, new_ylim_max)
 
         ax_list[igroup].text(
