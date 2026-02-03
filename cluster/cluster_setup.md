@@ -154,6 +154,61 @@ qsub iaf_test.sh
 
 ---
 
+## Dynamic work queue (recommended)
+
+For long runs with variable completion times, use a shared SQLite queue and worker array. Each worker keeps pulling tasks until the queue is empty or walltime is nearly up.
+
+### 1. Build the queue
+
+Correlated runs:
+```bash
+python cluster/build_queue.py \
+  --mode correlated \
+  --config correlated \
+  --repeats 10 \
+  --duration 9600 \
+  --exp-folder jan20_full1
+```
+
+Hofer reconstruction runs:
+```bash
+python cluster/build_queue.py \
+  --mode hofer \
+  --config hofer_replacement \
+  --repeats 10 \
+  --duration 9600 \
+  --exp-folder jan21_full1_hofer_replacement
+```
+
+This creates `cluster/queue.sqlite` with one task per `(dp_ratio_index, repeat)`.
+
+### 2. Submit worker array
+
+Use the provided worker script:
+```bash
+qsub cluster/iaf_worker_array.sh
+```
+
+Edit `cluster/iaf_worker_array.sh` to set worker count (`-t 1-<N>`), walltime, and queue path.
+
+### 3. Monitor status
+
+```bash
+python cluster/queue_status.py --queue ~/Scratch/plasticity-modeling/cluster/queue.sqlite
+python cluster/queue_status.py --queue ~/Scratch/plasticity-modeling/cluster/queue.sqlite --show-failed --limit 5
+```
+
+Task logs land in `cluster/queue_logs/`.
+
+### 4. Graceful retries
+
+Retries are automatic up to `--max-attempts` in the worker script. To requeue failed tasks manually:
+```bash
+python cluster/queue_status.py --queue ~/Scratch/plasticity-modeling/cluster/queue.sqlite --requeue-failed --reset-attempts
+```
+
+---
+
 ## Reproducibility (recommended)
 
 Freeze the environment so you can recreate it later:
