@@ -54,6 +54,12 @@ def _load_study_name(run_dir: Path, override: str | None) -> str:
     raise FileNotFoundError("run_metadata.json not found and --study-name not provided")
 
 
+def _format_value(value) -> str:
+    if isinstance(value, float):
+        return f"{value:.3g}"
+    return str(value)
+
+
 def main() -> None:
     args = get_args()
     run_dir = args.run_dir
@@ -78,12 +84,14 @@ def main() -> None:
         print("\nTrial details:")
         print(f"number: {trial.number}")
         print(f"state: {trial.state}")
-        print(f"value: {trial.value}")
+        print(f"value: {_format_value(trial.value)}")
         print(f"datetime_start: {trial.datetime_start}")
         print(f"datetime_complete: {trial.datetime_complete}")
-        print(f"params: {trial.params}")
+        formatted_params = {key: _format_value(value) for key, value in trial.params.items()}
+        print(f"params: {formatted_params}")
         if trial.user_attrs:
-            print(f"user_attrs: {trial.user_attrs}")
+            formatted_user_attrs = {key: _format_value(value) for key, value in trial.user_attrs.items()}
+            print(f"user_attrs: {formatted_user_attrs}")
         if trial.system_attrs:
             print(f"system_attrs: {trial.system_attrs}")
 
@@ -92,8 +100,8 @@ def main() -> None:
     print("\nTop trials (lowest value first):")
     if args.compact:
         for _, row in top_df.iterrows():
-            params = {k.replace("params_", ""): row[k] for k in top_df.columns if k.startswith("params_")}
-            value = row.get("value", None)
+            params = {k.replace("params_", ""): _format_value(row[k]) for k in top_df.columns if k.startswith("params_")}
+            value = _format_value(row.get("value", None))
             number = row.get("number", None)
             params_text = ", ".join([f"{key}={value}" for key, value in params.items()])
             line = f"trial={number} value={value} params: {params_text}"
@@ -111,7 +119,11 @@ def main() -> None:
         display_cols = [col for col in columns if col in trials_df.columns] + param_cols + user_cols
         pd.set_option("display.max_columns", None)
         pd.set_option("display.width", 120)
-        print(top_df[display_cols].to_string(index=False))
+        formatted = top_df[display_cols].copy()
+        for col in formatted.columns:
+            if col.startswith("params_") or col.startswith("user_attrs_") or col == "value":
+                formatted[col] = formatted[col].map(_format_value)
+        print(formatted.to_string(index=False))
 
     summary = trials_df["value"].describe()
     print("\nValue summary:")

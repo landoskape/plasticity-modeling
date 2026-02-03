@@ -60,11 +60,18 @@ def weight_entropy(weights: np.ndarray, eps: float = 1e-12) -> float:
     """
     if weights.ndim != 1:
         raise ValueError("weights must be a 1D array")
+    if weights.size == 0:
+        return 0.0
+    if not np.all(np.isfinite(weights)):
+        weights = np.where(np.isfinite(weights), weights, 0.0)
     total = float(np.sum(weights))
     if total <= 0:
         return float(np.log(weights.size))
     probs = weights / total
-    return float(-np.sum(probs * np.log(probs + eps)))
+    entropy = float(-np.sum(probs * np.log(probs + eps)))
+    if not np.isfinite(entropy):
+        return float(np.log(weights.size))
+    return entropy
 
 
 def proximal_weight_entropy(results: dict, average_window: float | int = 0.2) -> float:
@@ -89,7 +96,10 @@ def proximal_weight_entropy(results: dict, average_window: float | int = 0.2) ->
             num_steps = max(1, min(duration, int(average_window)))
         averaged = np.mean(proximal_weights[-num_steps:], axis=0)
         entropies.append(weight_entropy(averaged))
-    return float(np.mean(entropies))
+    mean_entropy = float(np.nanmean(entropies))
+    if not np.isfinite(mean_entropy):
+        return float(np.log(len(averaged)))
+    return mean_entropy
 
 
 def gather_rates(metadata: dict, experiment_type: Literal["correlation", "hofer"]) -> np.ndarray:
