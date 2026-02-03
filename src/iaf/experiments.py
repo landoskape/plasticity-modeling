@@ -1,6 +1,6 @@
 from __future__ import annotations
-from typing import Tuple
-from src.iaf.config import SimulationConfig
+from typing import Tuple, cast
+from src.iaf.config import PlasticityConfig, SimulationConfig
 from src.iaf.simulation import Simulation
 from src.files import config_dir
 
@@ -63,6 +63,47 @@ def get_experiment(
         config.synapses["proximal"].independent_noise_rate = independent_noise_rate
         config.synapses["distal-simple"].independent_noise_rate = independent_noise_rate
         config.synapses["distal-complex"].independent_noise_rate = independent_noise_rate
+    return Simulation.from_config(config), config
+
+
+def get_proximal_experiment(
+    config_name: str,
+    *,
+    num_synapses: int,
+    max_weight: float,
+    conductance_threshold: float,
+    independent_noise_rate: float | None,
+    stdp_rate: float,
+    depression_potentiation_ratio: float,
+    num_simulations: int = 1,
+) -> Tuple[Simulation, SimulationConfig]:
+    """Create a simulation focused on proximal synapses only.
+
+    This function loads a simulation configuration from a YAML file, removes the
+    distal synapse groups, and applies the provided proximal synapse parameters.
+    """
+    fpath = config_dir() / f"{config_name}.yaml"
+    config = SimulationConfig.from_yaml(fpath)
+    config.synapses.pop("distal-simple", None)
+    config.synapses.pop("distal-complex", None)
+
+    proximal = config.synapses["proximal"]
+    if proximal.source is not None and proximal.source.source_rule == "divided":
+        if num_synapses % proximal.source.num_presynaptic_neurons != 0:
+            raise ValueError("num_synapses must be divisible by num_presynaptic_neurons when source_rule is 'divided'")
+
+    proximal.num_synapses = num_synapses
+    if proximal.source is not None:
+        proximal.source.num_synapses = num_synapses
+    proximal.max_weight = max_weight
+    proximal.conductance_threshold = conductance_threshold
+    proximal.independent_noise_rate = independent_noise_rate
+    if proximal.plasticity is None:
+        raise ValueError("Proximal synapses must define plasticity settings.")
+    proximal_plasticity = cast(PlasticityConfig, proximal.plasticity)
+    proximal_plasticity.stdp_rate = stdp_rate
+    proximal_plasticity.depression_potentiation_ratio = depression_potentiation_ratio
+    config.num_simulations = num_simulations
     return Simulation.from_config(config), config
 
 

@@ -53,6 +53,45 @@ def gather_results(metadata: dict) -> list[dict]:
     raise ValueError("Metadata must include either 'results' or 'data_paths'.")
 
 
+def weight_entropy(weights: np.ndarray, eps: float = 1e-12) -> float:
+    """Compute Shannon entropy for a 1D weight vector.
+
+    Weights are normalized to sum to 1 before computing entropy.
+    """
+    if weights.ndim != 1:
+        raise ValueError("weights must be a 1D array")
+    total = float(np.sum(weights))
+    if total <= 0:
+        return float(np.log(weights.size))
+    probs = weights / total
+    return float(-np.sum(probs * np.log(probs + eps)))
+
+
+def proximal_weight_entropy(results: dict, average_window: float | int = 0.2) -> float:
+    """Compute mean proximal weight entropy across neurons.
+
+    Parameters
+    ----------
+    results : dict
+        Output from Simulation.run containing proximal weight trajectories.
+    average_window : float | int
+        If float, treated as the fraction of the final window to average.
+        If int, treated as the number of final samples to average.
+    """
+    neuron_weights = results["weights"]
+    entropies = []
+    for ineuron in range(len(neuron_weights)):
+        proximal_weights = neuron_weights[ineuron]["proximal"]
+        duration = proximal_weights.shape[0]
+        if isinstance(average_window, float):
+            num_steps = max(1, int(duration * average_window))
+        else:
+            num_steps = max(1, min(duration, int(average_window)))
+        averaged = np.mean(proximal_weights[-num_steps:], axis=0)
+        entropies.append(weight_entropy(averaged))
+    return float(np.mean(entropies))
+
+
 def gather_rates(metadata: dict, experiment_type: Literal["correlation", "hofer"]) -> np.ndarray:
     if experiment_type == "hofer":
         return _gather_rates_hofer(metadata)
