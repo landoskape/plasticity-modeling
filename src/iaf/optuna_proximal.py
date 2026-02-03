@@ -3,7 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 import json
+import os
 from pathlib import Path
+import time
 from typing import Any
 
 import numpy as np
@@ -65,6 +67,33 @@ def _resolve_run_dir(base_study_name: str, run_dir: Path) -> tuple[Path, str]:
 def _build_storage_url(run_dir: Path) -> str:
     db_path = (run_dir / "optuna.db").resolve()
     return f"sqlite:///{db_path.as_posix()}"
+
+
+def _acquire_lock(lock_path: Path, timeout_seconds: int) -> None:
+    start = time.time()
+    while True:
+        if lock_path.exists():
+            age = time.time() - lock_path.stat().st_mtime
+            if age > max(10, timeout_seconds * 2):
+                try:
+                    lock_path.unlink()
+                except FileNotFoundError:
+                    pass
+        try:
+            fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_RDWR)
+            os.close(fd)
+            return
+        except FileExistsError:
+            if time.time() - start > timeout_seconds:
+                raise TimeoutError(f"Timed out waiting for lock {lock_path}")
+            time.sleep(1)
+
+
+def _release_lock(lock_path: Path) -> None:
+    try:
+        lock_path.unlink()
+    except FileNotFoundError:
+        pass
 
 
 def _suggest_proximal_params(trial: optuna.Trial, space: ProximalSearchSpace) -> dict[str, Any]:
@@ -161,11 +190,6 @@ def run_optuna_proximal(
         raise ValueError("run_dir must be provided; create it once and share across workers.")
     run_dir, resolved_study_name = _resolve_run_dir(study_name, run_dir)
     storage_url = _build_storage_url(run_dir)
-    storage = optuna.storages.RDBStorage(
-        storage_url,
-        engine_kwargs={"connect_args": {"timeout": storage_timeout}},
-    )
-
     if seed is not None:
         np.random.seed(seed)
         utils.rng = create_rng(seed)
@@ -173,13 +197,22 @@ def run_optuna_proximal(
     else:
         sampler = optuna.samplers.TPESampler()
 
-    study = optuna.create_study(
-        storage=storage,
-        study_name=resolved_study_name,
-        direction="minimize",
-        sampler=sampler,
-        load_if_exists=True,
-    )
+    lock_path = run_dir / ".optuna_storage.lock"
+    _acquire_lock(lock_path, storage_timeout)
+    try:
+        storage = optuna.storages.RDBStorage(
+            storage_url,
+            engine_kwargs={"connect_args": {"timeout": storage_timeout}},
+        )
+        study = optuna.create_study(
+            storage=storage,
+            study_name=resolved_study_name,
+            direction="minimize",
+            sampler=sampler,
+            load_if_exists=True,
+        )
+    finally:
+        _release_lock(lock_path)
 
     run_metadata = {
         "study_name": resolved_study_name,
