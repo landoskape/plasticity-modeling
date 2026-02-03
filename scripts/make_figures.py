@@ -14,6 +14,7 @@ from src.plotting import (
     format_spines,
     add_group_legend,
     add_dpratio_legend,
+    add_dpratio_inset,
 )
 from src.schematics import Neuron, build_integrated_schematic_axis, create_dpratio_colors
 from src.experimental import (
@@ -361,6 +362,7 @@ def figure2(fig_params: Figure2Params, show_fig: bool = True, save_fig: bool = F
         yticks=[0.0, 1.0],
         xbounds=(0.0, 2.0),
         ybounds=(0.0, 1.0),
+        xlabels=[],
         spine_linewidth=FigParams.linewidth,
         tick_length=FigParams.tick_length,
         tick_width=FigParams.tick_width,
@@ -368,6 +370,18 @@ def figure2(fig_params: Figure2Params, show_fig: bool = True, save_fig: bool = F
     )
     ax_integrated.set_xticks([0, 1, 2])
     ax_integrated.set_ylabel("[Ca] Influx", fontsize=FigParams.fontsize, labelpad=-1)
+
+    add_group_legend(
+        ax_integrated,
+        x=0.0,
+        y_start=0.0,
+        y_offset=0.1,
+        ha="left",
+        va="center",
+        fontsize=FigParams.fontsize,
+        labels=["NMDAR", "VGCC"],
+        colors=[NMDAR.color(), VGCC.color()],
+    )
 
     # Build nevian axes
     build_axes_nevian_reconstruction(
@@ -1451,10 +1465,10 @@ class Figure6v2Params:
     gabor_halfsize: float = 25
     gabor_phase: float = 0
     gabor_vmax_scale: float = 1.5
-    example_dpratio: tuple[int, int] = (0, 4)
+    example_dpratio: tuple[int, int] = (4, 0)
     example_edge: tuple[int, int] = (1, 1)
-    example_simulation: tuple[int, int] = (0, 0)
-    example_neuron: tuple[int, int] = (0, 0)
+    example_simulation: tuple[int, int] = (8, 8)
+    example_neuron: tuple[int, int] = (1, 1)
     ylabel_fontsize: float = FigParams.smallfontsize
     label_fontsize: float = FigParams.fontsize
     fontsize: float = FigParams.fontsize
@@ -1481,42 +1495,42 @@ def figure6_version2(fig_params: Figure6v2Params, show_fig: bool = True, save_fi
         norm_by_total_synapses = False
 
     fig = plt.figure(figsize=(fig_width, fig_height), **FigParams.all_fig_params())
-    gs = fig.add_gridspec(1, 3, width_ratios=[1.5, 1, 1])
+    gs = fig.add_gridspec(1, 3, width_ratios=[1.5, 1.2, 1.3])
 
-    # First column
-    gs_tuning = gs[0].subgridspec(2, 1, height_ratios=[1, 1.25])
-    ax_tune_representation = fig.add_subplot(gs_tuning[0])
-    gs_tuning_weights = gs_tuning[1].subgridspec(2, 3)
-    ax_proximal_weights_ex0 = fig.add_subplot(gs_tuning_weights[0, 0])
-    ax_simple_weights_ex0 = fig.add_subplot(gs_tuning_weights[0, 1])
-    ax_complex_weights_ex0 = fig.add_subplot(gs_tuning_weights[0, 2])
-    ax_proximal_weights_ex1 = fig.add_subplot(gs_tuning_weights[1, 0])
-    ax_simple_weights_ex1 = fig.add_subplot(gs_tuning_weights[1, 1])
-    ax_complex_weights_ex1 = fig.add_subplot(gs_tuning_weights[1, 2])
-    # ax_confusion_distal_simple = fig.add_subplot(gs_tuning_weights[0, 3])
-    # ax_confusion_distal_complex = fig.add_subplot(gs_tuning_weights[1, 3])
+    # ax_confusion_distal_simple = fig.add_subplot(gs_matrix[0, 0])
+    # ax_confusion_distal_complex = fig.add_subplot(gs_matrix[1, 0])
 
-    # Second column
-    gs_trajectory = gs[1].subgridspec(4, 1, height_ratios=[2, 1, 1, 1])
+    # Examples
+    gs_examples = gs[0].subgridspec(3, 2)
+    ax_proximal_weights_ex0 = fig.add_subplot(gs_examples[0, 0])
+    ax_simple_weights_ex0 = fig.add_subplot(gs_examples[1, 0])
+    ax_complex_weights_ex0 = fig.add_subplot(gs_examples[2, 0])
+    ax_proximal_weights_ex1 = fig.add_subplot(gs_examples[0, 1])
+    ax_simple_weights_ex1 = fig.add_subplot(gs_examples[1, 1])
+    ax_complex_weights_ex1 = fig.add_subplot(gs_examples[2, 1])
+
+    # Trajectories
+    gs_trajectory = gs[1].subgridspec(4, 1, height_ratios=[3, 1, 1, 1])
     ax_schema = fig.add_subplot(gs_trajectory[0])
     ax_proximal_traj = fig.add_subplot(gs_trajectory[1])
     ax_simple_traj = fig.add_subplot(gs_trajectory[2])
     ax_complex_traj = fig.add_subplot(gs_trajectory[3])
 
     # Third column
-    gs_summary = gs[2].subgridspec(2, 1)
-    ax_simple_relative = fig.add_subplot(gs_summary[0])
-    ax_complex_relative = fig.add_subplot(gs_summary[1])
+    gs_summary = gs[2].subgridspec(3, 1, height_ratios=[0.2, 1, 1])
+    ax_dp_legend = fig.add_subplot(gs_summary[0])
+    ax_simple_relative = fig.add_subplot(gs_summary[1])
+    ax_complex_relative = fig.add_subplot(gs_summary[2])
     ax_complex_relative.sharey(ax_simple_relative)
 
     # Tuning representation (panel A)
-    build_tuning_representation_ax(
-        ax_tune_representation,
-        hspacing=fig_params.tuning_hspacing,
-        vspacing=fig_params.tuning_vspacing,
-        fontsize_label=fig_params.tuning_fontsize_label,
-        fontsize_title=fig_params.tuning_fontsize_title,
-    )
+    # build_tuning_representation_ax(
+    #     ax_tune_representation,
+    #     hspacing=fig_params.tuning_hspacing,
+    #     vspacing=fig_params.tuning_vspacing,
+    #     fontsize_label=fig_params.tuning_fontsize_label,
+    #     fontsize_title=fig_params.tuning_fontsize_title,
+    # )
 
     # Analyze main run
     experiment_folder = results_dir("iaf_runs") / fig_params.full_config / fig_params.full_simulations
@@ -1562,6 +1576,7 @@ def figure6_version2(fig_params: Figure6v2Params, show_fig: bool = True, save_fi
         gabor_halfsize=fig_params.gabor_halfsize,
         gabor_phase=fig_params.gabor_phase,
         fontsize=fig_params.ylabel_fontsize,
+        titles_position="left",
     )
     build_weights_ax(
         ax_proximal_weights_ex1,
@@ -1607,6 +1622,21 @@ def figure6_version2(fig_params: Figure6v2Params, show_fig: bool = True, save_fi
         labeltype=fig_params.labeltype,
     )
 
+    num_ratios = len(metadata["dp_ratios"])
+    dpratio_colors = create_dpratio_colors(num_ratios)[0]
+    dpratios = np.linspace(0, 1, num_ratios)  # relative to maxratio yvalue
+    add_dpratio_inset(
+        ax_dp_legend,
+        None,
+        dpratio_colors,
+        dpratios,
+        label="Extra LTD (%)",
+        fontsize=fig_params.fontsize,
+        vertical=False,
+        label_padding=0,
+        use_main_ax=True,
+    )
+
     build_relative_edge_weights_axes(
         ax_simple=ax_simple_relative,
         ax_complex=ax_complex_relative,
@@ -1614,6 +1644,7 @@ def figure6_version2(fig_params: Figure6v2Params, show_fig: bool = True, save_fi
         summary=summary,
         cmap="plasma_r",
         cmap_pinch=0.25,
+        vertical=True,
         fontsize=fig_params.fontsize,
         labeltype=fig_params.labeltype,
     )
@@ -1631,6 +1662,7 @@ def figure6_version2(fig_params: Figure6v2Params, show_fig: bool = True, save_fi
     ax_proximal_traj.set_facecolor("none")
     ax_simple_traj.set_facecolor("none")
     ax_complex_traj.set_facecolor("none")
+    ax_dp_legend.set_facecolor("none")
     ax_simple_relative.set_facecolor("none")
     ax_complex_relative.set_facecolor("none")
 
@@ -1654,8 +1686,8 @@ if __name__ == "__main__":
     # figure1(fig1params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 2
-    # fig2params = Figure2Params()
-    # figure2(fig2params, show_fig=show_fig, save_fig=save_fig)
+    fig2params = Figure2Params()
+    figure2(fig2params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 3
     # fig3params = Figure3Params()
@@ -1682,5 +1714,5 @@ if __name__ == "__main__":
     # figure6(fig6params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 6 Version 2
-    fig6v2params = Figure6v2Params()
-    figure6_version2(fig6v2params, show_fig=show_fig, save_fig=save_fig)
+    # fig6v2params = Figure6v2Params()
+    # figure6_version2(fig6v2params, show_fig=show_fig, save_fig=save_fig)
