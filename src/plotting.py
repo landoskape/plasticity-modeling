@@ -4,6 +4,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import colormaps
+from matplotlib.typing import ColorType
 from dataclasses import dataclass
 
 
@@ -57,42 +58,51 @@ def add_group_legend(
     x: float,
     y_start: float,
     y_offset: float,
-    y_extra: float = 0,
     ha: str = "center",
     va: str = "center",
     fontsize: float = FigParams.fontsize,
     label_type: Literal["normal", "nl", "short", "experimental", "tiny"] = "normal",
     extra_label_simple: str = "",
     extra_label_complex: str = "",
+    labels: list[str] | None = None,
+    colors: list[ColorType] | None = None,
 ):
-    y_proximal = y_start
-    y_distal_simple = y_start + y_offset
-    y_distal_complex = y_start + 2 * y_offset + y_extra
+    if labels is None and colors is None:
+        attribute = dict(
+            normal="label",
+            nl="labelnl",
+            short="shortlabel",
+            experimental="experimental",
+            tiny="tinylabel",
+        )
+        attr = attribute.get(label_type, None)
+        if attr is None:
+            raise ValueError(f"Invalid label_type: {label_type}. Choose from {list(attribute.keys())}.")
 
-    attribute = dict(
-        normal="label",
-        nl="labelnl",
-        short="shortlabel",
-        experimental="experimental",
-        tiny="tinylabel",
-    )
-    attr = attribute.get(label_type, None)
-    if attr is None:
-        raise ValueError(f"Invalid label_type: {label_type}. Choose from {list(attribute.keys())}.")
+        # Get default labels
+        label_proximal = getattr(Proximal, attr)
+        label_simple = getattr(DistalSimple, attr)
+        label_complex = getattr(DistalComplex, attr)
 
-    # Get default labels
-    label_proximal = getattr(Proximal, attr)
-    label_simple = getattr(DistalSimple, attr)
-    label_complex = getattr(DistalComplex, attr)
+        # Add extra info to distal labels if requested
+        label_simple += extra_label_simple
+        label_complex += extra_label_complex
 
-    # Add extra info to distal labels if requested
-    label_simple += extra_label_simple
-    label_complex += extra_label_complex
+        labels = [label_proximal, label_simple, label_complex]
+        colors = [Proximal.color, DistalSimple.color, DistalComplex.color]
+
+    else:
+        if labels is None or colors is None:
+            raise ValueError("labels and colors must be provided if not using default labels and colors.")
+        if len(labels) != len(colors):
+            raise ValueError("labels and colors must have the same length.")
+
+    # Calculate y positions for the labels
+    ypositions = [y_start + i * y_offset for i in range(len(labels))]
 
     # Plot them
-    ax.text(x, y_proximal, label_proximal, color=Proximal.color, ha=ha, va=va, fontsize=fontsize)
-    ax.text(x, y_distal_simple, label_simple, color=DistalSimple.color, ha=ha, va=va, fontsize=fontsize)
-    ax.text(x, y_distal_complex, label_complex, color=DistalComplex.color, ha=ha, va=va, fontsize=fontsize)
+    for label, color, yposition in zip(labels, colors, ypositions):
+        ax.text(x, yposition, label, color=color, ha=ha, va=va, fontsize=fontsize)
 
 
 def add_dpratio_legend(
@@ -464,13 +474,15 @@ def format_spines(
 
 def add_dpratio_inset(
     ax: plt.Axes,
-    inset_position: list[float],
+    inset_position: list[float] | None,
     dpratio_colors: list[np.ndarray],
     dpratios: list[float] | np.ndarray,
     label: str = "Extra LTD (%)",
     fontsize: float = FigParams.tick_fontsize,
     reverse: bool = True,
+    vertical: bool = True,
     label_padding: float = -1,
+    use_main_ax: bool = False,
 ):
     num_ratios = len(dpratio_colors)
 
@@ -478,25 +490,38 @@ def add_dpratio_inset(
     if reverse:
         color_stack = color_stack[::-1]
 
-    inset = ax.inset_axes(inset_position)
+    if use_main_ax:
+        inset = ax
+    else:
+        inset = ax.inset_axes(inset_position)
+
+    if vertical:
+        color_stack = color_stack[:, None]
+        extent = [0, 1, -0.5, num_ratios - 0.5]
+    else:
+        color_stack = color_stack[None, :]
+        extent = [-0.5, num_ratios - 0.5, 0, 1]
+
     inset.imshow(
-        color_stack[:, None],
+        color_stack,
         aspect="auto",
-        extent=[0, 1, -0.5, num_ratios - 0.5],
+        extent=extent,
     )
     for iratio, ratio in enumerate(dpratios):
-        inset.text(
-            0.5,
-            iratio,
-            f"{ratio*10:1g}",
-            ha="center",
-            va="center",
-            fontsize=fontsize,
-            color="w",
-        )
+        if vertical:
+            x = 0.5
+            y = iratio
+        else:
+            x = iratio
+            y = 0.5
+        inset.text(x, y, f"{ratio*10:1g}", ha="center", va="center", fontsize=fontsize, color="w")
 
     inset.set_xticks([])
     inset.set_yticks([])
-    inset.set_ylabel(label, fontsize=fontsize, labelpad=label_padding)
+    if vertical:
+        inset.set_ylabel(label, fontsize=fontsize, labelpad=label_padding)
+    else:
+        inset.set_title(label, fontsize=fontsize)
+
     for spine in inset.spines.values():
         spine.set_visible(False)

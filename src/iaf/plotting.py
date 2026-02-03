@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, List
+from typing import Optional, List, Literal
 import numpy as np
 from scipy.signal import filtfilt
 from sklearn.metrics import ConfusionMatrixDisplay
@@ -1457,6 +1457,7 @@ def build_weights_ax(
     gabor_x_extent_fraction: float = 0.5,
     fontsize: float = FigParams.smallfontsize,
     show_titles: bool = True,
+    titles_position: Literal["left", "top"] = "top",
 ):
     gabor_params = dict(
         width=gabor_width,
@@ -1488,9 +1489,16 @@ def build_weights_ax(
     ax_simple.imshow(simple_gabor, vmin=-vmax, vmax=vmax, cmap="bwr")
     ax_complex.imshow(complex_gabor, vmin=-vmax, vmax=vmax, cmap="bwr")
     if show_titles:
-        ax_proximal.set_title("Proximal", fontsize=fontsize)
-        ax_simple.set_title("Distal-Simple", fontsize=fontsize)
-        ax_complex.set_title("Distal-Complex", fontsize=fontsize)
+        if titles_position == "left":
+            ax_proximal.set_ylabel("Proximal", fontsize=fontsize)
+            ax_simple.set_ylabel("Distal-Simple", fontsize=fontsize)
+            ax_complex.set_ylabel("Distal-Complex", fontsize=fontsize)
+        elif titles_position == "top":
+            ax_proximal.set_title("Proximal", fontsize=fontsize)
+            ax_simple.set_title("Distal-Simple", fontsize=fontsize)
+            ax_complex.set_title("Distal-Complex", fontsize=fontsize)
+        else:
+            raise ValueError(f"Invalid titles_position: {titles_position}")
 
     for ax in [ax_proximal, ax_simple, ax_complex]:
         ax.set_xticks([])
@@ -1823,6 +1831,7 @@ def build_relative_edge_weights_axes(
     summary: dict,
     cmap: str = "plasma_r",
     cmap_pinch: float = 0.25,
+    vertical: bool = True,
     labeltype: str = "label",
     fontsize: float = FigParams.smallfontsize,
 ):
@@ -1858,13 +1867,18 @@ def build_relative_edge_weights_axes(
 
     axes_to_plot[0].set_xlim(-0.25, num_edges - 0.75)
     axes_to_plot[1].set_xlim(-0.25, num_edges - 0.75)
-    axes_to_plot[0].set_xlabel("Edge Probability", fontsize=fontsize)
+    if vertical:
+        axes_to_plot[1].set_ylabel("Coaxial Weight (% Total)", fontsize=fontsize)
+    else:
+        axes_to_plot[0].set_xlabel("Edge Probability", fontsize=fontsize)
+    axes_to_plot[0].set_ylabel("Coaxial Weight (% Total)", fontsize=fontsize)
     axes_to_plot[1].set_xlabel("Edge Probability", fontsize=fontsize)
-    axes_to_plot[0].set_ylabel("Coaxial Weight (% Total)", fontsize=fontsize)
-    axes_to_plot[0].set_ylabel("Coaxial Weight (% Total)", fontsize=fontsize)
 
     ylim_max = max([a.get_ylim()[1] for a in axes_to_plot])
+    ylim_max = np.ceil(ylim_max / 10) * 10
     ylim = [0, ylim_max]
+    axes_to_plot[0].set_ylim(0, ylim_max)
+    axes_to_plot[1].set_ylim(0, ylim_max)
     simple_label = getattr(DistalSimple, labeltype)
     complex_label = getattr(DistalComplex, labeltype)
     axes_to_plot[0].text(
@@ -1901,6 +1915,10 @@ def build_relative_edge_weights_axes(
         tick_fontsize=FigParams.tick_fontsize,
         spine_linewidth=FigParams.thinlinewidth,
     )
+    if vertical:
+        axes_to_plot[0].spines["bottom"].set_visible(False)
+        axes_to_plot[0].set_xticks([])
+
     format_spines(
         axes_to_plot[1],
         x_pos=FigParams.spine_pos,

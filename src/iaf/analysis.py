@@ -9,6 +9,7 @@ from scipy.optimize import curve_fit
 from src.files import config_dir
 from src.iaf.config import SimulationConfig
 from src.iaf.iaf_neuron import IaF
+from src.iaf.simulation import Simulation
 from src.iaf.source_population import SourcePopulationGabor
 from src.iaf.synapse_group import SourceParams
 from src.utils import roll_along_axis
@@ -28,10 +29,28 @@ def gather_metadata(experiment_folder: Path, experiment_type: Literal["correlati
 
 
 def gather_results(metadata: dict) -> list[dict]:
-    results = []
-    for path in metadata["data_paths"]:
-        results.append(joblib.load(path))
-    return results
+    """Load results for an experiment or return in-memory results.
+
+    Parameters
+    ----------
+    metadata : dict
+        Metadata describing the experiment. If it contains a ``results`` key,
+        those entries are returned directly. Otherwise, ``data_paths`` is
+        expected and will be loaded via joblib.
+
+    Returns
+    -------
+    list[dict]
+        List of result dictionaries, each containing at least ``weights``,
+        ``spike_times``, and ``sim``.
+    """
+    if "results" in metadata:
+        return list(metadata["results"])
+
+    if "data_paths" in metadata:
+        return [joblib.load(path) for path in metadata["data_paths"]]
+
+    raise ValueError("Metadata must include either 'results' or 'data_paths'.")
 
 
 def gather_rates(metadata: dict, experiment_type: Literal["correlation", "hofer"]) -> np.ndarray:
@@ -493,6 +512,70 @@ def get_norm_factor(
     return norm_factors
 
 
+def build_single_run_metadata(
+    results: dict,
+    sim: Simulation,
+    config: SimulationConfig,
+    experiment_type: Literal["correlation", "hofer"],
+    dp_ratio: float,
+    edge_probability: float | None = None,
+) -> dict:
+    """Build metadata for a single in-memory simulation run.
+
+    This adapter lets the analysis helpers (``gather_weights``,
+    ``gather_num_connections``, and ``gather_rates``) operate on a single
+    run without a saved experiment folder. It mirrors the expected metadata
+    shape while storing results directly in-memory.
+
+    Parameters
+    ----------
+    results : dict
+        Result dictionary from ``Simulation.run``.
+    sim : Simulation
+        Simulation instance used to generate ``results``.
+    config : SimulationConfig
+        Simulation configuration used for the run.
+    experiment_type : {"correlation", "hofer"}
+        Type of experiment this run represents.
+    dp_ratio : float
+        Distal depression-potentiation ratio used for this run.
+    edge_probability : float, optional
+        Edge probability for Hofer experiments. Only used when
+        ``experiment_type="hofer"``.
+
+    Returns
+    -------
+    dict
+        Metadata dictionary compatible with the analysis utilities.
+    """
+    results_with_sim = dict(results)
+    results_with_sim["sim"] = sim
+
+    group_names = get_groupnames()
+    duration = results["weights"][0][group_names[0]].shape[0]
+    num_neurons = len(sim.neurons)
+
+    metadata = dict(
+        args=None,
+        config_name=None,
+        base_config=config,
+        dp_ratios=[dp_ratio],
+        num_neurons=num_neurons,
+        num_repeats=1,
+        duration=duration,
+        dt=sim.dt,
+        ratios=[0],
+        repeats=[0],
+        results=[results_with_sim],
+    )
+
+    if experiment_type == "hofer":
+        metadata["edge_probabilities"] = [edge_probability if edge_probability is not None else 0.0]
+        metadata["edges"] = [0]
+
+    return metadata
+
+
 def _gather_weights_correlation(
     metadata: dict,
     average_method: Literal["fraction", "samples"],
@@ -549,8 +632,8 @@ def _gather_weights_correlation(
         if end_idx > duration:
             raise ValueError(f"Window end index {end_idx} exceeds duration {duration}.")
 
-    for ratio, repeat, path in zip(metadata["ratios"], metadata["repeats"], metadata["data_paths"]):
-        results = joblib.load(path)
+    results_list = gather_results(metadata)
+    for ratio, repeat, results in zip(metadata["ratios"], metadata["repeats"], results_list):
         neuron_weights = results["weights"]
         for ineuron in range(metadata["num_neurons"]):
             norm_factor = get_norm_factor(
@@ -585,12 +668,12 @@ def _gather_num_connections_correlation(metadata: dict) -> dict[str, np.ndarray]
         for sg in get_groupnames()
     }
 
-    for ratio, repeat, path in zip(
+    results_list = gather_results(metadata)
+    for ratio, repeat, results in zip(
         metadata["ratios"],
         metadata["repeats"],
-        metadata["data_paths"],
+        results_list,
     ):
-        results = joblib.load(path)
         for ineuron in range(metadata["num_neurons"]):
             for sg in get_groupnames():
                 presynaptic_source = results["sim"].neurons[ineuron].synapse_groups[sg].source_params.presynaptic_source
@@ -657,13 +740,13 @@ def _gather_weights_hofer(
         if end_idx > duration:
             raise ValueError(f"Window end index {end_idx} exceeds duration {duration}.")
 
-    for ratio, edge, repeat, path in zip(
+    results_list = gather_results(metadata)
+    for ratio, edge, repeat, results in zip(
         metadata["ratios"],
         metadata["edges"],
         metadata["repeats"],
-        metadata["data_paths"],
+        results_list,
     ):
-        results = joblib.load(path)
         neuron_weights = results["weights"]
         for ineuron in range(metadata["num_neurons"]):
             norm_factor = get_norm_factor(
@@ -699,13 +782,13 @@ def _gather_num_connections_hofer(metadata: dict) -> dict[str, np.ndarray]:
         for sg in get_groupnames()
     }
 
-    for ratio, edge, repeat, path in zip(
+    results_list = gather_results(metadata)
+    for ratio, edge, repeat, results in zip(
         metadata["ratios"],
         metadata["edges"],
         metadata["repeats"],
-        metadata["data_paths"],
+        results_list,
     ):
-        results = joblib.load(path)
         for ineuron in range(metadata["num_neurons"]):
             for sg in get_groupnames():
                 presynaptic_source = results["sim"].neurons[ineuron].synapse_groups[sg].source_params.presynaptic_source
