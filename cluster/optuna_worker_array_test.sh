@@ -16,7 +16,7 @@ RUN_DIR=/home/$USER/Scratch/plasticity-modeling/results/optuna_runs/${STUDY_NAME
 N_TRIALS_PER_TASK=50
 DURATION=800
 NUM_NEURONS=3
-STORAGE_TIMEOUT=30
+STORAGE_TIMEOUT=60
 # ---------------------------------
 
 mkdir -p "$RUN_DIR"

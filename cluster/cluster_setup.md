@@ -209,6 +209,49 @@ python cluster/queue_status.py --queue ~/Scratch/plasticity-modeling/cluster/que
 
 ---
 
+## Optuna studies on the cluster
+
+For Optuna tuning, multiple workers share a single SQLite database inside a run directory.
+All array tasks **must** point to the same run directory to participate in the same study.
+
+### 1. Pick a study name and run date
+
+The Optuna array script builds the run directory as:
+```
+~/Scratch/plasticity-modeling/results/optuna_runs/<STUDY_NAME>_<YYYYMMDD>
+```
+
+You can override the date at submission time (recommended for repeatability):
+```bash
+export RUN_DATE=20260203
+```
+
+### 2. Submit the Optuna worker array
+
+Use the provided script:
+```bash
+qsub cluster/optuna_worker_array.sh
+```
+
+Edit `cluster/optuna_worker_array.sh` to set:
+- `STUDY_NAME`
+- `N_TRIALS_PER_TASK`
+- `DURATION`, `NUM_NEURONS`
+- `STORAGE_TIMEOUT` (SQLite lock timeout)
+- Array size (`-t 1-<N>`)
+
+The script creates the run directory automatically if it does not exist.
+
+### 3. Inspect the study
+
+After runs complete, review results with:
+```bash
+python scripts/optuna_review.py --run-dir ~/Scratch/plasticity-modeling/results/optuna_runs/<STUDY_NAME>_<YYYYMMDD>
+python scripts/optuna_review.py --run-dir ~/Scratch/plasticity-modeling/results/optuna_runs/<STUDY_NAME>_<YYYYMMDD> --compact
+```
+
+---
+
 ## Reproducibility (recommended)
 
 Freeze the environment so you can recreate it later:
