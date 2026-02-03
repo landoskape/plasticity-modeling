@@ -91,11 +91,9 @@ pip install -e . --no-deps
 python - <<'PY'
 import numpy, scipy, numba, sklearn, pydantic
 import scripts.iaf_correlation
-print("All good")
+print("Send it")
 PY
 ```
-
-If this prints `All good`, the environment is correct.
 
 ---
 
@@ -219,11 +217,6 @@ All array tasks **must** point to the same run directory to participate in the s
 The Optuna array script builds the run directory as:
 ```
 ~/Scratch/plasticity-modeling/results/optuna_runs/<STUDY_NAME>_<YYYYMMDD>
-```
-
-You can override the date at submission time (recommended for repeatability):
-```bash
-export RUN_DATE=20260203
 ```
 
 ### 2. Submit the Optuna worker array

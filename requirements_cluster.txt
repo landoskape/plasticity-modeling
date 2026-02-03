@@ -2,3 +2,4 @@ freezedry
 syd
 pydantic
 optuna
+natsort

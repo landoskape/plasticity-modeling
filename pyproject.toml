@@ -23,11 +23,13 @@ dependencies = [
     "scikit-learn",
     "ipykernel",
     "optuna",
+    "natsort",
 ]
 requires-python = ">=3.9"
 
 [project.optional-dependencies]
 cpu = ["torch"]
+dev = ["mkdocs", "mkdocs-material"]
 
 [tool.hatch.version]
 path = "src/__init__.py"

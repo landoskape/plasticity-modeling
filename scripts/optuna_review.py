@@ -32,7 +32,7 @@ def get_args():
     parser.add_argument(
         "--max-width",
         type=int,
-        default=120,
+        default=180,
         help="Max line width for compact output.",
     )
     return parser.parse_args()
