@@ -2,7 +2,7 @@
 #$ -l h_rt=00:10:00
 #$ -l mem=2G
 #$ -N optuna_proximal
-#$ -wd /home/$USER/Scratch/plasticity-modeling
+#$ -wd /home/skgta69/Scratch/plasticity-modeling
 #$ -t 1-4
 
 module purge
@@ -12,7 +12,7 @@ conda activate /home/skgta69/Scratch/conda-envs/iaf
 # ---------- user choices ----------
 STUDY_NAME=proximal_entropy_test
 RUN_DATE=${RUN_DATE:-$(date +%Y%m%d)}
-RUN_DIR=/home/$USER/Scratch/plasticity-modeling/results/optuna_runs/${STUDY_NAME}_${RUN_DATE}
+RUN_DIR=/home/skgta69/Scratch/plasticity-modeling/results/optuna_runs/${STUDY_NAME}_${RUN_DATE}
 N_TRIALS_PER_TASK=50
 DURATION=800
 NUM_NEURONS=3
