@@ -25,6 +25,12 @@ def get_args():
         help="How many top trials to display.",
     )
     parser.add_argument(
+        "--trial-number",
+        type=int,
+        default=None,
+        help="If set, print details for a specific trial number.",
+    )
+    parser.add_argument(
         "--compact",
         action="store_true",
         help="Print compact one-line summaries instead of a wide table.",
@@ -66,6 +72,20 @@ def main() -> None:
     if trials_df.empty:
         print("No trials found.")
         return
+
+    if args.trial_number is not None:
+        trial = study.trials[args.trial_number]
+        print("\nTrial details:")
+        print(f"number: {trial.number}")
+        print(f"state: {trial.state}")
+        print(f"value: {trial.value}")
+        print(f"datetime_start: {trial.datetime_start}")
+        print(f"datetime_complete: {trial.datetime_complete}")
+        print(f"params: {trial.params}")
+        if trial.user_attrs:
+            print(f"user_attrs: {trial.user_attrs}")
+        if trial.system_attrs:
+            print(f"system_attrs: {trial.system_attrs}")
 
     sorted_df = trials_df.sort_values("value", ascending=True)
     top_df = sorted_df.head(args.top_n)
