@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import textwrap
 
+import numpy as np
 import optuna
 import pandas as pd
 
@@ -86,19 +87,22 @@ def main() -> None:
         print(f"datetime_complete: {trial.datetime_complete}")
         formatted_params = {key: _format_value(value) for key, value in trial.params.items()}
         print(f"params: {formatted_params}")
+        print("\n")
         if trial.user_attrs:
             formatted_user_attrs = {key: _format_value(value) for key, value in trial.user_attrs.items()}
             print(f"user_attrs: {formatted_user_attrs}")
         if trial.system_attrs:
-            print(f"system_attrs: {trial.system_attrs}")
+            print(f"\n system_attrs: {trial.system_attrs}")
         if trial.user_attrs.get("avg_proximal_weights") is not None:
-            print("avg_proximal_weights:")
+            print("\n avg_proximal_weights:")
             for ineuron, weights in enumerate(trial.user_attrs["avg_proximal_weights"]):
+                weights = np.array(weights)
+                weights = weights / np.max(weights)
                 formatted_weights = [_format_value(value) for value in weights]
-                print(f"  neuron {ineuron}: {formatted_weights}")
+                print(f"\n neuron {ineuron}: {formatted_weights}")
         if trial.user_attrs.get("avg_spike_rate_hz") is not None:
             formatted_rates = [_format_value(value) for value in trial.user_attrs["avg_spike_rate_hz"]]
-            print(f"avg_spike_rate_hz: {formatted_rates}")
+            print(f"\n avg_spike_rate_hz: {formatted_rates}")
         return
 
     print(f"Best value: {study.best_value}")
@@ -109,7 +113,9 @@ def main() -> None:
     print("\nTop trials (lowest value first):")
     if args.compact:
         for _, row in top_df.iterrows():
-            params = {k.replace("params_", ""): _format_value(row[k]) for k in top_df.columns if k.startswith("params_")}
+            params = {
+                k.replace("params_", ""): _format_value(row[k]) for k in top_df.columns if k.startswith("params_")
+            }
             value = _format_value(row.get("value", None))
             number = row.get("number", None)
             params_text = ", ".join([f"{key}={value}" for key, value in params.items()])
