@@ -1,9 +1,9 @@
 #!/bin/bash -l
 #$ -l h_rt=00:10:00
-#$ -l mem=2G
+#$ -l mem=1G
 #$ -N optuna_proximal
 #$ -wd /home/skgta69/Scratch/plasticity-modeling
-#$ -t 1-4
+#$ -t 1-2
 
 module purge
 module load python/miniconda3/24.3.0-0
@@ -14,7 +14,7 @@ STUDY_NAME=proximal_entropy_test
 RUN_DATE=${RUN_DATE:-$(date +%Y%m%d)}
 RUN_DIR=/home/skgta69/Scratch/plasticity-modeling/results/optuna_runs/${STUDY_NAME}_${RUN_DATE}
 N_TRIALS_PER_TASK=50
-DURATION=800
+DURATION=400
 NUM_NEURONS=3
 STORAGE_TIMEOUT=60
 # ---------------------------------
