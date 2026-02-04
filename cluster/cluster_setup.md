@@ -289,12 +289,13 @@ python cluster/optuna_worker.py \
 
 ### 3. Cluster array test (short run)
 
-Edit `cluster/optuna_worker_array.sh` with short duration (e.g., 120s) and small trials per task,
-then submit a small array (e.g., `-t 1-5`).
+Edit `cluster/optuna_worker_array_test.sh` with short duration (e.g., 120s) and small trials per task,
+then submit a small array (e.g., `-t 1-5`) with `qsub cluster/optuna_worker_array_test.sh`
 
 ### 4. Cluster full array run
 
-Restore full duration (e.g., 3600s) and the intended array size (e.g., `-t 1-50`).
+Choose full test settings in `cluster/optuna_worker_array.sh` and submit the full optimization run with 
+`qsub cluster/optuna_worker_array.sh`. 
 
 ---
 
