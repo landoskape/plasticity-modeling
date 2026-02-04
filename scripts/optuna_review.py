@@ -90,6 +90,8 @@ def main() -> None:
         print("\n")
         if trial.user_attrs:
             formatted_user_attrs = {key: _format_value(value) for key, value in trial.user_attrs.items()}
+            formatted_user_attrs.pop("avg_proximal_weights", None)
+            formatted_user_attrs.pop("avg_spike_rate_hz", None)
             print(f"user_attrs: {formatted_user_attrs}")
         if trial.system_attrs:
             print(f"\n system_attrs: {trial.system_attrs}")
