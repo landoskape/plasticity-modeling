@@ -71,9 +71,6 @@ def main() -> None:
     print(f"Study: {study.study_name}")
     print(f"Storage: {storage_url}")
     print(f"Trials: {len(study.trials)}")
-    print(f"Best value: {study.best_value}")
-    print(f"Best params: {study.best_params}")
-
     trials_df = study.trials_dataframe()
     if trials_df.empty:
         print("No trials found.")
@@ -94,6 +91,18 @@ def main() -> None:
             print(f"user_attrs: {formatted_user_attrs}")
         if trial.system_attrs:
             print(f"system_attrs: {trial.system_attrs}")
+        if trial.user_attrs.get("avg_proximal_weights") is not None:
+            print("avg_proximal_weights:")
+            for ineuron, weights in enumerate(trial.user_attrs["avg_proximal_weights"]):
+                formatted_weights = [_format_value(value) for value in weights]
+                print(f"  neuron {ineuron}: {formatted_weights}")
+        if trial.user_attrs.get("avg_spike_rate_hz") is not None:
+            formatted_rates = [_format_value(value) for value in trial.user_attrs["avg_spike_rate_hz"]]
+            print(f"avg_spike_rate_hz: {formatted_rates}")
+        return
+
+    print(f"Best value: {study.best_value}")
+    print(f"Best params: {study.best_params}")
 
     sorted_df = trials_df.sort_values("value", ascending=True)
     top_df = sorted_df.head(args.top_n)

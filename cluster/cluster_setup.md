@@ -245,6 +245,59 @@ python scripts/optuna_review.py --run-dir ~/Scratch/plasticity-modeling/results/
 
 ---
 
+## Multi-stage Optuna test workflow
+
+Use this progression to avoid costly failed cluster runs.
+
+### 1. Local direct test (single trial)
+
+```bash
+python scripts/optuna_proximal_tuning.py \
+  --study-name proximal_entropy_test \
+  --n-trials 1 \
+  --duration 60 \
+  --num-neurons 1
+```
+
+This creates a local run dir under `results/optuna_runs/` and verifies the end-to-end loop.
+
+### 1.1. Local “array-like” test (optional)
+
+There is no true array locally, but you can run two workers sequentially against the same run dir:
+```bash
+python cluster/optuna_worker.py \
+  --study-name proximal_entropy_test \
+  --run-dir results/optuna_runs/proximal_entropy_test_YYYYMMDD \
+  --n-trials 1 \
+  --duration 60 \
+  --num-neurons 1
+```
+
+Repeat once to confirm it resumes the same study without errors.
+
+### 2. Cluster direct test (single worker)
+
+Run a single worker without an array to validate the environment and storage:
+```bash
+python cluster/optuna_worker.py \
+  --study-name proximal_entropy_smoke \
+  --run-dir ~/Scratch/plasticity-modeling/results/optuna_runs/proximal_entropy_smoke_YYYYMMDD \
+  --n-trials 1 \
+  --duration 120 \
+  --num-neurons 1
+```
+
+### 3. Cluster array test (short run)
+
+Edit `cluster/optuna_worker_array.sh` with short duration (e.g., 120s) and small trials per task,
+then submit a small array (e.g., `-t 1-5`).
+
+### 4. Cluster full array run
+
+Restore full duration (e.g., 3600s) and the intended array size (e.g., `-t 1-50`).
+
+---
+
 ## Reproducibility (recommended)
 
 Freeze the environment so you can recreate it later:
