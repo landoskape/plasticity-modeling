@@ -20,21 +20,21 @@ import src.utils as utils
 
 @dataclass
 class ProximalSearchSpace:
-    num_synapses_min: int
-    num_synapses_max: int
-    num_synapses_step: int
-    max_weight_min: float
-    max_weight_max: float
-    max_weight_log: bool
-    conductance_threshold_min: float
-    conductance_threshold_max: float
-    independent_noise_rate_min: float | None
-    independent_noise_rate_max: float | None
-    stdp_rate_min: float
-    stdp_rate_max: float
-    stdp_rate_log: bool
-    dp_ratio_min: float
-    dp_ratio_max: float
+    num_synapses_min: int = 36
+    num_synapses_max: int = 7200
+    num_synapses_step: int = 36
+    max_weight_min: float = 1e-13
+    max_weight_max: float = 1e-8
+    max_weight_log: bool = True
+    conductance_threshold_min: float = 0.0
+    conductance_threshold_max: float = 0.5
+    independent_noise_rate_min: float | None = 0.0
+    independent_noise_rate_max: float | None = 1.0
+    stdp_rate_min: float = 1e-4
+    stdp_rate_max: float = 0.1
+    stdp_rate_log: bool = True
+    dp_ratio_min: float = 0.95
+    dp_ratio_max: float = 1.25
 
 
 def _maybe_write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -142,6 +142,12 @@ def _suggest_proximal_params(trial: optuna.Trial, space: ProximalSearchSpace) ->
     }
 
 
+def _average_window_steps(duration: int, average_window: float | int) -> int:
+    if isinstance(average_window, float):
+        return max(1, int(duration * average_window))
+    return max(1, min(duration, int(average_window)))
+
+
 def _make_objective(
     *,
     config_name: str,
@@ -165,8 +171,31 @@ def _make_objective(
         results = sim.run(duration=duration, save_source_rates=False)
         results["sim"] = sim
         results["cfg"] = cfg
+        window_steps = _average_window_steps(duration, average_window)
+        window_start_sec = duration - window_steps
+        steps_per_second = int(1 / sim.dt)
+        window_start_step = window_start_sec * steps_per_second
+        window_end_step = duration * steps_per_second
+
+        averaged_weights = []
+        spike_rates = []
+        for ineuron in range(len(results["weights"])):
+            proximal_weights = results["weights"][ineuron]["proximal"]
+            averaged = np.mean(proximal_weights[-window_steps:], axis=0)
+            averaged_weights.append(averaged.tolist())
+
+            spike_times = results["spike_times"][ineuron]
+            in_window = (spike_times >= window_start_step) & (spike_times < window_end_step)
+            spike_count = int(np.sum(in_window))
+            spike_rates.append(spike_count / window_steps)
+
         entropy = proximal_weight_entropy(results, average_window=average_window)
         trial.set_user_attr("entropy", entropy)
+        trial.set_user_attr("avg_window_seconds", window_steps)
+        trial.set_user_attr("avg_window_start_sec", window_start_sec)
+        trial.set_user_attr("avg_proximal_weights", averaged_weights)
+        trial.set_user_attr("avg_spike_rate_hz", spike_rates)
+
         return float(entropy)
 
     return objective
