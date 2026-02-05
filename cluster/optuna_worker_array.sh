@@ -1,9 +1,9 @@
 #!/bin/bash -l
-#$ -l h_rt=012:00:00
+#$ -l h_rt=12:00:00
 #$ -l mem=2G
 #$ -N optuna_proximal
 #$ -wd /home/skgta69/Scratch/plasticity-modeling
-#$ -t 1-12
+#$ -t 1-16
 
 module purge
 module load python/miniconda3/24.3.0-0
@@ -11,7 +11,7 @@ conda activate /home/skgta69/Scratch/conda-envs/iaf
 
 # ---------- user choices ----------
 STUDY_NAME=proximal_entropy_full
-RUN_DATE=260204
+RUN_DATE=260205
 RUN_DIR=/home/skgta69/Scratch/plasticity-modeling/results/optuna_runs/${STUDY_NAME}_${RUN_DATE}
 N_TRIALS_PER_TASK=1000
 DURATION=2400
