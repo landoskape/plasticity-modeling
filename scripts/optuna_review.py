@@ -61,6 +61,14 @@ def _format_value(value) -> str:
     return str(value)
 
 
+def _format_literal(value) -> str:
+    if value is None:
+        return "None"
+    if isinstance(value, float):
+        return repr(value)
+    return str(value)
+
+
 def main() -> None:
     args = get_args()
     run_dir = args.run_dir
@@ -87,6 +95,18 @@ def main() -> None:
         print(f"datetime_complete: {trial.datetime_complete}")
         formatted_params = {key: _format_value(value) for key, value in trial.params.items()}
         print(f"params: {formatted_params}")
+        param_literals = {key: _format_literal(value) for key, value in trial.params.items()}
+        get_experiment_args = (
+            "get_proximal_experiment(\"hofer_all_proximal\", "
+            f"num_synapses={param_literals.get('num_synapses')}, "
+            f"max_weight={param_literals.get('max_weight')}, "
+            f"conductance_threshold={param_literals.get('conductance_threshold')}, "
+            f"independent_noise_rate={param_literals.get('independent_noise_rate')}, "
+            f"stdp_rate={param_literals.get('stdp_rate')}, "
+            f"depression_potentiation_ratio={param_literals.get('depression_potentiation_ratio')}, "
+            "num_simulations=1)"
+        )
+        print(f"get_proximal_experiment call: {get_experiment_args}")
         print("\n")
         if trial.user_attrs:
             formatted_user_attrs = {key: _format_value(value) for key, value in trial.user_attrs.items()}
