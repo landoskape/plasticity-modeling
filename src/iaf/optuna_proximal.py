@@ -20,11 +20,11 @@ import src.utils as utils
 
 @dataclass
 class ProximalSearchSpace:
-    num_synapses_min: int = 36
+    num_synapses_min: int = 720
     num_synapses_max: int = 7200
     num_synapses_step: int = 36
     max_weight_min: float = 1e-13
-    max_weight_max: float = 1e-8
+    max_weight_max: float = 1.25e-9
     max_weight_log: bool = True
     conductance_threshold_min: float = 0.0
     conductance_threshold_max: float = 0.5
@@ -35,6 +35,7 @@ class ProximalSearchSpace:
     stdp_rate_log: bool = True
     dp_ratio_min: float = 0.95
     dp_ratio_max: float = 1.25
+    synapse_weight: float = 0.3
 
 
 def _maybe_write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -148,6 +149,12 @@ def _average_window_steps(duration: int, average_window: float | int) -> int:
     return max(1, min(duration, int(average_window)))
 
 
+def _normalize_synapses(num_synapses: int, min_synapses: int, max_synapses: int) -> float:
+    if max_synapses <= min_synapses:
+        return 1.0
+    return float((num_synapses - min_synapses) / (max_synapses - min_synapses))
+
+
 def _make_objective(
     *,
     config_name: str,
@@ -190,13 +197,26 @@ def _make_objective(
             spike_rates.append(spike_count / window_steps)
 
         entropy = proximal_weight_entropy(results, average_window=average_window)
+        num_inputs = results["weights"][0]["proximal"].shape[-1]
+        max_entropy = float(np.log(num_inputs)) if num_inputs > 0 else 1.0
+        entropy_norm = entropy / max_entropy if max_entropy > 0 else 0.0
+        synapse_norm = _normalize_synapses(
+            params["num_synapses"],
+            space.num_synapses_min,
+            space.num_synapses_max,
+        )
+        score = entropy_norm + space.synapse_weight * (1.0 - synapse_norm)
         trial.set_user_attr("entropy", entropy)
+        trial.set_user_attr("entropy_norm", entropy_norm)
+        trial.set_user_attr("synapse_norm", synapse_norm)
+        trial.set_user_attr("score", score)
+        trial.set_user_attr("synapse_weight", space.synapse_weight)
         trial.set_user_attr("avg_window_seconds", window_steps)
         trial.set_user_attr("avg_window_start_sec", window_start_sec)
         trial.set_user_attr("avg_proximal_weights", averaged_weights)
         trial.set_user_attr("avg_spike_rate_hz", spike_rates)
 
-        return float(entropy)
+        return float(score)
 
     return objective
 
