@@ -100,8 +100,8 @@ def main() -> None:
         if trial.user_attrs.get("avg_proximal_weights") is not None:
             num_simulations = len(trial.user_attrs["avg_proximal_weights"])
         call_lines = [
-            "get_proximal_experiment(",
-            "    \"hofer_all_proximal\",",
+            "sim, cfg = get_proximal_experiment(",
+            '    "hofer_all_proximal",',
             f"    num_synapses={param_literals.get('num_synapses')},",
             f"    max_weight={param_literals.get('max_weight')},",
             f"    conductance_threshold={param_literals.get('conductance_threshold')},",
