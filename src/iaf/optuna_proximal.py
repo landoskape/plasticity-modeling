@@ -20,7 +20,7 @@ import src.utils as utils
 
 @dataclass
 class ProximalSearchSpace:
-    num_synapses_min: int = 720
+    num_synapses_min: int = 1080
     num_synapses_max: int = 7200
     num_synapses_step: int = 36
     max_weight_min: float = 1e-13
@@ -35,7 +35,7 @@ class ProximalSearchSpace:
     stdp_rate_log: bool = True
     dp_ratio_min: float = 0.95
     dp_ratio_max: float = 1.25
-    synapse_weight: float = 0.3
+    synapse_weight: float = 0.1
 
 
 def _maybe_write_json(path: Path, payload: dict[str, Any]) -> None:
