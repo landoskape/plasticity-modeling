@@ -125,8 +125,8 @@ def main() -> None:
             for ineuron, weights in enumerate(trial.user_attrs["avg_proximal_weights"]):
                 weights = np.array(weights)
                 weights = weights / np.max(weights)
-                formatted_weights = [_format_value(value) for value in weights]
-                print(f"\n neuron {ineuron}: {formatted_weights}")
+                weights = np.sort(weights)[::-1]
+                print(f"\n neuron {ineuron}: {weights}")
         if trial.user_attrs.get("avg_spike_rate_hz") is not None:
             formatted_rates = [_format_value(value) for value in trial.user_attrs["avg_spike_rate_hz"]]
             print(f"\n avg_spike_rate_hz: {formatted_rates}")
