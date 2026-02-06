@@ -149,10 +149,8 @@ def _average_window_steps(duration: int, average_window: float | int) -> int:
     return max(1, min(duration, int(average_window)))
 
 
-def _normalize_synapses(num_synapses: int, min_synapses: int, max_synapses: int) -> float:
-    if max_synapses <= min_synapses:
-        return 1.0
-    return float((num_synapses - min_synapses) / (max_synapses - min_synapses))
+def _normalize_synapses(num_synapses: int, max_synapses: int) -> float:
+    return float(num_synapses / max_synapses)
 
 
 def _make_objective(
@@ -201,14 +199,13 @@ def _make_objective(
         max_entropy = float(np.log(num_inputs)) if num_inputs > 0 else 1.0
         entropy_norm = entropy / max_entropy if max_entropy > 0 else 0.0
         synapse_norm = _normalize_synapses(
-            params["num_synapses"],
-            space.num_synapses_min,
+            cfg.synapses["proximal"].num_synapses,
             space.num_synapses_max,
         )
-        score = entropy_norm + space.synapse_weight * (1.0 - synapse_norm)
+        score = entropy_norm * (1 - space.synapse_weight) + space.synapse_weight * (1.0 - synapse_norm)
         trial.set_user_attr("entropy", entropy)
         trial.set_user_attr("entropy_norm", entropy_norm)
-        trial.set_user_attr("synapse_norm", synapse_norm)
+        trial.set_user_attr("synapse_norm", (1 - synapse_norm))
         trial.set_user_attr("score", score)
         trial.set_user_attr("synapse_weight", space.synapse_weight)
         trial.set_user_attr("avg_window_seconds", window_steps)
