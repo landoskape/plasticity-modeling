@@ -11,7 +11,7 @@ conda activate /home/skgta69/Scratch/conda-envs/iaf
 
 # ---------- user choices ----------
 STUDY_NAME=proximal_entropy_full
-RUN_DATE=260205
+RUN_DATE=260206
 RUN_DIR=/home/skgta69/Scratch/plasticity-modeling/results/optuna_runs/${STUDY_NAME}_${RUN_DATE}
 N_TRIALS_PER_TASK=1000
 DURATION=2400
