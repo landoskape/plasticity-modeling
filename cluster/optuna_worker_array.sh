@@ -10,8 +10,8 @@ module load python/miniconda3/24.3.0-0
 conda activate /home/skgta69/Scratch/conda-envs/iaf
 
 # ---------- user choices ----------
-STUDY_NAME=proximal_entropy_full
-RUN_DATE=260206
+STUDY_NAME=proximal_entropy_full_with_source_params
+RUN_DATE=260211
 RUN_DIR=/home/skgta69/Scratch/plasticity-modeling/results/optuna_runs/${STUDY_NAME}_${RUN_DATE}
 N_TRIALS_PER_TASK=1000
 DURATION=2400
