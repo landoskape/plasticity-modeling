@@ -108,6 +108,9 @@ def main() -> None:
             f"    independent_noise_rate={param_literals.get('independent_noise_rate')},",
             f"    stdp_rate={param_literals.get('stdp_rate')},",
             f"    depression_potentiation_ratio={param_literals.get('depression_potentiation_ratio')},",
+            f"    baseline_rate={param_literals.get('baseline_rate')},",
+            f"    driven_rate={param_literals.get('driven_rate')},",
+            f"    concentration={param_literals.get('concentration')},",
             f"    num_simulations={num_simulations},",
             ")",
         ]

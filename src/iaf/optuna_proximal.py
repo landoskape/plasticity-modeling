@@ -20,11 +20,11 @@ import src.utils as utils
 
 @dataclass
 class ProximalSearchSpace:
-    num_synapses_min: int = 1080
-    num_synapses_max: int = 7200
+    num_synapses_min: int = 720
+    num_synapses_max: int = 4320
     num_synapses_step: int = 36
     max_weight_min: float = 1e-13
-    max_weight_max: float = 1.25e-9
+    max_weight_max: float = 1.5e-9
     max_weight_log: bool = True
     conductance_threshold_min: float = 0.0
     conductance_threshold_max: float = 0.5
@@ -35,7 +35,13 @@ class ProximalSearchSpace:
     stdp_rate_log: bool = True
     dp_ratio_min: float = 0.95
     dp_ratio_max: float = 1.25
-    synapse_weight: float = 0.1
+    baseline_rate_min: float = 0.0
+    baseline_rate_max: float = 50.0
+    driven_rate_min: float = 5.0
+    driven_rate_max: float = 95.0
+    concentration_min: float = 0.25
+    concentration_max: float = 5.0
+    synapse_weight: float = 0.05
 
 
 def _maybe_write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -133,6 +139,21 @@ def _suggest_proximal_params(trial: optuna.Trial, space: ProximalSearchSpace) ->
         space.dp_ratio_min,
         space.dp_ratio_max,
     )
+    baseline_rate = trial.suggest_float(
+        "baseline_rate",
+        space.baseline_rate_min,
+        space.baseline_rate_max,
+    )
+    driven_rate = trial.suggest_float(
+        "driven_rate",
+        space.driven_rate_min,
+        space.driven_rate_max,
+    )
+    concentration = trial.suggest_float(
+        "concentration",
+        space.concentration_min,
+        space.concentration_max,
+    )
     return {
         "num_synapses": num_synapses,
         "max_weight": max_weight,
@@ -140,6 +161,9 @@ def _suggest_proximal_params(trial: optuna.Trial, space: ProximalSearchSpace) ->
         "independent_noise_rate": independent_noise_rate,
         "stdp_rate": stdp_rate,
         "depression_potentiation_ratio": depression_potentiation_ratio,
+        "baseline_rate": baseline_rate,
+        "driven_rate": driven_rate,
+        "concentration": concentration,
     }
 
 
@@ -171,6 +195,9 @@ def _make_objective(
             independent_noise_rate=params["independent_noise_rate"],
             stdp_rate=params["stdp_rate"],
             depression_potentiation_ratio=params["depression_potentiation_ratio"],
+            baseline_rate=params["baseline_rate"],
+            driven_rate=params["driven_rate"],
+            concentration=params["concentration"],
             num_simulations=num_neurons,
         )
         results = sim.run(duration=duration, save_source_rates=False)

@@ -75,7 +75,11 @@ def get_proximal_experiment(
     independent_noise_rate: float | None,
     stdp_rate: float,
     depression_potentiation_ratio: float,
+    baseline_rate: float,
+    driven_rate: float,
+    concentration: float,
     num_simulations: int = 1,
+    edge_probability: float = 0.5,
 ) -> Tuple[Simulation, SimulationConfig]:
     """Create a simulation focused on proximal synapses only.
 
@@ -86,6 +90,11 @@ def get_proximal_experiment(
     config = SimulationConfig.from_yaml(fpath)
     config.synapses.pop("distal-simple", None)
     config.synapses.pop("distal-complex", None)
+    if hasattr(config.sources["excitatory"], "edge_probability"):
+        config.sources["excitatory"].edge_probability = edge_probability
+    config.sources["excitatory"].baseline_rate = baseline_rate
+    config.sources["excitatory"].driven_rate = driven_rate
+    config.sources["excitatory"].concentration = concentration
 
     proximal = config.synapses["proximal"]
     if proximal.source is not None and proximal.source.source_rule == "divided":
