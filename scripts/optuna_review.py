@@ -7,6 +7,8 @@ import textwrap
 
 import numpy as np
 import optuna
+from optuna.importance import get_param_importances
+from optuna.importance import PedAnovaImportanceEvaluator
 import pandas as pd
 
 
@@ -41,6 +43,11 @@ def get_args():
         type=int,
         default=180,
         help="Max line width for compact output.",
+    )
+    parser.add_argument(
+        "--show-importances",
+        action="store_true",
+        help="Show parameter importances.",
     )
     return parser.parse_args()
 
@@ -138,11 +145,12 @@ def main() -> None:
     print(f"Best value: {study.best_value}")
     print(f"Best params: {study.best_params}")
 
-    # Show param importance
-    importances = optuna.importance.get_param_importances(study)
-    print("\nParameter Importances:")
-    for name, importance in importances.items():
-        print(f"{name:20s} {importance:.4f}")
+    if args.show_importances:
+        evaluator = PedAnovaImportanceEvaluator()
+        importances = get_param_importances(study, evaluator=evaluator)
+        print("\nParameter Importances:")
+        for name, importance in importances.items():
+            print(f"{name:20s} {importance:.4f}")
 
     sorted_df = trials_df.sort_values("value", ascending=True)
     top_df = sorted_df.head(args.top_n)
