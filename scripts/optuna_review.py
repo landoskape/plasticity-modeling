@@ -146,8 +146,7 @@ def main() -> None:
     print(f"Best params: {study.best_params}")
 
     if args.show_importances:
-        evaluator = PedAnovaImportanceEvaluator()
-        importances = get_param_importances(study, evaluator=evaluator)
+        importances = get_param_importances(study)
         print("\nParameter Importances:")
         for name, importance in importances.items():
             print(f"{name:20s} {importance:.4f}")
