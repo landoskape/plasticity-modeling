@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Tuple, cast
+from typing import Optional, Tuple, cast
 from src.iaf.config import PlasticityConfig, SimulationConfig
 from src.iaf.simulation import Simulation
 from src.files import config_dir
@@ -80,6 +80,9 @@ def get_proximal_experiment(
     concentration: float,
     num_simulations: int = 1,
     edge_probability: float = 0.5,
+    maintain_distal: bool = False,
+    fixed_center: bool = True,
+    distal_dp_ratio: Optional[float] = None,
 ) -> Tuple[Simulation, SimulationConfig]:
     """Create a simulation focused on proximal synapses only.
 
@@ -88,13 +91,18 @@ def get_proximal_experiment(
     """
     fpath = config_dir() / f"{config_name}.yaml"
     config = SimulationConfig.from_yaml(fpath)
-    config.synapses.pop("distal-simple", None)
-    config.synapses.pop("distal-complex", None)
+    if not maintain_distal:
+        config.synapses.pop("distal-simple", None)
+        config.synapses.pop("distal-complex", None)
+    else:
+        if distal_dp_ratio is not None:
+            config.synapses["distal-complex"].plasticity.depression_potentiation_ratio = distal_dp_ratio
     if hasattr(config.sources["excitatory"], "edge_probability"):
         config.sources["excitatory"].edge_probability = edge_probability
     config.sources["excitatory"].baseline_rate = baseline_rate
     config.sources["excitatory"].driven_rate = driven_rate
     config.sources["excitatory"].concentration = concentration
+    config.sources["excitatory"].fixed_center = fixed_center
 
     proximal = config.synapses["proximal"]
     if proximal.source is not None and proximal.source.source_rule == "divided":
@@ -112,6 +120,10 @@ def get_proximal_experiment(
     proximal_plasticity = cast(PlasticityConfig, proximal.plasticity)
     proximal_plasticity.stdp_rate = stdp_rate
     proximal_plasticity.depression_potentiation_ratio = depression_potentiation_ratio
+
+    if "distal-simple" in config.synapses:
+        config.synapses["distal-simple"].plasticity.depression_potentiation_ratio = distal_dp_ratio
+
     config.num_simulations = num_simulations
     return Simulation.from_config(config), config
 

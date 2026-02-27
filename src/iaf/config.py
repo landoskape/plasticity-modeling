@@ -75,6 +75,8 @@ class SourceGaborConfig(SourcePopulationConfig):
         Baseline firing rate in Hz when no edge is present. Default is 5.0.
     driven_rate : float
         Firing rate in Hz when an edge is present. Default is 45.0.
+    fixed_center : bool
+        Whether to keep the center position fixed. Default is True.
     """
 
     type: Literal["gabor"] = Field("gabor", description="Type of source population (gabor)")
@@ -82,6 +84,7 @@ class SourceGaborConfig(SourcePopulationConfig):
     concentration: float = Field(1.0, gt=0, description="Concentration of the Gabor field")
     baseline_rate: float = Field(5.0, gt=0, description="Baseline firing rate")
     driven_rate: float = Field(45.0, gt=0, description="Driven firing rate")
+    fixed_center: bool = Field(True, description="Whether to keep the center position fixed")
 
 
 class SourceICAConfig(SourcePopulationConfig):

@@ -207,6 +207,7 @@ class SourcePopulationGabor(SourcePopulation):
     baseline_rate: float
     driven_rate: float
     orientations: np.ndarray
+    fixed_center: bool
     num_orientations: int = 4
     num_inputs: int = 36
     tau_stim: float
@@ -221,6 +222,7 @@ class SourcePopulationGabor(SourcePopulation):
         driven_rate: float,
         tau_stim: float,
         dt: float,
+        fixed_center: bool = True,
     ):
         """Initialize the Gabor source population.
 
@@ -238,6 +240,10 @@ class SourcePopulationGabor(SourcePopulation):
             The time constant for the stimulus in seconds.
         dt : float
             The time step in seconds.
+        fixed_center : bool
+            Whether to keep the center position fixed.
+            If False, will randomly roll the stimulus so edges can appear
+            from any position on the 3x3 torus.
         """
         self.edge_probability = edge_probability
         self.concentration = concentration
@@ -245,6 +251,7 @@ class SourcePopulationGabor(SourcePopulation):
         self.driven_rate = driven_rate
         self.tau_stim = tau_stim
         self.dt = dt
+        self.fixed_center = fixed_center
 
         # Precompute the number of samples that the rates persist for (on average)
         self._rates_samples_mean = self.tau_stim / self.dt
@@ -295,7 +302,9 @@ class SourcePopulationGabor(SourcePopulation):
             return (x0, y0), (x1, y1)
 
     @classmethod
-    def make_stimulus(cls, edge_probability: float, center_orientation: Optional[int] = None) -> np.ndarray:
+    def make_stimulus(
+        cls, edge_probability: float, center_orientation: Optional[int] = None, fixed_center: bool = True
+    ) -> np.ndarray:
         """Generate a 3x3 stimulus array with orientations.
 
         Creates a 3x3 array where each cell contains an orientation index (0-3).
@@ -309,6 +318,10 @@ class SourcePopulationGabor(SourcePopulation):
         center_orientation : int, optional
             The orientation of the center cell. If not provided, a random orientation
             will be chosen.
+        fixed_center : bool
+            Whether to keep the center position fixed.
+            If False, will randomly roll the stimulus so edges can appear
+            from any position on the 3x3 torus.
 
         Returns
         -------
@@ -323,6 +336,12 @@ class SourcePopulationGabor(SourcePopulation):
             outer0, outer1 = cls.stimulus_to_edge_positions(stimulus_orientation[1, 1])
             stimulus_orientation[outer0[0], outer0[1]] = stimulus_orientation[1, 1]
             stimulus_orientation[outer1[0], outer1[1]] = stimulus_orientation[1, 1]
+
+            if not fixed_center:
+                vertical_shift = rng.integers(0, 3)
+                horizontal_shift = rng.integers(0, 3)
+                stimulus_orientation = np.roll(stimulus_orientation, vertical_shift, axis=0)
+                stimulus_orientation = np.roll(stimulus_orientation, horizontal_shift, axis=1)
         else:
             # If not edge, make sure the edge positions are not the same as the center
             center = stimulus_orientation[1, 1]
@@ -336,14 +355,35 @@ class SourcePopulationGabor(SourcePopulation):
                     break
         return stimulus_orientation
 
-    def generate_stimulus(self, edge_probability: Optional[float] = None) -> np.ndarray:
+    def generate_stimulus(
+        self,
+        edge_probability: Optional[float] = None,
+        fixed_center: Optional[bool] = None,
+    ) -> np.ndarray:
         """Generate a 3x3 stimulus array with orientations.
 
         Calls self.make_stimulus() with the given edge_probability, or the instance's
         edge_probability if no edge_probability is provided. See self.make_stimulus()
         for more details.
+
+        Parameters
+        ----------
+        edge_probability : float, optional
+            The probability of generating an edge, overriding the instance value.
+        fixed_center : bool, optional
+            Whether to keep the center position fixed.
+            If False, will randomly roll the stimulus so edges can appear
+            from any position on the 3x3 torus.
+
+        Returns
+        -------
+        np.ndarray
+            A 3x3 array of orientation indices (0-3).
         """
-        return self.make_stimulus(edge_probability or self.edge_probability)
+        return self.make_stimulus(
+            edge_probability or self.edge_probability,
+            fixed_center=fixed_center or self.fixed_center,
+        )
 
     def convert_stimulus_to_rates(self, stimulus: np.ndarray) -> np.ndarray:
         """Convert a stimulus array of orientation indices to firing rates.
@@ -421,6 +461,7 @@ class SourcePopulationGabor(SourcePopulation):
             driven_rate=config.driven_rate,
             tau_stim=config.tau_stim,
             dt=config.dt,
+            fixed_center=config.fixed_center,
         )
 
 

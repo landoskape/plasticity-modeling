@@ -398,7 +398,7 @@ def build_ax_latent_correlation_demonstration(
         ax.plot(range(T), signal[:, isignal] + offsets[isignal], color=colors[isignal], linewidth=FigParams.linewidth)
     ax.text(
         text_position,
-        y_latent + 1.0,
+        y_latent + 0.5,
         "Latent",
         ha="right",
         va="top",
@@ -408,7 +408,7 @@ def build_ax_latent_correlation_demonstration(
     )
     ax.text(
         text_position,
-        np.mean(offsets) + 0.5,
+        np.mean(offsets) + 0.0,
         "Correlated Inputs",
         ha="right",
         va="center",
@@ -1711,6 +1711,10 @@ def build_tuning_group_trajectory_axes(
 ):
     ax_list = [ax_proximal, ax_simple, ax_complex]
     group_list = [Proximal, DistalSimple, DistalComplex]
+    ax_simple.sharey(ax_proximal)
+    ax_complex.sharey(ax_proximal)
+    ylims = [0, 115]
+    ybounds = [0, 100]
 
     for igroup, sgname in enumerate(get_groupnames()):
         for iwg, wg in enumerate(trajectory):
@@ -1729,14 +1733,11 @@ def build_tuning_group_trajectory_axes(
             )
 
         ax_list[1].set_ylabel("Weight (%)", fontsize=fontsize)
-
-        ylims = ax_list[igroup].get_ylim()
-        new_ylim_max = np.ceil(ylims[1] * 1.2)
-        ax_list[igroup].set_ylim(0, new_ylim_max)
+        ax_list[igroup].set_ylim(ylims)
 
         ax_list[igroup].text(
             0,
-            new_ylim_max * 0.95,
+            ylims[1] * 0.95,
             getattr(group_list[igroup], labeltype),
             color=group_list[igroup].color,
             fontsize=fontsize,
@@ -1749,9 +1750,9 @@ def build_tuning_group_trajectory_axes(
             x_pos=FigParams.spine_pos,
             y_pos=FigParams.spine_pos,
             xbounds=(0, ctraj.shape[1]),
-            ybounds=(0, new_ylim_max),
+            ybounds=ybounds,
             xticks=(0, ctraj.shape[1]) if igroup == 2 else [],
-            yticks=(0, new_ylim_max),
+            yticks=ybounds,
             tick_length=FigParams.tick_length,
             tick_width=FigParams.tick_width,
             tick_fontsize=FigParams.tick_fontsize,
@@ -1834,6 +1835,7 @@ def build_relative_edge_weights_axes(
     vertical: bool = True,
     labeltype: str = "label",
     fontsize: float = FigParams.smallfontsize,
+    use_fraction_total_weight: bool = False,
 ):
     num_edges = len(metadata["edge_probabilities"])
     num_ratios = len(metadata["dp_ratios"])
@@ -1850,20 +1852,24 @@ def build_relative_edge_weights_axes(
         for igroup, sgname in enumerate(groups_to_plot):
             idxgroup = idx_to_group[igroup]
             edge_preferred = np.reshape(summary["edge-preferred"][idxgroup, iratio], (num_edges, -1))
-            total_weight = np.sum(
-                np.stack([np.reshape(summary[wg][idxgroup, iratio], (num_edges, -1)) for wg in summary]), axis=0
-            )
-            ratio_edge_preferred = edge_preferred / total_weight
+            if use_fraction_total_weight:
+                raise NotImplementedError(
+                    "This is not correct! It's normalized by relative weight, so we can't do this"
+                )
+                total_weight = np.sum(
+                    np.stack([np.reshape(summary[wg][idxgroup, iratio], (num_edges, -1)) for wg in summary]), axis=0
+                )
+                edge_preferred = edge_preferred / total_weight
             errorPlot(
                 range(num_edges),
-                100 * ratio_edge_preferred,
+                100 * edge_preferred,
                 axis=1,
                 ax=axes_to_plot[igroup],
                 color=colors[iratio],
                 linewidth=1.0,
                 alpha=0.3,
             )
-            max_ratio = max(max_ratio, np.max(ratio_edge_preferred))
+            max_ratio = max(max_ratio, np.max(edge_preferred))
 
     axes_to_plot[0].set_xlim(-0.25, num_edges - 0.75)
     axes_to_plot[1].set_xlim(-0.25, num_edges - 0.75)

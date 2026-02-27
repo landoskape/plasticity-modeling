@@ -298,6 +298,12 @@ def summarize_weights(
     if norm_by_total_synapses and norm_by_num_synapses:
         raise ValueError("norm_by_total_synapses and norm_by_num_synapses cannot both be True")
 
+    # We handle norm_by_num_synapses with the get_norm_factor when not using replacement rule.
+    # If num_connections is provided, let that indicate that the replacement rule is being used.
+    # So if num_connections is None, use get_norm_factor and ignore num_connections part.
+    # If num_connections is not None, use it to scale the weights and ignore norm_by_num_synapses
+    # in get_norm_factor.
+
     meta_shape = orientation_preference.shape
     num_meta = np.prod(meta_shape)
     group_names = get_groupnames()
@@ -331,7 +337,7 @@ def summarize_weights(
             norm_factor = get_norm_factor(
                 results[idx_result]["sim"].neurons[ineuron],
                 norm_by_max_weight=norm_by_max_weight,
-                norm_by_num_synapses=norm_by_num_synapses,
+                norm_by_num_synapses=norm_by_num_synapses if num_connections is None else False,
                 norm_by_total_synapses=norm_by_total_synapses,
             )
             c_trajectory = results[idx_result]["weights"][ineuron][sg] / norm_factor[sg]
@@ -406,9 +412,13 @@ def summarize_weights(
     # Reshape to match the shape of the orientation preference
     # Which reflects the experiment structure
     for weight_group in weight_groups:
-        weight_summary[weight_group] = np.reshape(weight_summary[weight_group], (len(group_names), *meta_shape))
+        weight_summary[weight_group] = np.reshape(
+            weight_summary[weight_group],
+            (len(group_names), *meta_shape),
+        )
         trajectory_summary[weight_group] = np.reshape(
-            trajectory_summary[weight_group], (len(group_names), *meta_shape, duration)
+            trajectory_summary[weight_group],
+            (len(group_names), *meta_shape, duration),
         )
 
     if consolidate_other:
@@ -418,9 +428,13 @@ def summarize_weights(
             "outer-preferred",
             "outer-other",
         ]
-        weight_summary["other"] = np.mean(np.stack([weight_summary[group] for group in groups_to_consolidate]), axis=0)
+        weight_summary["other"] = np.mean(
+            np.stack([weight_summary[group] for group in groups_to_consolidate]),
+            axis=0,
+        )
         trajectory_summary["other"] = np.mean(
-            np.stack([trajectory_summary[group] for group in groups_to_consolidate]), axis=0
+            np.stack([trajectory_summary[group] for group in groups_to_consolidate]),
+            axis=0,
         )
         for group in groups_to_consolidate:
             weight_summary.pop(group)
