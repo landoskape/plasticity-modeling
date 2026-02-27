@@ -46,6 +46,7 @@ amount of plasticity evoked by positive pairings (LTP) or negative pairings (LTD
 - Results / iaf_runs / hofer_replacement / 20250424 has longer results for hofer replacement experiment
 - Results / iaf_runs / hofer / jan21_full1_hofer_20260121 has super long results (9600) on cluster
 - Results / iaf_runs / hofer / jan21_full1_hofer_replacement 20260121 has super long results (9600) on cluster
+- results / optuna_runs / full_20260203(not quite that but almost) on cluster has an optuna run for proximmal entropy minimization  
 
 # Figure Mapping
 - Overall Notes: 
