@@ -1,6 +1,9 @@
 # ignore
 ignore/
 
+# LaTeX build artifacts
+_latex_build/
+
 # VSCODE
 .vscode/
 
