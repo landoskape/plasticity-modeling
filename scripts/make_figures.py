@@ -15,8 +15,14 @@ from src.plotting import (
     add_group_legend,
     add_dpratio_legend,
     add_dpratio_inset,
+    ax_tightbbox_in_figure_coords,
 )
-from src.schematics import Neuron, build_integrated_schematic_axis, create_dpratio_colors
+from src.schematics import (
+    Neuron,
+    build_integrated_schematic_axis,
+    create_dpratio_colors,
+    PlasticityChannelSchematic,
+)
 from src.experimental import (
     ElifeData,
     build_axes_formatted_elife_data,
@@ -216,6 +222,32 @@ def figure1(fig_params: Figure1Params, show_fig: bool = True, save_fig: bool = F
     ax_ap_peaks.set_facecolor("none")
     ax_amp_peaks.set_facecolor("none")
 
+    # Add panel labels
+    kwargs = dict(
+        transform=fig.transFigure,
+        fontsize=FigParams.largefontsize,
+        color="k",
+        zorder=10,
+        ha="left",
+        va="top",
+    )
+    fig.canvas.draw()  # forces final layout for correct bounding box
+    bbox_schematic = ax_tightbbox_in_figure_coords(fig, ax_schematic)
+    bbox_amp_demonstration = ax_tightbbox_in_figure_coords(fig, ax_amp_demonstration)
+    bbox_ap_trace = ax_tightbbox_in_figure_coords(fig, ax_ap_trace)
+    bbox_amp_trace = ax_tightbbox_in_figure_coords(fig, ax_amp_trace)
+
+    x_ab = min(bbox_schematic.x0, bbox_amp_demonstration.x0)
+    y_ac = max(bbox_schematic.y1, bbox_ap_trace.y1)
+    x_cd = min(bbox_amp_trace.x0, bbox_amp_trace.x0)
+    y_bd = max(bbox_amp_demonstration.y1, bbox_amp_trace.y1)
+    x_cd = x_cd - 0.02
+
+    fig.text(x_ab, y_ac, "A", **kwargs)
+    fig.text(x_ab, y_bd, "B", **kwargs)
+    fig.text(x_cd, y_ac, "C", **(kwargs | {"ha": "right"}))
+    fig.text(x_cd, y_bd, "D", **(kwargs | {"ha": "right"}))
+
     if show_fig:
         plt.show(block=True)
 
@@ -257,6 +289,7 @@ def figure2(fig_params: Figure2Params, show_fig: bool = True, save_fig: bool = F
     ax_nmdar = fig.add_subplot(gs[0, 1])
     ax_vgcc = fig.add_subplot(gs[0, 2])
     ax_integrated = fig.add_subplot(gs[0, 3])
+    ax_schematic = fig.add_subplot(gs[1, 0])
     ax_nevian = fig.add_subplot(gs[1, 1])
     ax_transfer = fig.add_subplot(gs[1, 2])
     ax_ltpltd = fig.add_subplot(gs[1, 3])
@@ -297,11 +330,17 @@ def figure2(fig_params: Figure2Params, show_fig: bool = True, save_fig: bool = F
     ax_vgcc.set_xlabel("Time (ms)", fontsize=fontsize, labelpad=-6)
     ax_vgcc.set_ylabel("VGCC P(open)", fontsize=fontsize, labelpad=-10)
 
-    nmdar_ylims = (0, 1)
-    vgcc_ylims = (0, 1)
+    nmdar_ylims = (-0.1, 1.1)
+    vgcc_ylims = (-0.1, 1.1)
+    nmdar_ybounds = (0, 1)
+    vgcc_ybounds = (0, 1)
     ax_nmdar.set_ylim(nmdar_ylims)
     ax_vgcc.set_ylim(vgcc_ylims)
 
+    voltage_ybounds = (fig_params.v_base, fig_params.v_base + max(ap_amplitudes))
+    voltage_yrange = voltage_ybounds[1] - voltage_ybounds[0]
+    voltage_ylims = (voltage_ybounds[0] - 0.1 * voltage_yrange, voltage_ybounds[1] + 0.1 * voltage_yrange)
+    ax_voltage.set_ylim(voltage_ylims)
     format_spines(
         ax_voltage,
         x_pos=FigParams.spine_pos,
@@ -321,9 +360,9 @@ def figure2(fig_params: Figure2Params, show_fig: bool = True, save_fig: bool = F
         x_pos=FigParams.spine_pos,
         y_pos=FigParams.spine_pos,
         xticks=[fig_params.t_start, fig_params.t_end],
-        yticks=nmdar_ylims,
+        yticks=nmdar_ybounds,
         xbounds=(fig_params.t_start, fig_params.t_end),
-        ybounds=nmdar_ylims,
+        ybounds=nmdar_ybounds,
         spine_linewidth=FigParams.linewidth,
         tick_length=FigParams.tick_length,
         tick_width=FigParams.tick_width,
@@ -335,9 +374,9 @@ def figure2(fig_params: Figure2Params, show_fig: bool = True, save_fig: bool = F
         x_pos=FigParams.spine_pos,
         y_pos=FigParams.spine_pos,
         xticks=[fig_params.t_start, fig_params.t_end],
-        yticks=vgcc_ylims,
+        yticks=vgcc_ybounds,
         xbounds=(fig_params.t_start, fig_params.t_end),
-        ybounds=vgcc_ylims,
+        ybounds=vgcc_ybounds,
         spine_linewidth=FigParams.linewidth,
         tick_length=FigParams.tick_length,
         tick_width=FigParams.tick_width,
@@ -383,6 +422,10 @@ def figure2(fig_params: Figure2Params, show_fig: bool = True, save_fig: bool = F
         colors=[NMDAR.color(), VGCC.color()],
     )
 
+    # Build schematic
+    plasticity_schema = PlasticityChannelSchematic()
+    plasticity_schema.plot(ax_schematic)
+
     # Build nevian axes
     build_axes_nevian_reconstruction(
         ax_nevian,
@@ -418,6 +461,9 @@ def figure2(fig_params: Figure2Params, show_fig: bool = True, save_fig: bool = F
         conductance_data,
         ap_amplitudes=ap_amplitudes,
     )
+
+    ax_transfer.set_ylim(-0.1, 1.1)
+    ax_ltpltd.set_ylim(-0.1, 1.1)
 
     format_spines(
         ax_transfer,
@@ -465,9 +511,46 @@ def figure2(fig_params: Figure2Params, show_fig: bool = True, save_fig: bool = F
     ax_nmdar.set_facecolor("none")
     ax_vgcc.set_facecolor("none")
     ax_integrated.set_facecolor("none")
+    ax_schematic.set_facecolor("none")
     ax_nevian.set_facecolor("none")
     ax_transfer.set_facecolor("none")
     ax_ltpltd.set_facecolor("none")
+
+    # Add panel labels
+    kwargs = dict(
+        transform=fig.transFigure,
+        fontsize=FigParams.largefontsize,
+        color="k",
+        zorder=10,
+        ha="left",
+        va="top",
+    )
+    fig.canvas.draw()  # forces final layout for correct bounding box
+    bbox_voltage = ax_tightbbox_in_figure_coords(fig, ax_voltage)
+    bbox_nmdar = ax_tightbbox_in_figure_coords(fig, ax_nmdar)
+    bbox_vgcc = ax_tightbbox_in_figure_coords(fig, ax_vgcc)
+    bbox_integrated = ax_tightbbox_in_figure_coords(fig, ax_integrated)
+    bbox_schematic = ax_tightbbox_in_figure_coords(fig, ax_schematic)
+    bbox_nevian = ax_tightbbox_in_figure_coords(fig, ax_nevian)
+    bbox_transfer = ax_tightbbox_in_figure_coords(fig, ax_transfer)
+    bbox_ltpltd = ax_tightbbox_in_figure_coords(fig, ax_ltpltd)
+
+    x_a = min(bbox_voltage.x0, bbox_schematic.x0)
+    x_b = min(bbox_nmdar.x0, bbox_nevian.x0)
+    x_c = min(bbox_vgcc.x0, bbox_transfer.x0)
+    x_d = min(bbox_integrated.x0, bbox_ltpltd.x0)
+    y_top = max(bbox_voltage.y1, bbox_nmdar.y1, bbox_vgcc.y1, bbox_integrated.y1)
+    y_bottom = max(bbox_schematic.y1, bbox_nevian.y1, bbox_transfer.y1, bbox_ltpltd.y1)
+
+    xpad = 0.005
+    fig.text(x_a - xpad, y_top, "A", **kwargs)
+    fig.text(x_b - xpad, y_top, "B", **kwargs)
+    fig.text(x_c - xpad, y_top, "C", **kwargs)
+    fig.text(x_d - xpad, y_top, "D", **kwargs)
+    fig.text(x_a - xpad, y_bottom, "E", **kwargs)
+    fig.text(x_b - xpad, y_bottom, "F", **kwargs)
+    fig.text(x_c - xpad, y_bottom, "G", **kwargs)
+    fig.text(x_d - xpad, y_bottom, "H", **kwargs)
 
     if show_fig:
         plt.show(block=True)
@@ -623,6 +706,30 @@ def figure3(fig_params: Figure3Params, show_fig: bool = True, save_fig: bool = T
     ax_schematic.set_facecolor("none")
     ax_table.set_facecolor("none")
 
+    # Add panel labels
+    kwargs = dict(
+        transform=fig.transFigure,
+        fontsize=FigParams.largefontsize,
+        color="k",
+        zorder=10,
+        ha="left",
+        va="top",
+    )
+    fig.canvas.draw()  # forces final layout for correct bounding box
+    bbox_stdp = ax_tightbbox_in_figure_coords(fig, ax_stdp)
+    bbox_homeostasis = ax_tightbbox_in_figure_coords(fig, ax_homeostasis)
+    bbox_schematic = ax_tightbbox_in_figure_coords(fig, ax_schematic)
+
+    x_ab = min(bbox_stdp.x0, bbox_homeostasis.x0)
+    x_c = bbox_schematic.x0
+    y_top = max(bbox_stdp.y1, bbox_schematic.y1)
+    y_bottom = bbox_homeostasis.y1
+
+    xpad = 0.005
+    fig.text(x_ab - xpad, y_top, "A", **kwargs)
+    fig.text(x_ab - xpad, y_bottom, "B", **kwargs)
+    fig.text(x_c - 2 * xpad, y_top, "C", **kwargs)
+
     if show_fig:
         plt.show(block=True)
 
@@ -636,7 +743,7 @@ def figure3(fig_params: Figure3Params, show_fig: bool = True, save_fig: bool = T
 @dataclass
 class Figure4Params:
     example_simulations: str = "20250324"
-    full_simulations: str = "20250509"
+    full_simulations: str = "20260119"
     schematic_T: int = 300
     schematic_N: int = 6
     schematic_sigma_latent: int = 15
@@ -672,6 +779,7 @@ class Figure4Params:
     summary_legend_ypos: float = 0.12
     fits_beeswarm_width: float = 0.3
     fits_share_ylim: bool = True
+    layout_left_margin: float = 0.0
 
 
 def figure4(fig_params: Figure4Params, show_fig: bool = True, save_fig: bool = False):
@@ -688,6 +796,9 @@ def figure4(fig_params: Figure4Params, show_fig: bool = True, save_fig: bool = F
 
     # Build figure and axes
     fig = plt.figure(figsize=(fig_width, fig_height), **FigParams.all_fig_params())
+    layout_engine = fig.get_layout_engine()
+    if layout_engine is not None:
+        layout_engine.set(rect=(fig_params.layout_left_margin, 0.0, 1.0, 1.0))
     gs = fig.add_gridspec(1, 2, width_ratios=[1, 3])
     gs_inputs = gs[0].subgridspec(2, 1)
     gs_corrcoef = gs_inputs[1].subgridspec(2, 2, width_ratios=[0.05, 1], height_ratios=[0.05, 1])
@@ -1008,6 +1119,38 @@ def figure4(fig_params: Figure4Params, show_fig: bool = True, save_fig: bool = F
     ax_inset_sigmoid.set_facecolor("none")
     ax_inset_features.set_facecolor("none")
 
+    # Add panel labels
+    kwargs = dict(
+        transform=fig.transFigure,
+        fontsize=FigParams.largefontsize,
+        color="k",
+        zorder=10,
+        ha="left",
+        va="top",
+    )
+    fig.canvas.draw()  # forces final layout for correct bounding box
+    bbox_schematic = ax_tightbbox_in_figure_coords(fig, ax_schematic)
+    bbox_cc_left = ax_tightbbox_in_figure_coords(fig, ax_cc_left)
+    bbox_cc_top = ax_tightbbox_in_figure_coords(fig, ax_cc_top)
+    bbox_basal = ax_tightbbox_in_figure_coords(fig, ax_basal)
+    bbox_summary = ax_tightbbox_in_figure_coords(fig, ax_summary_basal)
+    bbox_fits = ax_tightbbox_in_figure_coords(fig, ax_fits_basal)
+
+    x_ab = min(bbox_schematic.x0, bbox_cc_left.x0)
+    x_c = bbox_basal.x0
+    x_d = bbox_summary.x0
+    x_e = bbox_fits.x0
+    y_top = max(bbox_schematic.y1, bbox_basal.y1, bbox_summary.y1, bbox_fits.y1)
+    y_bottom = bbox_cc_top.y1
+
+    xpad = 0.015
+    xmin = 0.005
+    fig.text(max(xmin, x_ab - xpad), y_top, "A", **kwargs)
+    fig.text(max(xmin, x_ab - xpad), y_bottom, "B", **kwargs)
+    fig.text(max(xmin, x_c - xpad), y_top, "C", **kwargs)
+    fig.text(max(xmin, x_d - xpad), y_top, "D", **kwargs)
+    fig.text(max(xmin, x_e - xpad), y_top, "E", **kwargs)
+
     if show_fig:
         plt.show(block=True)
 
@@ -1247,6 +1390,29 @@ def figure5_version2(fig_params: Figure5Params, show_fig: bool = True, save_fig:
     ax_receptive_field.set_facecolor("none")
     ax_inputs.set_facecolor("none")
 
+    # Add panel labels
+    kwargs = dict(
+        transform=fig.transFigure,
+        fontsize=FigParams.largefontsize,
+        color="k",
+        zorder=10,
+        ha="left",
+        va="top",
+    )
+    fig.canvas.draw()  # forces final layout for correct bounding box
+    bbox_trajectory = ax_tightbbox_in_figure_coords(fig, ax_trajectory)
+    bbox_receptive_field = ax_tightbbox_in_figure_coords(fig, ax_receptive_field)
+    bbox_inputs = ax_tightbbox_in_figure_coords(fig, ax_inputs)
+    x_ab = min(bbox_trajectory.x0, bbox_receptive_field.x0)
+    x_c = bbox_inputs.x0
+    y_top = max(bbox_trajectory.y1, bbox_inputs.y1)
+    y_bottom = bbox_receptive_field.y1
+
+    xpad = 0.00
+    fig.text(x_ab - xpad, y_top, "A", **kwargs)
+    fig.text(x_ab - xpad, y_bottom + 0.02, "B", **kwargs)
+    fig.text(x_c - xpad, y_top, "C", **kwargs)
+
     if show_fig:
         plt.show(block=True)
 
@@ -1479,6 +1645,7 @@ class Figure6v2Params:
     trajectory_linewidth: float = 1.0
     trajectory_alpha: float = 0.3
     labeltype: str = "label"
+    layout_left_margin: float = 0.0
 
 
 def figure6_version2(fig_params: Figure6v2Params, show_fig: bool = True, save_fig: bool = False):
@@ -1495,6 +1662,9 @@ def figure6_version2(fig_params: Figure6v2Params, show_fig: bool = True, save_fi
         norm_by_total_synapses = False
 
     fig = plt.figure(figsize=(fig_width, fig_height), **FigParams.all_fig_params())
+    layout_engine = fig.get_layout_engine()
+    if layout_engine is not None:
+        layout_engine.set(rect=(fig_params.layout_left_margin, 0.0, 1.0, 1.0))
     gs = fig.add_gridspec(1, 3, width_ratios=[1.5, 1.2, 1.3])
 
     # ax_confusion_distal_simple = fig.add_subplot(gs_matrix[0, 0])
@@ -1666,6 +1836,38 @@ def figure6_version2(fig_params: Figure6v2Params, show_fig: bool = True, save_fi
     ax_simple_relative.set_facecolor("none")
     ax_complex_relative.set_facecolor("none")
 
+    # Add panel labels
+    kwargs = dict(
+        transform=fig.transFigure,
+        fontsize=FigParams.largefontsize,
+        color="k",
+        zorder=10,
+        ha="left",
+        va="top",
+    )
+    fig.canvas.draw()  # forces final layout for correct bounding box
+    bbox_weights_ex0 = ax_tightbbox_in_figure_coords(fig, ax_proximal_weights_ex0)
+    bbox_weights_ex1 = ax_tightbbox_in_figure_coords(fig, ax_proximal_weights_ex1)
+    bbox_schema = ax_tightbbox_in_figure_coords(fig, ax_schema)
+    bbox_traj = ax_tightbbox_in_figure_coords(fig, ax_proximal_traj)
+    bbox_dp_legend = ax_tightbbox_in_figure_coords(fig, ax_dp_legend)
+    bbox_simple_relative = ax_tightbbox_in_figure_coords(fig, ax_simple_relative)
+
+    x_a = bbox_weights_ex0.x0 - 0.005
+    x_b = bbox_weights_ex1.x0 - 0.01
+    x_cd = min(bbox_schema.x0, bbox_traj.x0) - 0.02
+    x_e = bbox_simple_relative.x0
+    y_top = max(bbox_weights_ex0.y1, bbox_weights_ex1.y1, bbox_schema.y1, bbox_dp_legend.y1)
+    y_bottom = bbox_traj.y1
+
+    xpad = 0.01
+    xmin = 0.005
+    fig.text(max(xmin, x_a - xpad), y_top, "A", **kwargs)
+    fig.text(max(xmin, x_b - xpad), y_top, "B", **kwargs)
+    fig.text(max(xmin, x_cd - xpad), y_top, "C", **kwargs)
+    fig.text(max(xmin, x_cd - xpad), y_bottom, "D", **kwargs)
+    fig.text(max(xmin, x_e - xpad), y_top, "E", **kwargs)
+
     if show_fig:
         plt.show(block=True)
 
@@ -1678,41 +1880,63 @@ def figure6_version2(fig_params: Figure6v2Params, show_fig: bool = True, save_fi
 
 if __name__ == "__main__":
     # Set master parameters for showing / saving figures
-    show_fig = False
-    save_fig = True
+    mode = "save"
+    if mode == "show":
+        show_fig = True
+        save_fig = False
+    elif mode == "save":
+        show_fig = False
+        save_fig = True
+    elif mode == "both":
+        show_fig = True
+        save_fig = True
+    else:
+        raise ValueError(f"Invalid mode: {mode}")
 
     # Build Figure 1
-    # fig1params = Figure1Params()
-    # figure1(fig1params, show_fig=show_fig, save_fig=save_fig)
+    make_figure1 = True
+    if make_figure1:
+        fig1params = Figure1Params()
+        figure1(fig1params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 2
-    fig2params = Figure2Params()
-    figure2(fig2params, show_fig=show_fig, save_fig=save_fig)
+    make_figure2 = True
+    if make_figure2:
+        fig2params = Figure2Params()
+        figure2(fig2params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 3
-    # fig3params = Figure3Params()
-    # figure3(fig3params, show_fig=show_fig, save_fig=save_fig)
+    make_figure3 = True
+    if make_figure3:
+        fig3params = Figure3Params()
+        figure3(fig3params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 4
-    # fig4params = Figure4Params()
-    # figure4(fig4params, show_fig=show_fig, save_fig=save_fig)
+    make_figure4 = True
+    if make_figure4:
+        fig4params = Figure4Params()
+        figure4(fig4params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 5
-    # fig5params = Figure5Params()
-    # figure5(fig5params, show_fig=show_fig, save_fig=save_fig)
+    make_figure5 = True
+    if make_figure5:
+        # fig5params = Figure5Params()
+        # figure5(fig5params, show_fig=show_fig, save_fig=save_fig)
 
-    # Build Figure 5 Version 2
-    # fig5params = Figure5Params()
-    # figure5_version2(fig5params, show_fig=show_fig, save_fig=save_fig)
+        # Build Figure 5 Version 2
+        fig5params = Figure5Params()
+        figure5_version2(fig5params, show_fig=show_fig, save_fig=save_fig)
 
-    # Build Figure 5 Supplemental
-    # fig5params = Figure5Params()
-    # figure5_supplemental(fig5params, show_fig=show_fig, save_fig=save_fig)
+        # Build Figure 5 Supplemental
+        # fig5params = Figure5Params()
+        # figure5_supplemental(fig5params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 6
-    # fig6params = Figure6Params()
-    # figure6(fig6params, show_fig=show_fig, save_fig=save_fig)
+    make_figure6 = True
+    if make_figure6:
+        # fig6params = Figure6Params()
+        # figure6(fig6params, show_fig=show_fig, save_fig=save_fig)
 
-    # Build Figure 6 Version 2
-    # fig6v2params = Figure6v2Params()
-    # figure6_version2(fig6v2params, show_fig=show_fig, save_fig=save_fig)
+        # Build Figure 6 Version 2
+        fig6v2params = Figure6v2Params()
+        figure6_version2(fig6v2params, show_fig=show_fig, save_fig=save_fig)
