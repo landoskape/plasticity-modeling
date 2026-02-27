@@ -8,6 +8,60 @@ README is going to just be a map of figures and how to make them.
 ## Installation
 I didn't include pytorch in the pyproject.toml dependencies for the usual reason.
 
+## Reproducing All Results
+
+A single-command pipeline reproduces all data and figures from scratch:
+
+```bash
+pip install -e .
+python run_pipeline.py
+```
+
+**Warning:** The full pipeline (conductance + correlation + hofer + figures) takes hours to days
+depending on your hardware. The conductance and figures steps alone take minutes.
+
+### Per-step usage
+
+```bash
+python run_pipeline.py --steps conductance        # just conductance data
+python run_pipeline.py --steps correlation hofer   # just IAF simulations
+python run_pipeline.py --steps figures             # just regenerate figures
+python run_pipeline.py --force                     # re-run even if outputs exist
+```
+
+### Reproducing exact manuscript figures
+
+To generate figures using the exact simulation data from the manuscript:
+
+1. Download the publication data from [TBD] into `results/iaf_runs/`
+2. Run: `python run_pipeline.py --config manuscript.yaml --steps figures`
+
+### Using your own runs
+
+If you have existing simulation runs and want the pipeline to use them (instead of
+re-running simulations), create a `pipeline_local.yaml` in the repo root:
+
+```yaml
+correlation:
+  example_run_name: "my_example_run"
+  full_run_name: "my_full_run"
+hofer:
+  run_name: "my_hofer_run"
+```
+
+This file is gitignored. The pipeline will skip simulation steps if the named directories
+already exist under `results/iaf_runs/`, and pass the run names to figure generation.
+
+### Direct script usage
+
+Each script also works standalone:
+
+```bash
+python scripts/conductance_data.py --num_ap_amplitudes 10          # quick test
+python scripts/iaf_correlation.py --run_name test --repeats 1 --duration 100
+python scripts/make_figures.py --figures 4 5 6 --correlated-full-run 20260119 --hofer-run jan21_full1_hofer_20260121
+```
+
 ## Section on STDP Predictions
 This figure is meant to serve as a link between our experimental data, biophysical modeling, and
 the predictions that motivate our STDP models. They start with the biophysical conductance model
