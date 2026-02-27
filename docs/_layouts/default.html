@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ page.title }} | {{ site.title }}</title>
+    <meta name="description" content="{{ site.description }}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600&family=Source+Serif+4:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="{{ "/assets/styles.css" | relative_url }}" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container">
+        <a class="site-title" href="{{ "/" | relative_url }}">{{ site.title }}</a>
+        <nav class="site-nav">
+          <a href="{{ "/" | relative_url }}">Home</a>
+          <a href="{{ "/model/" | relative_url }}">Model</a>
+          <a href="{{ "/figures/" | relative_url }}">Figures</a>
+          <a href="{{ "/code/" | relative_url }}">Code</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <article class="content">
+        {{ content }}
+      </article>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <span>Plasticity Modeling</span>
+        <span>Updated {{ site.time | date: "%Y-%m-%d" }}</span>
+      </div>
+    </footer>
+  </body>
+</html>

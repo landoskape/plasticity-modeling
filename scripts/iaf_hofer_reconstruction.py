@@ -99,10 +99,21 @@ def get_args():
         default=None,
         help="Name for the experiment folder. If provided, uses {name}_{timestamp} format. If not provided, defaults to timestamp with increment.",
     )
+    parser.add_argument(
+        "--run_name",
+        type=str,
+        default=None,
+        help="Exact name for the experiment folder (no timestamp suffix). Used by the pipeline for reproducible naming.",
+    )
     return parser.parse_args()
 
 
 def get_experiment_folder(args):
+    if getattr(args, "run_name", None) is not None:
+        exp_folder = results_dir("iaf_runs") / args.config / args.run_name
+        exp_folder.mkdir(parents=True, exist_ok=True)
+        return exp_folder
+
     timestamp = datetime.now().strftime("%Y%m%d")
 
     if args.exp_folder is not None:
