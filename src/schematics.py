@@ -1,11 +1,15 @@
 from __future__ import annotations
+from copy import deepcopy
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.patches import Circle
 from matplotlib.lines import Line2D
+from matplotlib.patches import FancyArrowPatch, PathPatch
+from matplotlib.path import Path
 from matplotlib.typing import ColorType
 from matplotlib import colormaps
 from .plotting import FigParams, Proximal, DistalSimple, DistalComplex, add_dpratio_inset
+from .conductance import VGCC, NMDAR
 
 
 def create_dpratio_colors(num_ratios: int, cmap: str = "plasma_r", cmap_pinch: float = 0.25):
@@ -797,3 +801,308 @@ def build_integrated_schematic_axis(
         spine.set_visible(False)
     ax_table.set_xlim(0, 1)
     ax_table.set_ylim(0, 1)
+
+
+class PlasticityChannelSchematic:
+    """
+    Draw a two-row channel-plasticity schematic.
+
+    The top row represents Ca2+ -> NMDAR -> LTP and the bottom row
+    represents Ca2+ -> VGCC -> LTD. A simplified bAP waveform is drawn
+    on the left and both rows share the same geometric style.
+    """
+
+    @staticmethod
+    def _default_cfg() -> dict:
+        """Return default configuration for the schematic geometry and style."""
+        return {
+            "xlim": (0.0, 1.0),
+            "ylim": (0.0, 1.0),
+            "lw": FigParams.linewidth,
+            "col_top": NMDAR.color(),
+            "col_bot": VGCC.color(),
+            "font": {"family": "DejaVu Sans"},
+            "fs_side": FigParams.fontsize,
+            "bap": {
+                "origin": (0.10, 0.50),
+                "scale": (0.13, 0.20),
+                "curvature": 0.52,
+                "n_pts": 80,
+                "label_offset": (-0.18, 0.13),
+            },
+            "channel": {
+                "x": 0.58,
+                "dx": 0.055,
+                "h": 0.22,
+                "bar_dx": 0.030,
+                "bar_gap": 0.022,
+                "bar_y_offset": 0.0,
+                "curvature": 0.75,
+            },
+            "rows": {
+                "y_center": 0.75,
+                "mirror_about": 0.50,
+                "row_sep": 0.50,
+            },
+            "arrows": {
+                "x_left": 0.34,
+                "x_right": 0.74,
+                "head_w": 0.01,
+                "head_l": 0.015,
+                "shaft_w": FigParams.linewidth,
+                "mutation_scale": 7.0,
+                "y_offset": 0.00,
+                "rad": 0.0,
+            },
+            "labels": {
+                "nmda": {"text": "NMDAR", "offset": (-0.01, 0.16), "fs": FigParams.fontsize},
+                "vgcc": {"text": "VGCC", "offset": (-0.01, 0.16), "fs": FigParams.fontsize},
+                "ca": {"text": r"Ca$^{2+}$", "offset": (-0.22, 0.045), "fs": FigParams.fontsize},
+                "ltp": {"text": "LTP", "offset": (0.20, 0.00), "fs": FigParams.fontsize},
+                "ltd": {"text": "LTD", "offset": (0.20, 0.00), "fs": FigParams.fontsize},
+            },
+        }
+
+    @staticmethod
+    def _update_cfg(base: dict, update: dict) -> None:
+        """Recursively update nested config dictionaries in place."""
+        for key, value in update.items():
+            if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+                PlasticityChannelSchematic._update_cfg(base[key], value)
+            else:
+                base[key] = value
+
+    @staticmethod
+    def _mirror_y(y: float, about: float) -> float:
+        """Mirror a y-value around a horizontal axis."""
+        return 2.0 * about - y
+
+    @staticmethod
+    def _path_patch(vertices: np.ndarray, lw: float, color, zorder: int = 3) -> PathPatch:
+        """Create a non-filled path patch with rounded caps and joins."""
+        codes = np.full(len(vertices), Path.LINETO, dtype=np.uint8)
+        codes[0] = Path.MOVETO
+        return PathPatch(
+            Path(vertices, codes),
+            facecolor="none",
+            edgecolor=color,
+            lw=lw,
+            capstyle="round",
+            joinstyle="round",
+            zorder=zorder,
+        )
+
+    def __init__(self, cfg: dict | None = None):
+        """
+        Initialize a plasticity channel schematic object.
+
+        Parameters
+        ----------
+        cfg : dict | None, optional
+            Optional nested configuration dictionary. Any provided values
+            override defaults while preserving unspecified defaults.
+        """
+        self.cfg = self._default_cfg()
+        if cfg is not None:
+            self._update_cfg(self.cfg, cfg)
+
+    def _draw_bap(self, ax: plt.Axes, cfg: dict, color) -> None:
+        """Draw the left bAP waveform and its label."""
+        ox, oy = cfg["origin"]
+        sx, sy = cfg["scale"]
+        k = cfg["curvature"]
+        n = cfg["n_pts"]
+
+        t = np.linspace(0, 1, n)
+        x = ox + sx * (t * 1.65)
+        y = oy + sy * (
+            1.35 * np.exp(-(((t - 0.18) / 0.10) ** 2))
+            - 0.50 * np.exp(-(((t - 0.58) / (0.16 + 0.08 * k)) ** 2))
+            + 0.18 * np.exp(-(((t - 0.88) / 0.13) ** 2))
+        )
+
+        verts = np.column_stack([x, y])
+        ax.add_patch(self._path_patch(verts, lw=self.cfg["lw"], color=color, zorder=4))
+
+        dx, dy = cfg["label_offset"]
+        ax.text(
+            ox + dx,
+            oy + dy,
+            "bAP",
+            color=color,
+            fontsize=self.cfg["fs_side"],
+            ha="left",
+            va="center",
+            **self.cfg["font"],
+        )
+
+    def _draw_channel(self, ax: plt.Axes, x0: float, y0: float, chan_cfg: dict, color, lw: float) -> None:
+        """Draw channel bars and right membrane bracket for one row."""
+        dx = chan_cfg["dx"]
+        h = chan_cfg["h"]
+        curv = chan_cfg["curvature"]
+
+        def bezier_curve(x_start: float, y_center: float, sign: float) -> PathPatch:
+            y_top = y_center + h / 2
+            y_bot = y_center - h / 2
+            bx = x_start + sign * dx * curv
+            verts = np.array(
+                [
+                    [x_start, y_top],
+                    [bx, y_top],
+                    [bx, y_bot],
+                    [x_start, y_bot],
+                ],
+                dtype=float,
+            )
+            codes = [Path.MOVETO, Path.CURVE4, Path.CURVE4, Path.CURVE4]
+            return PathPatch(
+                Path(verts, codes),
+                facecolor="none",
+                edgecolor=color,
+                lw=lw,
+                capstyle="round",
+                joinstyle="round",
+                zorder=5,
+            )
+
+        x_right = x0 + 0.028
+        ax.add_patch(bezier_curve(x_right, y0, sign=-1))
+
+        bar_dx = chan_cfg["bar_dx"]
+        gap = chan_cfg["bar_gap"]
+        ybar0 = y0 + chan_cfg["bar_y_offset"]
+        for yb in (ybar0 + gap / 2, ybar0 - gap / 2):
+            verts = np.array([[x0 - bar_dx, yb], [x0 + bar_dx, yb]])
+            ax.add_patch(self._path_patch(verts, lw=lw, color=color, zorder=6))
+
+    def _draw_arrow(
+        self,
+        ax: plt.Axes,
+        x1: float,
+        y1: float,
+        x2: float,
+        y2: float,
+        color,
+        arrow_cfg: dict,
+    ) -> None:
+        """Draw a single directed arrow between two points."""
+        arr = FancyArrowPatch(
+            (x1, y1),
+            (x2, y2),
+            arrowstyle="-|>",
+            mutation_scale=arrow_cfg["mutation_scale"],
+            lw=arrow_cfg["shaft_w"],
+            color=color,
+            shrinkA=0,
+            shrinkB=0,
+            connectionstyle=f"arc3,rad={arrow_cfg['rad']}",
+            zorder=4,
+        )
+        ax.add_patch(arr)
+
+    def _draw_row(self, ax: plt.Axes, y_center: float, color, kind: str, cfg: dict) -> None:
+        """Draw either the top (NMDAR/LTP) or bottom (VGCC/LTD) row."""
+        ay = y_center + cfg["arrows"]["y_offset"]
+
+        self._draw_arrow(
+            ax,
+            cfg["arrows"]["x_left"],
+            ay,
+            cfg["channel"]["x"] - 0.06,
+            ay,
+            color=color,
+            arrow_cfg=cfg["arrows"],
+        )
+
+        self._draw_channel(
+            ax,
+            x0=cfg["channel"]["x"],
+            y0=y_center,
+            chan_cfg=cfg["channel"],
+            color=color,
+            lw=cfg["lw"],
+        )
+
+        self._draw_arrow(
+            ax,
+            cfg["channel"]["x"] + 0.06,
+            ay,
+            cfg["arrows"]["x_right"],
+            ay,
+            color=color,
+            arrow_cfg=cfg["arrows"],
+        )
+
+        labels = cfg["labels"]
+        ax.text(
+            cfg["channel"]["x"] + labels["ca"]["offset"][0],
+            y_center + labels["ca"]["offset"][1],
+            labels["ca"]["text"],
+            color=color,
+            fontsize=labels["ca"]["fs"],
+            ha="center",
+            va="center",
+            **cfg["font"],
+        )
+
+        if kind == "top":
+            channel_key = "nmda"
+            outcome_key = "ltp"
+        else:
+            channel_key = "vgcc"
+            outcome_key = "ltd"
+
+        ax.text(
+            cfg["channel"]["x"] + labels[channel_key]["offset"][0],
+            y_center + labels[channel_key]["offset"][1],
+            labels[channel_key]["text"],
+            color=color,
+            fontsize=labels[channel_key]["fs"],
+            ha="center",
+            va="center",
+            **cfg["font"],
+        )
+        ax.text(
+            cfg["channel"]["x"] + labels[outcome_key]["offset"][0],
+            y_center + labels[outcome_key]["offset"][1],
+            labels[outcome_key]["text"],
+            color=color,
+            fontsize=labels[outcome_key]["fs"],
+            ha="left",
+            va="center",
+            **cfg["font"],
+        )
+
+    def plot(self, ax: plt.Axes, cfg_override: dict | None = None) -> dict:
+        """
+        Draw the schematic onto a matplotlib axis.
+
+        Parameters
+        ----------
+        ax : plt.Axes
+            Axis on which to draw the schematic.
+        cfg_override : dict | None, optional
+            Optional nested configuration overrides for this plot call.
+
+        Returns
+        -------
+        dict
+            The effective configuration used for rendering.
+        """
+        effective_cfg = deepcopy(self.cfg)
+        if cfg_override is not None:
+            self._update_cfg(effective_cfg, cfg_override)
+
+        ax.set_xlim(*effective_cfg["xlim"])
+        ax.set_ylim(*effective_cfg["ylim"])
+        ax.set_aspect("equal")
+        ax.axis("off")
+
+        y_top = effective_cfg["rows"]["y_center"]
+        y_bot = self._mirror_y(y_top, about=effective_cfg["rows"]["mirror_about"])
+
+        self._draw_bap(ax, effective_cfg["bap"], color=effective_cfg["col_top"])
+        self._draw_row(ax, y_center=y_top, color=effective_cfg["col_top"], kind="top", cfg=effective_cfg)
+        self._draw_row(ax, y_center=y_bot, color=effective_cfg["col_bot"], kind="bot", cfg=effective_cfg)
+        return effective_cfg

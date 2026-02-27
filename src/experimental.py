@@ -694,9 +694,19 @@ def build_ax_amplification_demonstration_with_spines(
 
     ax.set_xlim(*xlim)
     ax.set_ylim(*ylim)
-    format_spines(ax, xbounds=(0, 400), xticks=[0, 400], yticks=[], ybounds=(0.0, ylim[1]), **FigParams.kwargs_spines())
+    x_spine_bounds = (0, 400)
+    format_spines(
+        ax,
+        xbounds=x_spine_bounds,
+        xticks=[0, 400],
+        yticks=[],
+        ybounds=(0.0, ylim[1]),
+        **FigParams.kwargs_spines(),
+    )
     ax.spines["left"].set_visible(False)
-    ax.set_xlabel("Time (ms)", fontsize=FigParams.fontsize, labelpad=-5)
+    xlabel = ax.set_xlabel("Time (ms)", fontsize=FigParams.fontsize, labelpad=-5)
+    x_spine_midpoint = 0.5 * (x_spine_bounds[0] + x_spine_bounds[1])
+    xlabel.set_x((x_spine_midpoint - xlim[0]) / (xlim[1] - xlim[0]))
 
     return ax
 
@@ -857,7 +867,6 @@ def build_axes_formatted_elife_data(
         x=360,
         y_start=0.25,
         y_offset=-0.035,
-        y_extra=0,
         ha="center",
         va="center",
         fontsize=FigParams.fontsize,

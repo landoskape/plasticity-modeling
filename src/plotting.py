@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import colormaps
 from matplotlib.typing import ColorType
+from matplotlib.transforms import Bbox
 from dataclasses import dataclass
 
 
@@ -19,6 +20,7 @@ class FigParams:
     single_width: float = 8.5 * cm
     onepointfive_width: float = 11.4 * cm
     double_width: float = 17.4 * cm
+    largefontsize: float = 10
     fontsize: float = 7
     smallfontsize: float = 5.5
     tinyfontsize: float = 4
@@ -51,6 +53,19 @@ class FigParams:
             tick_width=FigParams.tick_width,
             tick_fontsize=FigParams.tick_fontsize,
         )
+
+
+def ax_tightbbox_in_figure_coords(fig: plt.Figure, ax: plt.Axes) -> Bbox:
+    # Must draw so tick labels etc. have final positions/sizes
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+
+    # Display coords (pixels), includes tick labels/axis labels
+    bb_disp = ax.get_tightbbox(renderer)
+
+    # Convert display -> figure fraction coords
+    bb_fig = bb_disp.transformed(fig.transFigure.inverted())
+    return bb_fig
 
 
 def add_group_legend(
@@ -211,8 +226,9 @@ def save_figure(fig, path, **kwargs):
     """
     Save a figure with high resolution in png and svg formats
     """
-    fig.savefig(path.with_suffix(".png"), dpi=300, **kwargs)
-    fig.savefig(path.with_suffix(".svg"), dpi=300, **kwargs)
+    fig.savefig(path.with_suffix(".png"), dpi=300, bbox_inches="tight", **kwargs)
+    fig.savefig(path.with_suffix(".svg"), dpi=300, bbox_inches="tight", **kwargs)
+    fig.savefig(path.with_suffix(".pdf"), dpi=300, bbox_inches="tight", **kwargs)
 
 
 def make_rf_display(u, disp_buffer=2, flip_sign=False, background_value=-1.0):

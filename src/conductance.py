@@ -741,6 +741,11 @@ def plasticity_transfer_function(
     transfer = np.maximum(transfer, 0) if LTP else np.minimum(transfer, 0)
 
     # Measure calcium remaining after adding buffer
+    # Because
+    # [CaB]/[Ca] = [B]/K_d = kappa
+    # Total Calcium = [CaB] + [Ca] = [Ca] * (1 + kappa)
+    # Therefore, [Ca] = [Ca]_total / (1 + kappa)
+    # Or: relative calcium = 1 / (1 + kappa)
     Ca_remaining = 1.0 / (1 + kappa)
 
     # Return calcium and plasticity (in order from lowest to highest calcium)
@@ -768,7 +773,7 @@ def run_simulations(
     ap_amplitudes = np.linspace(0, max_ap_amplitude, num_ap_amplitudes)  # AP amplitudes to test
     ap_peaks = v_base + ap_amplitudes
     ca_in = 75e-9
-    ca_out = 1.5e-6
+    ca_out = 1.5e-3
 
     # Initialize channels
     nmdar = NMDAR()
