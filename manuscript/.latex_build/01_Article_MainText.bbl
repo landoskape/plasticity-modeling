@@ -1,0 +1,202 @@
+\begin{thebibliography}{28}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Anderson and Martin(2009)]{andersonSynapticConnectionsCortical2009}
+John~C. Anderson and Kevan A.~C. Martin.
+\newblock The {{Synaptic Connections}} between {{Cortical Areas V1}} and {{V2}} in {{Macaque Monkey}}.
+\newblock \emph{Journal of Neuroscience}, 29\penalty0 (36):\penalty0 11283--11293, September 2009.
+\newblock ISSN 0270-6474, 1529-2401.
+\newblock \doi{10.1523/JNEUROSCI.5757-08.2009}.
+
+\bibitem[Iacaruso et~al.(2017)Iacaruso, Gasler, and Hofer]{iacarusoSynapticOrganizationVisual2017}
+M.~Florencia Iacaruso, Ioana~T. Gasler, and Sonja~B. Hofer.
+\newblock Synaptic organization of visual space in primary visual cortex.
+\newblock \emph{Nature}, 547\penalty0 (7664):\penalty0 449--452, July 2017.
+\newblock ISSN 1476-4687.
+\newblock \doi{10.1038/nature23019}.
+
+\bibitem[Petreanu et~al.(2009)Petreanu, Mao, Sternson, and Svoboda]{petreanuSubcellularOrganizationNeocortical2009}
+Leopoldo Petreanu, Tianyi Mao, Scott~M. Sternson, and Karel Svoboda.
+\newblock The subcellular organization of neocortical excitatory connections.
+\newblock \emph{Nature}, 457\penalty0 (7233):\penalty0 1142--1145, February 2009.
+\newblock ISSN 1476-4687.
+\newblock \doi{10.1038/nature07709}.
+
+\bibitem[Andersen et~al.(2006)Andersen, Morris, Amaral, Bliss, and O'Keefe]{andersenHippocampusBook2006}
+Per Andersen, Richard Morris, David Amaral, Tim Bliss, and John O'Keefe, editors.
+\newblock \emph{The {{Hippocampus Book}}}.
+\newblock Oxford University Press, December 2006.
+\newblock ISBN 978-0-19-510027-3.
+\newblock \doi{10.1093/acprof:oso/9780195100273.001.0001}.
+
+\bibitem[Wright et~al.(2025)Wright, Hedrick, and Komiyama]{wrightDistinctSynapticPlasticity2025}
+William~J. Wright, Nathan~G. Hedrick, and Takaki Komiyama.
+\newblock Distinct synaptic plasticity rules operate across dendritic compartments in vivo during learning.
+\newblock \emph{Science}, 388\penalty0 (6744):\penalty0 322--328, April 2025.
+\newblock \doi{10.1126/science.ads4706}.
+
+\bibitem[Spruston(2008)]{sprustonPyramidalNeuronsDendritic2008}
+Nelson Spruston.
+\newblock Pyramidal neurons: Dendritic structure and synaptic integration.
+\newblock \emph{Nature Reviews Neuroscience}, 9\penalty0 (3):\penalty0 206--221, March 2008.
+\newblock ISSN 1471-0048.
+\newblock \doi{10.1038/nrn2286}.
+
+\bibitem[Golding et~al.(2002)Golding, Staff, and Spruston]{goldingDendriticSpikesMechanism2002}
+Nace~L. Golding, Nathan~P. Staff, and Nelson Spruston.
+\newblock Dendritic spikes as a mechanism for cooperative long-term potentiation.
+\newblock \emph{Nature}, 418\penalty0 (6895):\penalty0 326--331, July 2002.
+\newblock ISSN 1476-4687.
+\newblock \doi{10.1038/nature00854}.
+
+\bibitem[Cichon and Gan(2015)]{cichonBranchspecificDendriticCa22015}
+Joseph Cichon and Wen-Biao Gan.
+\newblock Branch-specific dendritic {{Ca2}}+ spikes cause persistent synaptic plasticity.
+\newblock \emph{Nature}, 520\penalty0 (7546):\penalty0 180--185, April 2015.
+\newblock ISSN 1476-4687.
+\newblock \doi{10.1038/nature14251}.
+
+\bibitem[Gambino et~al.(2014)Gambino, Pag{\`e}s, Kehayas, Baptista, Tatti, Carleton, and Holtmaat]{gambinoSensoryevokedLTPDriven2014}
+Fr{\'e}d{\'e}ric Gambino, St{\'e}phane Pag{\`e}s, Vassilis Kehayas, Daniela Baptista, Roberta Tatti, Alan Carleton, and Anthony Holtmaat.
+\newblock Sensory-evoked {{LTP}} driven by dendritic plateau potentials in vivo.
+\newblock \emph{Nature}, 515\penalty0 (7525):\penalty0 116--119, November 2014.
+\newblock ISSN 1476-4687.
+\newblock \doi{10.1038/nature13664}.
+
+\bibitem[Froemke et~al.(2005)Froemke, Poo, and Dan]{froemkeSpiketimingdependentSynapticPlasticity2005}
+Robert~C. Froemke, Mu-ming Poo, and Yang Dan.
+\newblock Spike-timing-dependent synaptic plasticity depends on dendritic location.
+\newblock \emph{Nature}, 434\penalty0 (7030):\penalty0 221--225, March 2005.
+\newblock ISSN 1476-4687.
+\newblock \doi{10.1038/nature03366}.
+
+\bibitem[Sj{\"o}str{\"o}m and H{\"a}usser(2006)]{sjostromCooperativeSwitchDetermines2006}
+Per~Jesper Sj{\"o}str{\"o}m and Michael H{\"a}usser.
+\newblock A {{Cooperative Switch Determines}} the {{Sign}} of {{Synaptic Plasticity}} in {{Distal Dendrites}} of {{Neocortical Pyramidal Neurons}}.
+\newblock \emph{Neuron}, 51\penalty0 (2):\penalty0 227--238, July 2006.
+\newblock ISSN 0896-6273.
+\newblock \doi{10.1016/j.neuron.2006.06.017}.
+
+\bibitem[Lempel et~al.(2025)Lempel, Tr{\"a}genap, Tepohl, Kaschube, and Fitzpatrick]{lempelDevelopmentCoherentCortical2025}
+Augusto~Abel Lempel, Sigrid Tr{\"a}genap, Clara Tepohl, Matthias Kaschube, and David Fitzpatrick.
+\newblock Development of coherent cortical responses reflects increased discriminability of feedforward inputs and their alignment with recurrent circuits.
+\newblock \emph{Neuron}, 0\penalty0 (0), September 2025.
+\newblock ISSN 0896-6273.
+\newblock \doi{10.1016/j.neuron.2025.08.014}.
+
+\bibitem[Olshausen and Field(1996)]{olshausenEmergenceSimplecellReceptive1996}
+Bruno~A. Olshausen and David~J. Field.
+\newblock Emergence of simple-cell receptive field properties by learning a sparse code for natural images.
+\newblock \emph{Nature}, 381\penalty0 (6583):\penalty0 607--609, June 1996.
+\newblock ISSN 1476-4687.
+\newblock \doi{10.1038/381607a0}.
+
+\bibitem[Bell and Sejnowski(1999)]{bellInformationMaximizationApproachBlind1999}
+Anthony~J. Bell and Terrence~J. Sejnowski.
+\newblock An {{Information-Maximization Approach}} to {{Blind Separation}} and {{Blind Deconvolution}}.
+\newblock May 1999.
+\newblock \doi{10.7551/mitpress/7011.003.0009}.
+
+\bibitem[Larkum et~al.(2004)Larkum, Senn, and L{\"u}scher]{larkumTopdownDendriticInput2004}
+Matthew~E. Larkum, Walter Senn, and Hans-R. L{\"u}scher.
+\newblock Top-down {{Dendritic Input Increases}} the {{Gain}} of {{Layer}} 5 {{Pyramidal Neurons}}.
+\newblock \emph{Cerebral Cortex}, 14\penalty0 (10):\penalty0 1059--1070, October 2004.
+\newblock ISSN 1047-3211.
+\newblock \doi{10.1093/cercor/bhh065}.
+
+\bibitem[Schiller et~al.(2000)Schiller, Major, Koester, and Schiller]{schillerNMDASpikesBasal2000}
+Jackie Schiller, Guy Major, Helmut~J. Koester, and Yitzhak Schiller.
+\newblock {{NMDA}} spikes in basal dendrites of cortical pyramidal neurons.
+\newblock \emph{Nature}, 404\penalty0 (6775):\penalty0 285--289, March 2000.
+\newblock ISSN 1476-4687.
+\newblock \doi{10.1038/35005094}.
+
+\bibitem[Poirazi et~al.(2003)Poirazi, Brannon, and Mel]{poiraziPyramidalNeuronTwoLayer2003}
+Panayiota Poirazi, Terrence Brannon, and Bartlett~W. Mel.
+\newblock Pyramidal {{Neuron}} as {{Two-Layer Neural Network}}.
+\newblock \emph{Neuron}, 37\penalty0 (6):\penalty0 989--999, March 2003.
+\newblock ISSN 0896-6273.
+\newblock \doi{10.1016/S0896-6273(03)00149-1}.
+
+\bibitem[Yaeger et~al.(2024)Yaeger, Vardalaki, Zhang, Pham, Brown, Ji, and Harnett]{yaegerDendriticMechanismBalancing2024}
+Courtney~E. Yaeger, Dimitra Vardalaki, Qinrong Zhang, Trang L.~D. Pham, Norma~J. Brown, Na~Ji, and Mark~T. Harnett.
+\newblock A dendritic mechanism for balancing synaptic flexibility and stability.
+\newblock \emph{Cell Reports}, 43\penalty0 (8), August 2024.
+\newblock ISSN 2211-1247.
+\newblock \doi{10.1016/j.celrep.2024.114638}.
+
+\bibitem[Xu et~al.(2012)Xu, Harnett, Williams, Huber, O'Connor, Svoboda, and Magee]{xuNonlinearDendriticIntegration2012}
+Ning-long Xu, Mark~T. Harnett, Stephen~R. Williams, Daniel Huber, Daniel~H. O'Connor, Karel Svoboda, and Jeffrey~C. Magee.
+\newblock Nonlinear dendritic integration of sensory and motor input during an active sensing task.
+\newblock \emph{Nature}, 492\penalty0 (7428):\penalty0 247--251, December 2012.
+\newblock ISSN 1476-4687.
+\newblock \doi{10.1038/nature11601}.
+
+\bibitem[Zhuang et~al.(2021)Zhuang, Wang, Ouellette, Turschak, Larsen, Takasaki, Daigle, Tasic, Waters, Zeng, and Reid]{zhuangLaminarDistributionArbor2021}
+Jun Zhuang, Yun Wang, Naveen~D. Ouellette, Emily~E. Turschak, Rylan~S. Larsen, Kevin~T. Takasaki, Tanya~L. Daigle, Bosiljka Tasic, Jack Waters, Hongkui Zeng, and R.~Clay Reid.
+\newblock Laminar distribution and arbor density of two functional classes of thalamic inputs to primary visual cortex.
+\newblock \emph{Cell Reports}, 37\penalty0 (2):\penalty0 109826, October 2021.
+\newblock ISSN 2211-1247.
+\newblock \doi{10.1016/j.celrep.2021.109826}.
+
+\bibitem[Landau et~al.(2022)Landau, Park, {Wong-Campos}, Tian, Cohen, and Sabatini]{landauDendriticBranchStructure2022}
+Andrew~T Landau, Pojeong Park, J~David {Wong-Campos}, He~Tian, Adam~E Cohen, and Bernardo~L Sabatini.
+\newblock Dendritic branch structure compartmentalizes voltage-dependent calcium influx in cortical layer 2/3 pyramidal cells.
+\newblock \emph{eLife}, 11:\penalty0 e76993, March 2022.
+\newblock ISSN 2050-084X.
+\newblock \doi{10.7554/eLife.76993}.
+
+\bibitem[Nevian and Sakmann(2006)]{nevianSpineCa2Signaling2006}
+Thomas Nevian and Bert Sakmann.
+\newblock Spine {{Ca2}}+ {{Signaling}} in {{Spike-Timing-Dependent Plasticity}}.
+\newblock \emph{Journal of Neuroscience}, 26\penalty0 (43):\penalty0 11001--11013, October 2006.
+\newblock ISSN 0270-6474, 1529-2401.
+\newblock \doi{10.1523/JNEUROSCI.1749-06.2006}.
+
+\bibitem[Song et~al.(2000)Song, Miller, and Abbott]{songCompetitiveHebbianLearning2000}
+Sen Song, Kenneth~D. Miller, and L.~F. Abbott.
+\newblock Competitive {{Hebbian}} learning through spike-timing-dependent synaptic plasticity.
+\newblock \emph{Nature Neuroscience}, 3\penalty0 (9):\penalty0 919--926, September 2000.
+\newblock ISSN 1546-1726.
+\newblock \doi{10.1038/78829}.
+
+\bibitem[Jahr and Stevens(1990)]{jahrVoltageDependenceNMDAactivated1990}
+C.~E. Jahr and C.~F. Stevens.
+\newblock Voltage dependence of {{NMDA-activated}} macroscopic conductances predicted by single-channel kinetics.
+\newblock \emph{Journal of Neuroscience}, 10\penalty0 (9):\penalty0 3178--3182, September 1990.
+\newblock ISSN 0270-6474, 1529-2401.
+\newblock \doi{10.1523/JNEUROSCI.10-09-03178.1990}.
+
+\bibitem[Reuveni et~al.(1993)Reuveni, Friedman, Amitai, and Gutnick]{reuveniStepwiseRepolarizationCa21993}
+I.~Reuveni, A.~Friedman, Y.~Amitai, and M.~J. Gutnick.
+\newblock Stepwise repolarization from {{Ca2}}+ plateaus in neocortical pyramidal cells: Evidence for nonhomogeneous distribution of {{HVA Ca2}}+ channels in dendrites.
+\newblock \emph{Journal of Neuroscience}, 13\penalty0 (11):\penalty0 4609--4621, November 1993.
+\newblock ISSN 0270-6474, 1529-2401.
+\newblock \doi{10.1523/JNEUROSCI.13-11-04609.1993}.
+
+\bibitem[Sabatini et~al.(2002)Sabatini, Oertner, and Svoboda]{sabatiniLifeCycleCa22002}
+Bernardo~L. Sabatini, Thomas~G. Oertner, and Karel Svoboda.
+\newblock The {{Life Cycle}} of {{Ca2}}+ {{Ions}} in {{Dendritic Spines}}.
+\newblock \emph{Neuron}, 33\penalty0 (3):\penalty0 439--452, January 2002.
+\newblock ISSN 0896-6273.
+\newblock \doi{10.1016/S0896-6273(02)00573-1}.
+
+\bibitem[Turrigiano and Nelson(2004)]{turrigianoHomeostaticPlasticityDeveloping2004}
+Gina~G. Turrigiano and Sacha~B. Nelson.
+\newblock Homeostatic plasticity in the developing nervous system.
+\newblock \emph{Nature Reviews Neuroscience}, 5\penalty0 (2):\penalty0 97--107, February 2004.
+\newblock ISSN 1471-0048.
+\newblock \doi{10.1038/nrn1327}.
+
+\bibitem[Bugeon et~al.(2022)Bugeon, Duffield, Dipoppa, Ritoux, Prankerd, Nicoloutsopoulos, Orme, Shinn, Peng, Forrest, Viduolyte, Reddy, Isogai, Carandini, and Harris]{bugeonTranscriptomicAxisPredicts2022}
+St{\'e}phane Bugeon, Joshua Duffield, Mario Dipoppa, Anne Ritoux, Isabelle Prankerd, Dimitris Nicoloutsopoulos, David Orme, Maxwell Shinn, Han Peng, Hamish Forrest, Aiste Viduolyte, Charu~Bai Reddy, Yoh Isogai, Matteo Carandini, and Kenneth~D. Harris.
+\newblock A transcriptomic axis predicts state modulation of cortical interneurons.
+\newblock \emph{Nature}, 607\penalty0 (7918):\penalty0 330--338, July 2022.
+\newblock ISSN 1476-4687.
+\newblock \doi{10.1038/s41586-022-04915-7}.
+
+\end{thebibliography}

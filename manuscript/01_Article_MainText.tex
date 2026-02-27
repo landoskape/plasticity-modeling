@@ -1,0 +1,340 @@
+\leadauthor{Andrew T. Landau}
+
+\title{Branch-specific plasticity explains distal enrichment of retinotopically displaced inputs in visual cortex}
+\shorttitle{Branch-specific plasticity shapes dendritic tuning}
+
+\author[1,\Letter]{Andrew T. Landau \orcidlink{0000-0001-9105-1636}}
+\author[2]{Bernardo L. Sabatini \orcidlink {0000-0003-0095-9177}}
+\author[3]{Claudia Clopath \orcidlink {0000-0003-4507-8648}}
+\affil[1]{University College London, London, UK}
+\affil[2]{Harvard Medical School, Boston, USA}
+\affil[3]{Imperial College London, London, UK}
+\date{}
+
+\maketitle
+
+\begin{abstract}
+Neurons distribute synaptic inputs across their dendritic tree. In layer 2/3 pyramidal cells of primary visual cortex, spines on distal dendrites share somatic orientation preference but have receptive fields displaced in retinotopic space, which supports tuning to visual edges. However, it is not known how synaptic plasticity rules can lead to specialization of tuning properties across dendritic compartments. We demonstrate that an experimentally grounded model of compartment-specific spike-timing dependent plasticity (STDP) accounts for the enrichment of retinotopically-displaced inputs on distal branches. Our previous experimental work revealed compartment-specific calcium signals that predict reduced STDP-mediated depression but preserved potentiation. Based on these findings, we built an STDP model with compartment-specific properties, in which some distal branches are relatively resistant to STDP-mediated depression. Synapses on these branches are more likely to stabilize inputs with weaker correlations to postsynaptic spiking. Using a visual input model, we show that compartment-specific reduction in STDP-mediated depression recapitulates in vivo experimental measurements of spine tuning. Furthermore, our experimental results show that reduced STDP-mediated depression is restricted to distal dendritic compartments with complex branching structure and not observed in other distal branches. Therefore, our model makes an untested prediction that complex branches will be hotspots for retinotopically-displaced inputs. 
+\end{abstract}
+
+\begin{keywords}
+plasticity | visual-cortex | spine-tuning
+\end{keywords}
+
+\begin{corrauthor}
+a.landau@ucl.ac.uk
+\end{corrauthor}
+
+% Note: Figure widths are: 1.5, 2, 1.5, 2, 1, 2
+\section*{Introduction}\label{s:introduction}
+
+Neurons segregate synaptic inputs in different compartments of their dendritic tree. For example, bottom-up sensory inputs tend to arrive on proximal sites near the soma, whereas top-down contextual inputs tend to arrive on distal sites within apical branches \citep{andersonSynapticConnectionsCortical2009, iacarusoSynapticOrganizationVisual2017, petreanuSubcellularOrganizationNeocortical2009, andersenHippocampusBook2006}. This organization is determined by an interplay of anatomy and synaptic plasticity. Anatomy constrains where synaptic connections can be made, and plasticity sculpts the strength and selectivity of potential connections. 
+
+Compartment specific plasticity rules support the functional segregation of inputs \citep{wrightDistinctSynapticPlasticity2025, sprustonPyramidalNeuronsDendritic2008, goldingDendriticSpikesMechanism2002, cichonBranchspecificDendriticCa22015, gambinoSensoryevokedLTPDriven2014}. Although some variation in plasticity rules is due to molecular differences across compartments, most variation is inherited from the electrical properties of the dendritic tree. In particular, the attenuation of back-propagating action potentials (bAPs) in distal compartments can shift the dynamics of global plasticity signals involved in spike-timing dependent plasticity (STDP) \citep{froemkeSpiketimingdependentSynapticPlasticity2005}. This can lead to variation in the timing rules of STDP \citep{froemkeSpiketimingdependentSynapticPlasticity2005} and engage local process that shift the balance from depression to potentiation \citep{sjostromCooperativeSwitchDetermines2006}.
+
+Studies of primary visual cortex have identified that retinotopically displaced inputs, which are central to the formation of visual edge tuning, preferentially form on distal dendritic branches of layer 2/3 pyramidal cells \citep{iacarusoSynapticOrganizationVisual2017, lempelDevelopmentCoherentCortical2025}. Computational studies have identified normative rules that produce visual edge tuning, ranging from simple source separation models like independent component analysis to more sophisticated models of efficient coding \citep{olshausenEmergenceSimplecellReceptive1996, bellInformationMaximizationApproachBlind1999}. However, these models fail to account for the dendritic distribution of inputs, instead representing neurons as single point compartments.
+
+It is not known if the distribution of synaptic inputs in primary visual cortex can be explained by compartment-specific plasticity rules. Most studies of compartment-specific plasticity have focused on abstract functional benefits rather than specific input patterns \citep{larkumTopdownDendriticInput2004, schillerNMDASpikesBasal2000, poiraziPyramidalNeuronTwoLayer2003}. Studies that aim to explain compartment specific input organization tend to focus on major differences between anatomical input classes, like comparing the subcellular targets of thalamic sensory inputs and long-range feedback connections \citep{petreanuSubcellularOrganizationNeocortical2009, yaegerDendriticMechanismBalancing2024, xuNonlinearDendriticIntegration2012, zhuangLaminarDistributionArbor2021}. However, in the case of visual edge tuning, plasticity rules appear to be fully responsible for segregating input types in distinct dendritic compartments. 
+
+\begin{figure*}
+\centering
+\includegraphics[width=0.675\linewidth]{../figures/core_figures/figure1.pdf}
+\caption{\textbf{Mismatch in bAP-evoked calcium influx across dendritic branches.}\\
+(\textbf{A}) Schematic of naming scheme for dendritic branches. Distal-complex and distal-simple are defined based on the amplitude of $\Delta[Ca]_{AP}$.\\
+(\textbf{B}) Example of evoked calcium signals. $\Delta[Ca]_{amp}$ is measured as the difference between the calcium evoked by pairing a bAP with glutamate uncaging and the synthetic linear sum of each independently. \\
+(\textbf{C}) Left: average $\Delta[Ca]_{AP}$ traces in each compartment (compartments defined by $\Delta[Ca]_{AP}$ amplitude). Right: peak amplitude across dendritic branches.\\ 
+(\textbf{D}) Left: average relative $\Delta[Ca]_{amp}$ in each compartment. Relative signal measured as $\Delta[Ca]_{amp}/\Delta[Ca]_{glu}$ to account for variation in NMDAR activation. Right: peak amplitude across branches.}
+\label{fig:1}
+\end{figure*}
+
+We propose an experimentally motivated and biophysically grounded model of compartment specific STDP that leads to a specific prediction about the distribution of synaptic inputs in layer 2/3 visual cortex cells and can explain existing measurements. In previous experimental work, we observed that sections of the dendritic tree with complex branching structure have a selective reduction in bAP-evoked calcium influx, which is preserved in distance matched branches with simpler morphology \citep{landauDendriticBranchStructure2022}. However, bAP-evoked amplification of synaptic calcium influx through NMDA-type glutamate receptors (NMDARs) is preserved in both branches. 
+
+We demonstrate how our experimental measurements predict branch-specific variation in the ratio of STDP potentiation and depression (D/P ratio) in the distal dendritic tree \citep{nevianSpineCa2Signaling2006}. Next, we show that the ratio of potentiation and depression shapes how correlated input synapses must be with each other to maintain stable connections \citep{songCompetitiveHebbianLearning2000}. We then demonstrate how this property directly produces the observed distribution of synaptic tuning in primary visual cortex \citep{iacarusoSynapticOrganizationVisual2017}. Specifically, the high depression in proximal sites leads to highly correlated, retinotopically superimposed inputs, whereas the reduced depression in distal sites permits weakly correlated inputs that share the proximal orientation tuning but are retinotopically displaced. Our model can explain the observed distribution of spine tuning in visual cortex and makes an additional prediction that retinotopically displaced input are preferentially found on distal branches with complex branch structure.
+
+
+\section*{Results}\label{s:results}
+
+\subsection*{Branch-specific calcium signaling}
+Our previous experimental study uncovered branch-specific calcium signaling known to drive activity-dependent synaptic plasticity \citep{landauDendriticBranchStructure2022, nevianSpineCa2Signaling2006}. We measured calcium influx in cortical layer 2/3 cells evoked by single back-propagating action potentials (bAPs), synaptic input, and synaptic input paired with a bAP delayed by 5ms (\hyperref[fig:1]{Figure 1a}). We stimulated precisely timed bAPs with somatic current injection through a whole-cell patch pipette and stimulated synaptic input in individual dendritic spines with two-photon glutamate uncaging. In distal apical branches (>100$\mu$m), we observed large variation in bAP-evoked calcium influx ($\Delta[Ca]_{AP}$, \hyperref[fig:1]{Figure 1a-c}), despite controlling for distance from the soma. Regardless of $\Delta[Ca]_{AP}$ amplitude, all branches displayed large bAP-evoked amplification of synaptic calcium influx ($\Delta[Ca]_{amp}$, \hyperref[fig:1]{Figure 1a-d}). Because we cannot directly control the concentration of glutamate released by uncaging, we plot relative $\Delta[Ca]_{amp}$, computed as the ratio of $\Delta[Ca]_{amp}$ and $\Delta[Ca]_{glu}$. This ratio measures how much bAPs amplify calcium influx through voltage-dependent NMDA receptors (NMDARs) due to transient relief of the $Mg^{2+}$ block. 
+
+Using dendritic loose-patch recordings, voltage imaging, and biophysical modeling, we deduced that variation in dendritic branch structure determines the amplitude of $\Delta[Ca]_{AP}$ (\hyperref[fig:1]{Figure 1a}). Sections of the dendritic tree with simple branch structure have higher impedance, leading to high amplitude local bAPs that evoke calcium influx. Sections with more elaborate branch structure have lower impedance, which reduces the amplitude of local bAPs, so they fail to evoke calcium influx. Based on this morphological distinction, we refer to distal recording sites with high $\Delta[Ca]_{AP}$ as “distal-simple” and sites with low $\Delta[Ca]_{AP}$ as “distal-complex” (\hyperref[fig:1]{Figure 1a}, and Figs 4-7 of Ref. \citep{landauDendriticBranchStructure2022}). 
+
+\begin{figure*}
+\centering
+\includegraphics[width=0.9\linewidth]{../figures/core_figures/figure2.pdf}
+\caption{\textbf{STDP Depression and Potentiation evoked in each branch type.}\\
+(\textbf{A}) Action potentials were modeled as quadratic waveforms with variable peak amplitude to model experimental observations in the three dendritic branch sites.\\
+(\textbf{B}) NMDAR open-probability traces evoked by bAPs in each branch-type. \\
+(\textbf{C}) VGCC open-probability traces evoked by bAPs in each branch-type. \\ 
+(\textbf{D}) Integrated calcium influx in NMDARs and VGCCs evoked in each branch type. We used the GHK current equation to estimate dynamic calcium influx.\\
+(\textbf{E}) In STDP protocols, calcium influx through NMDARs and VGCCs leads to potentiation and depression, respectively.\\
+(\textbf{F}) Results from Nevian \& Sakmann (2006, reproduced from published figure via plot digitization), showing how the magnitude of potentiation and depression depend on the amplitude of calcium influx.\\
+(\textbf{G}) Estimated potentiation and depression evoked by STDP as a function of local bAP amplitude.\\
+(\textbf{H}) Predicted magnitude of potentiation and depression evoked in each branch type, using the calcium influx measured in simulations from panels A-D. 
+}
+\label{fig:2}
+\end{figure*}
+
+The mismatch in $\Delta[Ca]_{AP}$ and $\Delta[Ca]_{amp}$ observed in distal-simple and distal-complex sites predicts a divergence in the amount of depression and potentiation evoked by STDP protocols in each branch type. The magnitude of depression evoked by STDP is proportional to the amplitude of calcium influx mediated by voltage-gated calcium channels (VGCCs; \hyperref[fig:2]{Figure 2e,f}) \citep{nevianSpineCa2Signaling2006}, which we measure as $\Delta[Ca]_{AP}$. The magnitude of potentiation evoked by STDP is proportional to the amplitude of calcium influx mediated by NMDA-type glutamate receptors (NMDARs; \hyperref[fig:2]{Figure 2e,f}) \citep{nevianSpineCa2Signaling2006}, which we measure as relative $\Delta[Ca]_{amp}$. Therefore, we hypothesize that distal-simple branches have typical levels of depression and potentiation, while distal-complex branches have reduced depression but typical potentiation. 
+
+To illustrate how differences in local bAP amplitude affect calcium influx through VGCCs and NMDARs, we simulated calcium currents evoked by bAPs using a biophysical model based on published work \citep{jahrVoltageDependenceNMDAactivated1990, reuveniStepwiseRepolarizationCa21993}. Based on our loose-patch dendritic recordings and voltage-imaging data \citep{landauDendriticBranchStructure2022}, we used bAPs with three different amplitudes to model distinct dendritic sites: 100 mV bAPs modeled proximal sites, 90 mV bAPs modeled distal-simple branches, and 45 mV bAPs modeled distal-complex branches (\hyperref[fig:2]{Figure 2a}). Because of the shallow voltage dependence of NMDARs, lower amplitude bAPs were still able to open NMDARs in distal-complex branches (\hyperref[fig:2]{Figure 2b}). However, because of the sharp, high-threshold voltage dependence of VGCCs, lower amplitude bAPs completely failed to open VGCCs in distal-complex branches (\hyperref[fig:2]{Figure 2c}). We used the Goldman-Hodgkin-Katz current equation to measure the integrated calcium current evoked in each of these sites (\hyperref[fig:2]{Figure 2d}). These results show why there is a mismatch in $\Delta[Ca]_{AP}$ and $\Delta[Ca]_{amp}$ in distal-complex branches, but not in distal-simple branches. 
+
+\begin{figure*}
+\centering
+\includegraphics[width=0.675\linewidth]{../figures/core_figures/figure3.pdf}
+\caption{\textbf{Branch-specific STDP Model}\\
+(\textbf{A}) Additive STDP plasticity rule. Pre$\rightarrow$post pairings evoked potentiation, and post$\rightarrow$pre pairings evoked depression.\\
+(\textbf{B}) Homeostatic plasticity rule. Neurons adjusted all synapses multiplicatively in proportion to the log of the ratio between their current firing rate and their set point. \\
+(\textbf{C}) Branch-specific plasticity scheme. Each neuron we simulated had a proximal, distal-simple, and distal-complex compartment. The maximum allowed strength of synapses was high in proximal sites and low in both distal sites. We varied the amount of extra synaptic depression (LTD) in distal-complex branches.}
+\label{fig:3}
+\end{figure*}
+
+\begin{figure*}
+\centering
+\includegraphics[width=0.9\linewidth]{../figures/core_figures/figure4.pdf}
+\caption{\textbf{Strength of depression shapes input correlation properties}\\
+(\textbf{A}) Illustration of latent source model. A single autocorrelated latent source was generated. The dynamics of each input was partially determined by the latent source and partially by autocorrelated independent noise. The signal of each input is shown in color, and the difference from the latent source is shown by shading.\\
+(\textbf{B}) Resulting correlation matrix of all inputs (N=40) with correlation ranging from 0 to 0.4. \\
+(\textbf{C}) Total synaptic strength on each input in proximal (top), distal-simple (middle), and distal-complex (bottom) sites from a single recording. Each row represents the timecourse of synaptic weight on each presynaptic input source. \\
+(\textbf{D}) Average asymptotic synaptic strength as a function of input correlation. Weights were normalized to be relative to the maximum possible value. Color-coding follows \hyperref[fig:3]{Figure 3c}, the color indicates the extra LTD magnitude in the distal-complex branch within each neuron. \\
+(\textbf{E}) Correlation of input source required to maintain a synaptic weight at 50\% of the maximum value for each branch type, denoted "$\sigma$ h-p". Middle inset: how the $\sigma$ h-p was measured. The level of extra depression in distal-complex sites had a large effect on $\sigma$ h-p locally, but did not affect proximal or distal-simple sites.
+}
+\label{fig:4}
+\end{figure*}
+
+We built a simple model to predict the magnitude of depression and potentiation evoked by bAPs of different amplitudes. First, we built a transfer function that relates the magnitude of calcium influx through each channel type (VGCCs \& NMDARs) to the magnitude of plasticity evoked by STDP. In a previous study \citep{nevianSpineCa2Signaling2006}, Nevian \& Sakmann measured how much the magnitude of STDP decreases in the presence of calcium buffers that linearly reduce calcium concentration (\hyperref[fig:2]{Figure 2d}). Because the free calcium concentrations that cause plasticity are so much lower than the buffer concentration, we used the buffer capacity formula to convert the concentration of buffer to relative calcium concentration \citep{sabatiniLifeCycleCa22002}, where “1.0” represents the concentration without any calcium buffer. Next, we related the calcium evoked by different bAP amplitudes in our simulation (\hyperref[fig:2]{Figure 2d}) to the relative calcium concentration in the transfer function. Because our simulation measures current per conductance density, and we don’t know the conductance density of VGCCs and NMDARs, we scaled our data by the maximum calcium signal evoked by VGCCs or NMDARs experimentally \citep{landauDendriticBranchStructure2022}. As a result, we inferred the relationship between the peak bAP amplitude and the potentiation or depression evoked by STDP (\hyperref[fig:2]{Figure 2f,g}). Finally, we show the resulting magnitude of potentiation and depression evoked in proximal, distal-simple, or distal-complex sites (\hyperref[fig:2]{Figure 2h}). These simulations confirm our hypothesis that the mismatch in calcium signaling maps to a divergence in plasticity in each branch type.
+
+To explore how the divergence in depression and potentiation affects the tuning properties of synapses in distal-simple or distal-complex branch types, we built a model of STDP that incorporates the properties of each branch type. We used an additive model of plasticity from Song \& Abbott \citep{songCompetitiveHebbianLearning2000} that increments the strength of synapses based on the timing of pre- and post-synaptic spikes (\hyperref[fig:3]{Figure 3a}). This model requires the strength of depression to exceed potentiation to prevent runaway firing. Because we wanted to explore how reducing depression affects function, we included a homeostatic scaling rule, which multiplicatively scales all synapses whenever a neuron is above or below its firing set point (\hyperref[fig:3]{Figure 3b}) \citep{turrigianoHomeostaticPlasticityDeveloping2004}. 
+
+Inspired by the results from \hyperref[fig:2]{Figure 2}, we designed a three-compartment neuron where each compartment varies in both the strength of synapses due to the distance from the soma \citep{sprustonPyramidalNeuronsDendritic2008} and the magnitude of excess depression due to the dendritic branch structure \citep{landauDendriticBranchStructure2022} (\hyperref[fig:3]{Figure 3c}). Proximal sites had strong synapses and high extra depression. Distal-simple sites had weak synapses and high extra depression. Distal-complex sites had weak synapses and variable levels of extra depression, which represents the primary experimental axis that we explore. The top-right panel of \hyperref[fig:3]{Figure 3c} shows our color scheme. Each neuron we simulate is composed of a proximal, distal-simple, and distal-complex site, and we color the results from each site by the level of extra depression in the connected distal-complex site.
+
+\begin{figure*}[b]
+\centering
+\includegraphics[width=0.45\linewidth]{../figures/core_figures/figure5_version2.pdf}
+\caption{\textbf{Visual edge tuning model}\\
+(\textbf{A}) The visual environment was a 3x3 grid of 4 possible orientations. Edges appeared randomly with probability $p(edge)$ that were centered on the central pixel (black lines indicate edge). Pixels not participating in an edge had random orientations. \\
+(\textbf{B}) Presynaptic inputs followed von-mises tuning for orientation. The firing rate of each presynaptic input was entirely determined by a single pixel, so there were 36 total presynaptic input classes. \\
+(\textbf{C}) Compartment-specific input mapping. Proximal synapses were only connected to the 4 central pixel presynaptic inputs. Distal synapses were connected to all 36 presynaptic inputs.
+}
+\label{fig:5}
+\end{figure*}
+
+\begin{figure*}
+\centering
+\includegraphics[width=0.9\linewidth]{../figures/core_figures/figure6_version2.pdf}
+\caption{\textbf{Recapitulation of experimental measurements of spine tuning.}\\
+(\textbf{A}) Example of tuning at the end of simulation for a neuron with \textbf{high extra LTD} in the distal-complex branch. Both distal sites matched proximal tuning, with a hint of edge tuning. We used a weighted-sum of Gabors to represent tuning visually. \\
+(\textbf{B}) Example of tuning at the end of simulation for a neuron with \textbf{low extra LTD} in the distal-complex branch. The distal-complex branch shows a pronounced and selective increase in edge tuning. \\
+(\textbf{C}) Schematic of each receptive field group. Central-preferred refers to the orientation in the central pixel that matched proximal tuning. Co-axial tuning refers to the two boundary pixels that complete the edge of the central-preferred input. Other refers to all other presynaptic inputs (average of 33 other input types). \\
+(\textbf{D}) Compartment-specific tuning to each RF group across a full simulation. Y-axis shows magnitude of tuning relative to maximum possible value for each group. The simulation had $p(edge)$=1.0 and 0\% extra LTD in the distal-complex site. \\
+(\textbf{E}) Average coaxial weight percentage across all simulations (N=30 each) as a function of $p(edge)$ and extra LTD \% in the distal-complex site. 
+}
+\label{fig:6}
+\end{figure*}
+
+Because STDP promotes correlated input tuning \citep{songCompetitiveHebbianLearning2000}, we hypothesized that a reduction in synaptic depression would stabilize synapses with weaker correlations to other inputs. To test this hypothesis, we trained neurons on a simulated dataset in which each input synapse was partially correlated with a single latent source (\hyperref[fig:4]{Figure 4a,b}), ranging from correlation values of 0 to 0.4. The correlation coefficient matrix of the input rates is shown in \hyperref[fig:4]{Figure 4b}. We simulated STDP until neurons reached steady state, then analyzed the resulting synaptic weight on each input as a function of the dendritic compartment and the input correlation. Proximal sites developed strong tuning to highly correlated inputs, similar to ref \citep{songCompetitiveHebbianLearning2000} (\hyperref[fig:4]{Figure 4c,d}, top). Distal-simple sites were weakly tuned to all inputs, because their weaker synaptic strength prevents them from reliably spiking the postsynaptic neuron (\hyperref[fig:4]{Figure 4c,d}, middle). Distal-complex sites developed strong tuning to correlated inputs; however, as we varied the level of extra depression in distal-complex sites from 10\% to 0\%, the tuning curve shifted such that inputs with weaker correlations developed strong tuning (\hyperref[fig:4]{Figure 4c,d}, bottom). We determined the half-point of sigmoidal fits to each tuning curve to quantify how correlated each input must be to acquire stable tuning (\hyperref[fig:4]{Figure 4e}, middle inset). In proximal and distal-simple sites, the value was high and independent of the level of extra depression in distal-complex sites (\hyperref[fig:4]{Figure 4e}, top \& middle). In distal-complex sites, reducing extra depression led to a strong reduction in the half-point, such that the postsynaptic cell was tuned to inputs with random activity at 0\% extra depression (\hyperref[fig:4]{Figure 4e}, bottom). 
+
+Based on these simulations, we hypothesize that our compartment-specific STDP model can explain the distribution of input tuning in cortical layer 2/3 cells of mouse primary visual cortex \citep{iacarusoSynapticOrganizationVisual2017}. To explore this possibility, we built a toy model of visual inputs to cortex in which a single postsynaptic cell receives input from a 3x3 grid of orientation tuned presynaptic cells (\hyperref[fig:5]{Figure 5}). In each visual frame, the pixels could take on one of 4 orientations (\hyperref[fig:5]{Figure 5a}). We presented a visual “edge” with probability $p(edge)$, in which case an edge was formed by three pixels with matching orientations, always passing through the central pixel (\hyperref[fig:5]{Figure 5a}). Otherwise, all pixels were random and independent. Presynaptic input cells had pre-determined tuning and were localized to single pixels, with von-mises tuning for the orientation in their pixel (\hyperref[fig:5]{Figure 5b}). In the postsynaptic cell, proximal sites were connected to the central pixel, to model precise thalamocortical input as observed experimentally \citep{zhuangLaminarDistributionArbor2021}, while distal sites were connected to all pixels (\hyperref[fig:5]{Figure 5c}). We used a weighted sum of Gabors to visually represent the tuning of each neuron, which showed that postsynaptic neurons became tuned to a single orientation that was coherent across the proximal, distal-simple, and distal-complex sites (\hyperref[fig:6]{Figure 6a,b}). 
+
+In Iacaruso et al. \citep{iacarusoSynapticOrganizationVisual2017}, distal dendritic sites were more likely to have spines that shared orientation preference with the soma, but with retinotopically-displaced receptive fields. We observed this phenomenon in distal-complex sites depending on the level of extra depression and the edge probability. When extra depression was high, the distal-complex compartment had weak tuning to the retinotopically-displaced inputs (\hyperref[fig:6]{Figure 6a}). However, when extra depression was low, it became strongly tuned such that its inputs represent the full edge (\hyperref[fig:6]{Figure 6b}). To analyze this systematically, we divided inputs into three receptive field groups. “Central-preferred” inputs are in the central pixel and the preferred orientation of the postsynaptic cell (\hyperref[fig:6]{Figure 6c}). “Coaxial” inputs are in the two outer positions that complete the edge corresponding to the central tuning type (\hyperref[fig:6]{Figure 6c}). These are the key input types to analyze. “Other” inputs are all other inputs to the cell (\hyperref[fig:6]{Figure 6c}). 
+
+All three compartments became strongly tuned to the central-preferred input (\hyperref[fig:6]{Figure 6d,e}). However, as predicted by our hypothesis, the postsynaptic cells only acquired consistent tuning to coaxial inputs in the distal-complex site with reduced synaptic depression (\hyperref[fig:6]{Figure 6d,e}). Coaxial tuning was more pronounced when visual edges were more frequent and depended on a reduction in synaptic depression (\hyperref[fig:6]{Figure 6d,e}). Interestingly, the coaxial tuning of the distal-simple branch was suppressed by a reduction in extra LTD in the distal-complex branch due to the extra synaptic drive and homeostatic compensation (\hyperref[fig:6]{Figure 6e}). Together, these results demonstrate that our compartment-specific STDP model can explain why retinotopically displaced (“coaxial”) inputs are preferentially localized on distal dendritic branches. Weak correlations are stable on distal branches in which the pressure to maintain high correlation from bAP-evoked synaptic depression is selectively reduced. Our model predicts that these inputs will not be on every distal branch but rather will specifically be in sections of the distal dendritic tree with complex branch structure, which causes the reduction in synaptic depression.
+
+\section*{Discussion}\label{s:discussion}
+
+In this work, we provide a mechanistic explanation for how retinotopically displaced inputs are preferentially localized on distal dendritic branches of cortical layer 2/3 pyramidal cells of visual cortex \citep{iacarusoSynapticOrganizationVisual2017}. Our model establishes causal links from dendritic biophysics to functional tuning properties by identifying how branch-specific calcium signaling affects STDP rules. Reductions in synaptic depression caused by attenuated local bAP amplitude allow weakly correlated inputs to maintain stable tuning \citep{landauDendriticBranchStructure2022}. Due to the correlation structure of visual input, this permits distal branches to become tuned to displaced inputs that play a central role in creating tuning to visual edges. 
+
+Our model recapitulates the distribution of dendritic spine tuning in layer 2/3 cortical pyramidal neurons of visual cortex. Furthermore, it makes a specific, untested prediction about the branch-specific distribution of displaced tuning in layer 2/3 cortical pyramidal neurons. Our experimental work shows that only sections of the dendritic tree with complex branch structure have a reduction in bAP-evoked calcium influx, which is required for reducing synaptic depression and stabilizing retinotopically displaced inputs \citep{landauDendriticBranchStructure2022}. Therefore, we predict that analysis of the morphological structure of layer 2/3 apical branches will reveal that displaced inputs preferentially appear on apical sites with complex branching. 
+
+Although our model was inspired by the observed distribution of compartment-specific spine tuning in visual cortex, it makes predictions that extend beyond that context. Our results with an abstract latent variable model in \hyperref[fig:4]{Figure 4} shows that reductions in synaptic depression promote weakly correlated synapses in general. While this applies to edge tuning in visual cortex, it may explain other tuning features in visual cortex or different sensory areas. Weakly correlated synapses are a fundamental component to multimodal tuning, in which the synapses across input modes are not as correlated with each other as synapses within an input mode. Vanilla STDP would predict that one input mode would “win out” eventually \citep{songCompetitiveHebbianLearning2000}. Our model provides an explanation for how multiple input modes can be preserved within a single cell. Furthermore, it predicts that dendritic spines tuned to a secondary input mode, like movement tuning in primary visual cortex, are preferentially observed on branches with reduced synaptic depression \citep{xuNonlinearDendriticIntegration2012,bugeonTranscriptomicAxisPredicts2022}. As above, this is testable by comparing spine tuning properties with local dendritic branch structure.
+
+
+\section*{Methods}\label{s:methods}
+
+\subsection*{Experimental Data, Figure 1}
+Acute coronal slices were prepared from young adult, C57Bl/6j wild-type mice (Jackson Labs, Bar Harbor, ME) between postnatal days P21-P28. Animals were anesthetized via inhalation of isoflurane then immediately decapitated. The brain was rapidly removed and placed in ice-cold cutting artificial cerebrospinal fluid (ACSF) containing (in mM): 125 NaCl, 2.5 KCl, 25 NaHCO3, 1.25 NaH2PO4, 1 CaCl2, 10 MgCl2, and 25 glucose, saturated with 95\% O2 and 5\% CO2. We cut coronal slices with a VT1200S Vibratome (Leica, Buffalo Grove, IL) while maintained in the cutting solution. Slices were then incubated at 34°C for 30 minutes in a recovery ACSF containing (in mM): 92 NaCl, 28.5 NaHCO3, 2.5 KCl, 1.25 HaH2PO4, 2 CaCl2, 4 MgCl2, 25 glucose, 20 HEPES, 3 Sodium Pyruvate, and 5 Sodium Ascorbate, saturated with 95\% O2 and 5\% CO2. Slices were next transferred to a 20°C room in recovery ACSF until use (>30 minutes after slicing) and not held for longer than 8 hours. Experiments were conducted at 34°C in recording ACSF containing (in mM): 125 NaCl, 2.5 KCl, 25 NaHCO3, 1.25 NaH2PO4, 1.5 CaCl2, 1 MgCl2, and 25 glucose, saturated with 95\% O2 and 5\% CO2. All solutions were prepared with osmolality between 300-310 mOsm/kg, adjusted with either water or glucose.
+
+Somatic whole-cell recordings were acquired from cortical excitatory L2/3 pyramidal cells using IR-DIC. Patch pipettes (2-4.5 MΩ) were filled with an internal solution containing (in mM): 130 K-Gluconate, 10 KCl, 10 HEPES, 4 MgATP, 0.5 Na2GTP, 10 Phosphocreatine-disodium salt, 0.3 Fluo-5F and 0.01 Alexa 594. All recordings were performed with a Multiclamp 700B amplifier (Molecular Devices, San Jose, CA). Pipette capacitance was neutralized prior to break-in and the series resistance was fully balanced for all recordings. Series resistance ranged from 7-25 MΩ. We elicited APs by injecting a 1-2 ms current of 0.5-3.5 nA. Recordings were aborted if the cell's membrane potential exceeded -60 mV, if the dendrites begun filling with calcium (as indicated by the baseline Fluo-5F signal), or if the series resistance became too high for us to reliably evoke action potentials. For experiments in which we performed glutamate uncaging, we also aborted recordings if the input resistance of the cell exceeded 200 M$\Omega$. When we performed glutamate uncaging, we added the following drugs via bath application: 3.75 mM MNI-Glutamate (for uncaging), 10 $\mu$M 2-CA (to reduce presynaptic release probability and maintain quiescent recording conditions), 1 unit/mL glutamate pyruvate transaminase (which catalyzes free glutamate into $\alpha$-ketoglutarate), and 3 mM Sodium Pyruvate (a necessary cofactor for GPT), to the recording ACSF.
+
+Two-photon imaging was performed with a custom-built microscope described previously (Carter and Sabatini, 2004). We tuned a mode-locked femtosecond laser to 840 nm to excite both Fluo-5F and Alexa 594. All calcium imaging was performed >10 minutes after break-in to allow fluorophores to passively diffuse into the dendritic tree. Stimulus-evoked changes in fluorescence were quantified as the change in green (Fluo-5F) fluorescence relative to a baseline period, divided by the baseline red (Alexa 594) fluorescence ($\Delta$G/R) (Bloodgood and Sabatini, 2007). We used a custom algorithm to center the field of view on each trial (Carter and Sabatini, 2004). To perform laser photolysis of MNI-glutamate, we used a short, 500 $\mu$s femtosecond laser pulse tuned to 725 nm. For each experiment, we gradually increased laser intensity until either a 0.5 mV EPSP was generated or a clear calcium signal in the dendritic spine was evoked. We moved the uncaging spot around the dendritic spine to maximize the EPSP size as an attempt to uncage glutamate directly apposed to the postsynaptic density. 
+
+\subsection*{Simulations, Figure 2}
+We simulated calcium influx through VGCCs and NMDARs using published data on the voltage-dependent open probability and time constants of each channel type \citep{jahrVoltageDependenceNMDAactivated1990, reuveniStepwiseRepolarizationCa21993}. For VGCCs, we used the following voltage-dependent forward and backward rate constants of the activation gate ($\alpha_m$ and $\beta_m$) and inactivation gate ($\alpha_h$ and $\beta_h$):
+
+\begin{align*}
+\alpha_m(V) &= \frac{0.055(-27 - V)}{\exp\!\left(\frac{-27 - V}{3.8}\right) - 1}, \\
+\beta_m(V) &= 0.94\exp\!\left(\frac{-75 - V}{17}\right), \\
+\alpha_h(V) &= 0.000457\exp\!\left(\frac{-13 - V}{50}\right), \\
+\beta_h(V) &= \frac{0.0065}{\exp\!\left(\frac{-V - 15}{28}\right) + 1}.
+\end{align*}
+
+To compute open probability and time constant for the activation (denoted $m$) and inactivation (denoted $h$) gates of VGCCs, we used:
+\begin{equation*}
+P_{\mathrm{open}}(V) = \frac{\alpha(V)}{\alpha(V) + \beta(V)}, \qquad
+\tau(V) = \frac{1}{\alpha(V) + \beta(V)}.
+\end{equation*}
+
+For NMDARs (denoted $n$), we calculated voltage-dependent open probability and time constant as:
+\begin{equation*}
+P_{\mathrm{open}}(V) = \frac{k_{\mathrm{off}}}{k_{\mathrm{on}} + k_{\mathrm{off}}}, \qquad
+\tau(V) = \frac{1}{k_{\mathrm{on}} + k_{\mathrm{off}}},
+\end{equation*}
+based on the measured on/off rates of the $\mathrm{Mg}^{2+}$ block \citep{jahrVoltageDependenceNMDAactivated1990}, with $[\mathrm{Mg}^{2+}] = 1\,m\mathrm{M}$:
+\begin{align*}
+k_{\mathrm{off}} &= \exp(0.017V + 0.96), \\
+k_{\mathrm{on}} &= [\mathrm{Mg}^{2+}]\,\exp(-0.045V - 6.97).
+\end{align*}
+
+We used Euler's method to compute changes in the state of each gate in dynamic simulations:
+\begin{align*}
+\dot{m} &= \alpha_m(V) - m\left(\alpha_m(V) + \beta_m(V)\right), \\
+\dot{h} &= \alpha_h(V) - h\left(\alpha_h(V) + \beta_h(V)\right), \\
+\dot{n} &= k_{\mathrm{off}} - n\left(k_{\mathrm{off}} + k_{\mathrm{on}}\right).
+\end{align*}
+
+The open probability of NMDARs is equal to $n$, and the open probability of VGCCs is equal to $m^2h$. To convert open probability into a voltage-dependent calcium current, we used a modified Goldman-Hodgkin-Katz current equation with $[\mathrm{Ca}]_{\mathrm{in}} = 75$ nM and $[\mathrm{Ca}]_{\mathrm{out}} = 1.5$ mM:
+\begin{equation*}
+I_{\mathrm{Ca}} = P_{\mathrm{open}}(V)\,
+\frac{V\left([\mathrm{Ca}]_{\mathrm{in}} - [\mathrm{Ca}]_{\mathrm{out}}\exp\!\left(-\frac{2VF}{RT}\right)\right)}
+{1 - \exp\!\left(-\frac{2VF}{RT}\right)}.
+\end{equation*}
+
+We used quadratic voltage depolarizations to mimic the shape of APs. For each stimulus, we used a preset amplitude ($V_{\mathrm{amp}}$) and duration ($V_{\mathrm{dur}}$), and solved for $a$:
+\begin{equation*}
+V_{\mathrm{amp}} = \left(\frac{aV_{\mathrm{dur}}}{2}\right)^2.
+\end{equation*}
+This gives a waveform over the domain $-V_{\mathrm{dur}}/2 < t < V_{\mathrm{dur}}/2$:
+\begin{equation*}
+\mathrm{step}(t) = V_{\mathrm{amp}} - (at)^2,
+\end{equation*}
+which we added to a baseline voltage of $-70$ mV. We used a 100mV AP in proximal compartments, a 90mV AP for distal-simple compartments, and a 45mV AP for distal-complex compartments. Although this was not measured directly in experiments, it matches the relative AP amplitudes measured with voltage imaging (Figure 5 of \citep{landauDendriticBranchStructure2022}) and in our biophysical simulations (Figure 7 of \citep{landauDendriticBranchStructure2022}).
+
+To determine the integrated calcium influx in \hyperref[fig:1]{Figure 2d}, we integrated the calcium current evoked by the voltage step after subtracting the baseline current (NMDARs are partially open at rest). 
+
+We used plot digitization to extract the data from Figure 4 of \citep{nevianSpineCa2Signaling2006} and replotted it in \hyperref[fig:2]{Figure 2f}.
+
+To generate the transfer functions in \hyperref[fig:2]{Figure 2g, h}, we first simulated AP-evoked calcium influx across a range of AP amplitudes (0--100 mV from a $-70$ mV baseline) and measured integrated calcium for NMDAR and VGCC currents separately. The Nevian/Sakmann curve in \hyperref[fig:2]{Figure 2f} gives plasticity as a function of added buffer concentration, not directly as a function of calcium. To convert this into a transfer function of the form $Plasticity(relative [Ca]) = f([Ca])$, we assumed buffer-capacity scaling, with $\kappa = [B]/K_d$. Additionally, we assume that $[B]$ doesn't appreciably change due to calcium binding (which is true given the small changes in calcium concentration \citep{sabatiniLifeCycleCa22002}). In steady-state, the relationship between buffer concentration and free calcium concentration follows mass action: $\frac{[CaB]}{[Ca]} = \frac{[B]}{K_d} = \kappa$. Therefore, we can solve for the fraction of free calcium remaining as a function of added buffer:
+
+\begin{align*}
+[Ca]_{\mathrm{total}} &= [Ca] + [CaB] = [Ca](1+\kappa), \\
+[Ca] &= \frac{[Ca]_{\mathrm{total}}}{1+\kappa}, \\
+\text{relative }[Ca] &= \frac{1}{1+\kappa}.
+\end{align*}
+
+Our estimates of total integrated-calcium estimates for NMDAR and VGCC are proportional to the peak conductances of each channel type, which is not known. However, using the relative calcium equation as above, we can scale the curves to be relative to the maximum calcium influx observed through NMDARs and VGCCs. To do this, we estimated the \textit{relative} peak calcium influx through NMDARs and VGCCs by comparing the maximal nonlinear calcium component and maximal AP-only calcium signal in the eLife dataset (approximating maximal NMDAR- and VGCC-mediated calcium influx, respectively), and used this ratio to scale the NMDAR-driven curve so both channel transfer functions reflected the same relative calcium influx.
+
+\subsection*{Branch specific STDP model, Figures 3--6}
+
+We modeled each neuron as a leaky integrate-and-fire unit receiving excitatory and inhibitory conductance-based synaptic input, following the model in \citep{songCompetitiveHebbianLearning2000}. The membrane voltage evolved as
+\begin{equation*}
+\tau_m \frac{\Delta V}{dt} = (V_{\mathrm{rest}} - V) + R_m I_{\mathrm{syn}},
+\end{equation*}
+with spike generation at a fixed threshold and reset to $V_{\mathrm{rest}}$ after each spike.
+
+Synaptic current was computed as
+\begin{equation*}
+I_{\mathrm{syn}} = \sum_k g_k (E_k - V),
+\end{equation*}
+where $g_k$ is synaptic conductance and $E_k$ is the reversal potential of synapse type $k$. Conductance decayed exponentially and increased on presynaptic spikes in proportion to the weight of the synapse:
+\begin{equation*}
+    \Delta g_k = \sum_j s_j\,w_j\,\mathbf{1}[w_j>g_{\mathrm{th}}] - g_k \frac{\Delta t}{\tau_k}
+\end{equation*}
+where $s_j(t)\in\{0,1\}$ is a presynaptic spike and $w_j$ is synaptic weight. We used a fixed conductance threshold below which synapses did not contribute to the synaptic current, denoted $g_{\mathrm{th}}$.
+
+We used additive STDP with separate potentiation and depression eligibility traces. $A_+$ and $A_-$ are the potentiation and depression increments, respectively, which represent the maximum change in synaptic weight by a STDP pairing. Let
+\begin{equation*}
+A_+ = \eta w_{\max}, \qquad A_- = \eta \rho w_{\max},
+\end{equation*}
+where $\eta$ is the STDP rate and $\rho$ is the depression-to-potentiation ratio. $w_{\max}$ is the maximum synaptic weight, such that additive increments to the weight were proportional to the range of possible synaptic weights. In general, $\rho$ must be greater than 1 to ensure stability of the neuron \citep{songCompetitiveHebbianLearning2000}. 
+
+Whenever a presynaptic spike occurs, we (1) reduce the synaptic weight in proportion to the global eligibility trace for synaptic depression (set by postsynaptic spikes, $D$), (2) increase the potentiation eligibility trace, $P_j$, of each synapse by $A_+$, and (3) decay both the potentiation and depression eligibility traces by their respective time constants. The eligibility traces are initialized to 0 at the start of the simulation.
+\begin{align*}
+    \Delta w_j &= s_j D \\
+    \Delta P_j &= s_j A_+ - \frac{\Delta t}{\tau_+}P_j \\
+    \Delta D &= - \frac{\Delta t}{\tau_-}D
+\end{align*}
+
+Whenever a postsynaptic spike occurs, we (1) increment the depression eligibility trace by $A_-$, and (2) update the synaptic weight in proportion to the potentiation eligibility trace.
+\begin{align*}
+\Delta D &= A_-, \\
+\Delta w_j &= P_j.
+\end{align*}
+Weights are clipped to $[0,w_{\max}]$.
+
+To stabilize firing rates, we included a multiplicative homeostatic plasticity rule, inspired by \citep{turrigianoHomeostaticPlasticityDeveloping2004}. Neurons had a set point firing rate, $r_{\mathrm{set}}$ and a dynamic firing rate estimate $\hat r$ that evolved slowly over time (much slower than the time step and STDP timescales). The firing rate estimate was updated as
+\begin{equation*}
+\Delta \hat r = \frac{1}{\tau_h}\left(spike - \frac{\Delta\hat r}{dt}\right),
+\end{equation*}
+
+The homeostatic instructive signal was then computed as
+\begin{equation*}
+    h_{inst}=\log\!\left(\frac{r_{\mathrm{set}}}{\hat r}\right),
+\end{equation*}
+
+and synapses were multiplicatively scaled by 
+\begin{equation*}
+    \Delta w_j = h_{inst} \, w_j.
+\end{equation*}
+
+We modeled three excitatory compartments: proximal, distal-simple, and distal-complex following the three branch types identified in our experimental data \citep{landauDendriticBranchStructure2022}. All used the same STDP and homeostatic update equations, but differed in maximum synaptic weight ($w_{\max}$) and depression-to-potentiation ratio ($\rho$). Proximal synapses were stronger, reflecting their proximity to the soma. Distal-simple and distal-complex had equivalent reductions in max synaptic weight. Proximal and distal-simple synapses had higher depression-to-potentiation ratios, and therefore stronger LTD. We varied the depression-to-potentiation ratio (referred to as "Extra LTD\%") specifically in distal-complex synapses to create a branch-specific condition of extra LTD.
+
+\subsection*{Latent variable STDP environment, Figure 4}
+
+To determine how branch-specific depression shapes the input correlation properties of a neuron learning with STDP, we simulated neurons in a latent-variable environment in which the presynaptic inputs had a rank 1 correlation structure along with isotropic noise. We generated a single, autocorrelated latent source. Then, the dynamics of each presynaptic firing rate was partially determined by the latent source and partially by autocorrelated independent noise.
+
+The presynaptic firing rates were computed as follows: 
+\begin{align*}
+z &\sim \mathcal{N}(0,1), \qquad \epsilon_i \sim \mathcal{N}(0,1),\\
+\ell_i &= \sqrt{\frac{\sigma_i^2}{1-\sigma_i^2}},\\
+x_i &= \frac{\epsilon_i + z\ell_i}{\sqrt{\ell_i^2+1}},\\
+r_i &= \max\!\left(0,\mu_r+\sigma_r x_i\right),
+\end{align*}
+with $\mu_r=20$ Hz and $\sigma_r=10$ Hz. This produces input channels with variable coupling to a shared latent source from high to low $\sigma$, all with equal overall variance (except for distortions due to the ReLU nonlinearity). $\sigma$ ranged from 0 to 0.4, linearly spaced.
+
+Presynaptic inputs were routed to the postsynaptic neuron via independent synapses (like a single presynaptic axon making multiple synapses). The proximal compartment had 1000 total synapses, such that each input was represented by 25 synapses. Distal-simple and distal-complex compartments had 40 synapses each, such that each input mapped to a single synapse. We used this structure so that the postsynaptic cell was dominated by the proximal compartment, and the distal-simple and distal-complex synapses were present to reveal how varying the strength of depression affects synaptic tuning. Inhibitory input was a non-plastic direct Poisson population (200 synapses at 10 Hz).
+
+For each distal-complex depression ratio ($\rho_{\mathrm{distal}}\in\{1.0,1.025,1.05,1.075,1.1\}$), we ran 10 repeats with 3 neurons per repeat for 9600s each. Proximal and distal-simple compartments were held at $\rho=1.1$. To estimate asymptotic tuning, we averaged weights over the final 20\% of each run, then normalized by both compartment-specific $w_{\max}$ and the number of synapses per presynaptic input.
+
+To summarize tuning, we fit normalized weight-versus-correlation profiles with
+\begin{equation*}
+\hat w(\sigma)=\frac{1}{1+\exp\!\left[-\beta(\sigma-\sigma_{1/2})\right]},
+\end{equation*}
+where $\sigma_{1/2}$ is the sigmoid half-point used in Figure 4 as the primary summary metric.
+
+\subsection*{Visual edge tuning model, Figure 5 \& 6}
+We modeled visual input integration of primary visual cortex by constructing a 3x3 grid of pixels, each with a random orientation. Edges appeared randomly with probability $p(edge)$ that were centered on the central pixel. Any pixel not participating in an edge had random orientation. We sampled four evenly spaced orientations ($0$, $\pi/4$, $\pi/2$, $3\pi/4$), so there were 36 total presynaptic input classes. 
+
+Presynaptic inputs followed von-mises tuning for orientation. Their firing rate was entirely determined by a single pixel. The firing rate was computed as: 
+\begin{equation*}
+r = \max\!\left(0,\mu_r+\sigma_r \exp\!\left(\kappa \cos(2(\theta - \theta_p))\right)\right),
+\end{equation*}
+where $\theta$ is the orientation of a pixel, $\theta_p$ is the preferred orientation of the presynaptic input, and $\kappa$ is the concentration parameter of the von-mises distribution. We set $\kappa=1.0$ for all presynaptic inputs. Each input had a baseline firing rate of $\mu_r=20$ Hz and an orientation-driven firing rate of $\sigma_r=10$ Hz.
+
+The proximal compartment was only connected to the 4 inputs of the central pixel and had 200 synapses, 50 connected to each orientation. The distal-simple and distal-complex compartments were connected to all 9 pixels, each with 720 total synapses, so 20 connected to each presynaptic input.
+
+To classify tuning in a compact way, we defined three receptive field groups ("RF Groups"). The central-preferred inputs were those in the central pixel that matched the orientation preference of the proximal synapses. The co-axial inputs were those in the boundary pixels that completed the edge of the central-preferred input (see \hyperref[fig:5]{Figure 5a} or \hyperref[fig:6]{Figure 6c} for illustration). All other inputs were classified together. We normalized the weight of each group to the maximum possible weight for each group to represent how strong the tuning is relative to how strong it could be in \hyperref[fig:6]{Figure 6d, e}. 
+
+\subsection*{Reproducibility and code availability}
+All code and data are available at \url{https://github.com/landoskape/plasticity-modeling}. The repository is organized and clearly documented to enable easy reproduction of results. Refer to the README.md file for instructions on how to run the code.
+
+\begin{acknowledgements}
+We thank Jasmine Reggiani for helpful discussions and feedback on the project. 
+
+For the purpose of open access, the authors have applied a Creative Commons Attribution (CC BY) license to any Author Accepted Manuscript version arising.
+\end{acknowledgements}
+
+\begin{contributions}
+ATL: conceptualization, experimentation, analysis, visualization, writing \\
+BLS: conceptualization, funding acquisition \\
+CC: supervision, analysis, visualization \\
+\end{contributions}
+
+\begin{interests}
+The authors declare no conflict of interest.
+\end{interests}
+
+\section*{References}
+\bibliographystyle{unsrtnat}
+% \bibliographystyle{ieeetr}
+\bibliography{MyLibraryBibTex.bib}
+

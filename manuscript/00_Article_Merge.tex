@@ -1,0 +1,46 @@
+%% select between bioRxiv style or submission style by commenting either line
+% class files moved into `theme/` — reference via relative path
+\documentclass[twocolumn]{theme/bioRxiv}
+% \documentclass[submit]{theme/bioRxiv}
+
+\setlength{\parskip}{3pt}
+\setlength{\parindent}{0pt}
+\setlength{\floatsep}{10pt}      % between two floats
+\setlength{\textfloatsep}{3pt}  % between float and text
+
+%% forces sans serif
+\renewcommand\familydefault{\sfdefault}
+
+%% for this example - not needed for manuscript
+\usepackage{hyperref}
+\setcitestyle{numbers,square}
+
+%% setup specific to this preprint -- add or remove as you need.
+\hyphenation{empire} % prevents word "empire" being split across lines
+\sisetup{range-units = single,
+        separate-uncertainty = true,
+        multi-part-units = single,
+        range-phrase = --} % units setup
+\usepackage{multirow} % allows merging of cells in tables
+\usepackage{stfloats} % allows bottom placement of figure* in two-column mode
+
+%% the document starts here
+
+\begin{document}
+
+%% comment out any files that you don't want to include as sections
+\include{01_Article_MainText}
+% \include{02_Article_Supplementary}
+% \include{03_Article_SupplementaryVideos}
+% \include{04_Article_SupplementaryTables}
+
+\end{document}
+
+
+% From the manuscript directory!
+% pandoc "00_Article_Merge.tex" \
+%   --from=latex \
+%   --to=docx \
+%   --citeproc \
+%   --bibliography="MyLibraryBibTex.bib" \
+%   --output="00_Article_Merge_for_review.docx"
