@@ -1,4 +1,4 @@
-# plasticy-modeling
+# plasticity-modeling
 
 This repo contains the code and data required to generate the figures of our upcoming manuscript. 
 Eventually I might want to turn this into a useful piece of software -- but right now it's simply
