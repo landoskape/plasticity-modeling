@@ -56,22 +56,6 @@ To generate figures using the exact simulation data from the manuscript:
 1. Download the publication data from [TBD] into `results/iaf_runs/`
 2. Run: `python run_pipeline.py --config manuscript.yaml --steps figures`
 
-### Using your own runs
-
-If you have existing simulation runs and want the pipeline to use them (instead of
-re-running simulations), create a `pipeline_local.yaml` in the repo root:
-
-```yaml
-correlation:
-  example_run_name: "my_example_run"
-  full_run_name: "my_full_run"
-hofer:
-  run_name: "my_hofer_run"
-```
-
-This file is gitignored. The pipeline will skip simulation steps if the named directories
-already exist under `results/iaf_runs/`, and pass the run names to figure generation.
-
 ### Direct script usage
 
 Each script also works standalone:
