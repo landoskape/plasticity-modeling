@@ -18,6 +18,9 @@ conda install numba
 # follow: https://pytorch.org/get-started/locally/ for your computer
 ```
 
+## Full Documentation
+[Available here!](https://landoskape.github.io/plasticity-modeling/)
+
 ## Reproducing All Results
 
 A single-command pipeline reproduces all data and figures from scratch:
