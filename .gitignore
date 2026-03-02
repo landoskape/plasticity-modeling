@@ -4,6 +4,9 @@ ignore/
 # LaTeX build artifacts
 _latex_build/
 
+# Pipeline local overrides
+pipeline_local.yaml
+
 # VSCODE
 .vscode/
 

@@ -1,0 +1,21 @@
+conductance:
+  num_ap_amplitudes: 400
+
+correlation:
+  config: "correlated"
+  example_run_name: "correlated_example"
+  example_duration: 2400
+  example_repeats: 1
+  example_save_source_rates: true
+  full_run_name: "correlated"
+  full_duration: 9600
+  full_repeats: 10
+
+hofer:
+  config: "hofer"
+  run_name: "hofer"
+  duration: 9600
+  repeats: 10
+
+figures:
+  mode: "save"

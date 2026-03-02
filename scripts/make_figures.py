@@ -1,10 +1,13 @@
 from __future__ import annotations
+from argparse import ArgumentParser
+from pathlib import Path
 from typing import Literal
 from dataclasses import dataclass, field
 import joblib
 import numpy as np
 import matplotlib.pyplot as plt
-from src.files import get_figure_dir, data_dir, results_dir
+import yaml
+from src.files import get_figure_dir, results_dir
 from src.plotting import (
     FigParams,
     Proximal,
@@ -295,7 +298,7 @@ def figure2(fig_params: Figure2Params, show_fig: bool = True, save_fig: bool = F
     ax_ltpltd = fig.add_subplot(gs[1, 3])
 
     # Get data for transfer function plots
-    conductance_data = joblib.load(data_dir() / "conductance_runs.joblib")
+    conductance_data = joblib.load(results_dir() / "conductance_runs.joblib")
 
     ap_amplitudes = [
         fig_params.amplitude_proximal,
@@ -742,8 +745,8 @@ def figure3(fig_params: Figure3Params, show_fig: bool = True, save_fig: bool = T
 
 @dataclass
 class Figure4Params:
-    example_simulations: str = "20250324"
-    full_simulations: str = "20260119"
+    example_simulations: str = "correlated_example"
+    full_simulations: str = "correlated"
     schematic_T: int = 300
     schematic_N: int = 6
     schematic_sigma_latent: int = 15
@@ -1164,7 +1167,7 @@ def figure4(fig_params: Figure4Params, show_fig: bool = True, save_fig: bool = F
 @dataclass
 class Figure5Params:
     full_config: str = "hofer"
-    full_simulations: str = "jan21_full1_hofer_20260121"
+    full_simulations: str = "hofer"
     mapping_simple_tuft_inset_xoffset: float = 0.14
     mapping_complex_tuft_inset_xoffset: float = -0.14
     mapping_tuft_yoffset: float = -0.25
@@ -1517,7 +1520,7 @@ def figure5_supplemental(fig_params: Figure5Params, show_fig: bool = True, save_
 @dataclass
 class Figure6Params:
     full_config: str = "hofer"
-    full_simulations: str = "jan21_full1_hofer_20260121"
+    full_simulations: str = "hofer"
     trajectory_example_ratio: int = 0
     trajectory_example_edge: int = 2
     trajectory_linewidth: float = 1.0
@@ -1620,7 +1623,7 @@ def figure6(fig_params: Figure6Params, show_fig: bool = True, save_fig: bool = F
 @dataclass
 class Figure6v2Params:
     full_config: str = "hofer"
-    full_simulations: str = "jan21_full1_hofer_20260121"
+    full_simulations: str = "hofer"
     tuning_hspacing: float = 6
     tuning_vspacing: float = 21
     tuning_fontsize_label: float = FigParams.smallfontsize
@@ -1878,9 +1881,48 @@ def figure6_version2(fig_params: Figure6v2Params, show_fig: bool = True, save_fi
     return fig
 
 
+def get_figure_args():
+    parser = ArgumentParser(description="Generate manuscript figures.")
+    parser.add_argument(
+        "--mode",
+        type=str,
+        default="save",
+        choices=["show", "save", "both"],
+        help="Whether to show, save, or both.",
+    )
+    parser.add_argument(
+        "--figures",
+        type=int,
+        nargs="+",
+        default=[1, 2, 3, 4, 5, 6],
+        help="Which figures to generate (e.g. --figures 4 5 6).",
+    )
+    parser.add_argument(
+        "--correlated-example-run",
+        type=str,
+        default=None,
+        help="Override Figure4 example_simulations run name.",
+    )
+    parser.add_argument(
+        "--correlated-full-run",
+        type=str,
+        default=None,
+        help="Override Figure4 full_simulations run name.",
+    )
+    parser.add_argument(
+        "--hofer-run",
+        type=str,
+        default=None,
+        help="Override Figures 5, 6, 6v2 full_simulations run name.",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
+    args = get_figure_args()
+
     # Set master parameters for showing / saving figures
-    mode = "save"
+    mode = args.mode
     if mode == "show":
         show_fig = True
         save_fig = False
@@ -1893,50 +1935,47 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Invalid mode: {mode}")
 
+    # CLI Flags will take precedence over default Fig*Params if provided
+    correlated_example = args.correlated_example_run
+    correlated_full = args.correlated_full_run
+    hofer_run = args.hofer_run
+
+    figures_to_make = set(args.figures)
+
     # Build Figure 1
-    make_figure1 = True
-    if make_figure1:
+    if 1 in figures_to_make:
         fig1params = Figure1Params()
         figure1(fig1params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 2
-    make_figure2 = True
-    if make_figure2:
+    if 2 in figures_to_make:
         fig2params = Figure2Params()
         figure2(fig2params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 3
-    make_figure3 = True
-    if make_figure3:
+    if 3 in figures_to_make:
         fig3params = Figure3Params()
         figure3(fig3params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 4
-    make_figure4 = True
-    if make_figure4:
+    if 4 in figures_to_make:
         fig4params = Figure4Params()
+        if correlated_example:
+            fig4params.example_simulations = correlated_example
+        if correlated_full:
+            fig4params.full_simulations = correlated_full
         figure4(fig4params, show_fig=show_fig, save_fig=save_fig)
 
     # Build Figure 5
-    make_figure5 = True
-    if make_figure5:
-        # fig5params = Figure5Params()
-        # figure5(fig5params, show_fig=show_fig, save_fig=save_fig)
-
-        # Build Figure 5 Version 2
+    if 5 in figures_to_make:
         fig5params = Figure5Params()
+        if hofer_run:
+            fig5params.full_simulations = hofer_run
         figure5_version2(fig5params, show_fig=show_fig, save_fig=save_fig)
 
-        # Build Figure 5 Supplemental
-        # fig5params = Figure5Params()
-        # figure5_supplemental(fig5params, show_fig=show_fig, save_fig=save_fig)
-
     # Build Figure 6
-    make_figure6 = True
-    if make_figure6:
-        # fig6params = Figure6Params()
-        # figure6(fig6params, show_fig=show_fig, save_fig=save_fig)
-
-        # Build Figure 6 Version 2
+    if 6 in figures_to_make:
         fig6v2params = Figure6v2Params()
+        if hofer_run:
+            fig6v2params.full_simulations = hofer_run
         figure6_version2(fig6v2params, show_fig=show_fig, save_fig=save_fig)
