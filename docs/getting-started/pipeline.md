@@ -23,7 +23,7 @@ graph LR
 
 | Step | Script | Output |
 |------|--------|--------|
-| `conductance` | `scripts/conductance_data.py` | `data/conductance_runs.joblib` |
+| `conductance` | `scripts/conductance_data.py` | `results/conductance_runs.joblib` |
 | `correlation` | `scripts/iaf_correlation.py` | `results/iaf_runs/correlated/{run_name}/` |
 | `hofer` | `scripts/iaf_hofer_reconstruction.py` | `results/iaf_runs/hofer/{run_name}/` |
 | `figures` | `scripts/make_figures.py` | `figures/` |
@@ -70,4 +70,4 @@ python scripts/make_figures.py --figures 4 5 6 --correlated-full-run my_run
 ```
 
 !!! warning
-    The full pipeline (conductance + correlation + hofer + figures) can take hours to days depending on your hardware because the STDP simulations run sequentially. To get a quick test, reduce the duration in `pipeline.yaml`, but results may not reach steady-state.
+    The full pipeline (conductance + correlation + hofer + figures) can take hours to days depending on your hardware because the STDP simulations run sequentially. To get a quick test, reduce the duration in `pipeline.yaml`, but results may not reach steady-state. The data that was used to generate figures for the manuscript is (or will be) available online as well.

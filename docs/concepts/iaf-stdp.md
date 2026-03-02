@@ -63,7 +63,7 @@ The homeostatic scaling modulates the STDP rate based on the difference between 
 
 ## Synapse Replacement
 
-An optional mechanism replaces weak synapses with new random connections, modeling structural plasticity. This is used in some Hofer reconstruction variants.
+An optional mechanism replaces weak synapses with new random connections, modeling structural plasticity. This is used in some Hofer reconstruction variants, but is not included in the paper. 
 
 ## Implementation
 

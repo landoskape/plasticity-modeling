@@ -2,15 +2,7 @@
 
 ## Pipeline Configuration
 
-The pipeline uses a **3-layer configuration merge**, with each layer overriding the previous:
-
-1. **`pipeline.yaml`** (base) — Default settings checked into the repository
-2. **`--config` override** — Optional YAML passed via CLI (e.g., `manuscript.yaml`)
-3. **`pipeline_local.yaml`** (highest priority) — Local overrides, gitignored
-
-### Default pipeline config
-
-The base `pipeline.yaml` defines all pipeline parameters:
+The base `pipeline.yaml` defines all pipeline parameters for re-running simulations and making figures.
 
 ```yaml
 conductance:
@@ -35,31 +27,22 @@ figures:
   mode: "save"
 ```
 
-### Local overrides
+### Manuscript configuration
 
-Create a `pipeline_local.yaml` in the repo root to point the pipeline at your own simulation runs:
-
-```yaml
-correlation:
-  full_run_name: "my_full_run"
-hofer:
-  run_name: "my_hofer_run"
-```
-
-This file is gitignored. The pipeline skips simulation steps if the named output directories already exist under `results/iaf_runs/`.
+The config called `manusript.yaml` contains the `*_run_name`s for the data used in the manuscript. Make sure to download the data from online (it will be available upon submission). This ignores the other pipeline details since they aren't used when simulation data already exists.  
 
 ## Simulation Configs
 
 Simulation parameters are defined in YAML files under `configs/`. These control the neuron model, input sources, synapse groups, and plasticity rules.
 
-### Available configs
+### Main configs
 
 | Config | File | Description |
 |--------|------|-------------|
 | `correlated` | `configs/correlated.yaml` | Correlated Poisson inputs, proximal/distal compartments |
 | `hofer` | `configs/hofer.yaml` | Gabor-tuned inputs, orientation selectivity |
-| `hofer_replacement` | `configs/hofer_replacement.yaml` | Hofer variant with synapse replacement |
-| `hofer_all_proximal` | `configs/hofer_all_proximal.yaml` | Hofer variant, all-proximal control |
+
+There are more configs, which were used for development and testing of alternate models. The two listed above were the ones used in the manuscript.
 
 ### Config structure
 

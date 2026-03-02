@@ -11,7 +11,7 @@ When an AP back-propagates into dendrites, it activates VGCCs and relieves the M
 The voltage-gated calcium channel model uses Hodgkin-Huxley-style gating:
 
 \[
-I_\text{VGCC} = g_\text{VGCC} \cdot m^2 \cdot h \cdot \text{GHK}(V, [\text{Ca}^{2+}]_i, [\text{Ca}^{2+}]_o)
+I_\text{VGCC} = m^2 \cdot h \cdot \text{GHK}(V, [\text{Ca}^{2+}]_i, [\text{Ca}^{2+}]_o)
 \]
 
 where:
@@ -25,7 +25,7 @@ where:
 The Goldman-Hodgkin-Katz equation for calcium current:
 
 \[
-I = P_\text{Ca} \cdot z^2 \cdot \frac{F^2 V}{RT} \cdot \frac{[\text{Ca}^{2+}]_i - [\text{Ca}^{2+}]_o \exp(-zFV/RT)}{1 - \exp(-zFV/RT)}
+I = z^2 \cdot \frac{F^2 V}{RT} \cdot \frac{[\text{Ca}^{2+}]_i - [\text{Ca}^{2+}]_o \exp(-zFV/RT)}{1 - \exp(-zFV/RT)}
 \]
 
 ## NMDA Receptor Component
@@ -33,7 +33,7 @@ I = P_\text{Ca} \cdot z^2 \cdot \frac{F^2 V}{RT} \cdot \frac{[\text{Ca}^{2+}]_i 
 The NMDA receptor conductance includes voltage-dependent Mg²⁺ block:
 
 \[
-g_\text{NMDA}(V) = \bar{g}_\text{NMDA} \cdot \frac{1}{1 + [\text{Mg}^{2+}] \cdot \exp(-\gamma V) / \eta}
+g_\text{NMDA}(V) = \frac{1}{1 + [\text{Mg}^{2+}] \cdot \exp(-\gamma V) / \eta}
 \]
 
 The Mg²⁺ block is relieved by depolarization, making the NMDA receptor a coincidence detector for pre- and postsynaptic activity.
@@ -45,8 +45,8 @@ The conductance model generates **transfer functions** mapping AP amplitude to:
 1. **Total calcium influx** — integrated calcium entry during an AP
 2. **Depression/potentiation (D/P) ratio** — the relative strength of LTD vs LTP, used as a parameter in the STDP rule
 
-These transfer functions are computed by `scripts/conductance_data.py` and saved to `data/conductance_runs.joblib`.
+These transfer functions are computed by `scripts/conductance_data.py` and saved to `results/conductance_runs.joblib`.
 
 ## Implementation
 
-The model is implemented in the [`VGCC`](../api/conductance.md) class in `src/conductance.py`.
+The channel models are implemented in the [`VGCC`](../api/conductance.md), and [`NMDAR`](../api/conductance.md) class in `src/conductance.py`, along with the other components of the transfer function model. 

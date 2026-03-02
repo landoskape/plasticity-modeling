@@ -4,7 +4,7 @@ The Hofer reconstruction simulation uses orientation-tuned inputs to model co-ax
 
 ## Motivation
 
-Hofer et al. showed that co-axial connections (aligned with a neuron's preferred orientation) are selectively strengthened in cortical circuits. Our model asks: can compartment-dependent STDP, driven by AP attenuation, account for the observed patterns of orientation-selective connectivity?
+Iacaruso et al. (2017) showed that co-axial connections (aligned with a neuron's preferred orientation) are selectively located in distal dendrites. Our model asks: can compartment-dependent STDP, driven by AP attenuation, account for the observed patterns of spine tuning in vivo? 
 
 ## Gabor-Based Inputs
 
@@ -23,15 +23,7 @@ where:
 
 ### Edge Probability
 
-The `edge_probability` parameter controls what fraction of source neurons connect to the postsynaptic neuron, implementing sparse, structured connectivity. Connections are drawn probabilistically based on orientation alignment.
-
-## Simulation Structure
-
-The Hofer config defines synapse groups similar to the correlated simulation but with Gabor-tuned source populations. The key parameters that vary across experimental conditions are:
-
-- **D/P ratio** at proximal vs distal compartments
-- **Edge probability** controlling connectivity sparsity
-- **Number of simulations** for statistical power
+The `edge_probability` parameter controls the likelihood of visual edges appearing, which shapes how correlated these triplets of inputs are across the 3x3 pixel grid. 
 
 ## Orientation Selectivity Analysis
 

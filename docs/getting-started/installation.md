@@ -4,7 +4,6 @@
 
 - Python 3.9+ (3.11 recommended)
 - [Conda](https://docs.conda.io/en/latest/) (for managing numba dependency)
-- Git
 
 ## Setup
 
@@ -40,13 +39,8 @@ conda install numba
 
 ### Optional: PyTorch for classical Hebbian models
 
-If you want to run the classical Hebbian learning models, install with the `cpu` extra:
-
-```bash
-pip install -e ".[cpu]"
-```
-
-Or follow the [PyTorch installation guide](https://pytorch.org/get-started/locally/) for GPU support.
+If you want to run the classical Hebbian learning models, follow the [PyTorch installation guide](https://pytorch.org/get-started/locally/)
+for pytorch and GPU support.
 
 ### Optional: Documentation dependencies
 

@@ -4,7 +4,7 @@ The correlated input simulation demonstrates how compartment-specific AP attenua
 
 ## Input Structure
 
-Excitatory inputs are generated as correlated Poisson processes. Each source neuron fires with a rate drawn from a normal distribution, and spike trains share pairwise correlations that decay with source neuron distance:
+Excitatory inputs are generated as correlated Poisson processes. Each source neuron fires with a rate drawn from a normal distribution, and spike trains share pairwise correlations that are linearly spaced to generate a rank 1 input with isotropic noise:
 
 - **Number of source neurons**: 40
 - **Maximum correlation**: 0.4
@@ -21,17 +21,9 @@ The simulation defines three excitatory synapse groups connected to the same sou
 |-------|----------|----------|-----------|-------------|
 | **Proximal** | Near soma | 1000 | 1.1 | Large AP → mild net depression |
 | **Distal-simple** | Far from soma | 40 | 1.1 | Same D/P as proximal (control) |
-| **Distal-complex** | Far from soma | 40 | 1.0 | Attenuated AP → balanced plasticity |
+| **Distal-complex** | Far from soma | 40 | {variable} | Attenuated AP → balanced plasticity |
 
-The key manipulation is the D/P ratio: proximal and distal-simple synapses share the same ratio (1.1), while distal-complex synapses have a balanced ratio (1.0) reflecting greater AP attenuation.
-
-## Weight Divergence
-
-Over thousands of seconds of simulated time, the different D/P ratios cause weight distributions to diverge:
-
-- **Proximal** synapses: competitive dynamics under mild net depression, weights become sparse and selective
-- **Distal-simple** synapses: similar to proximal but with fewer synapses
-- **Distal-complex** synapses: balanced plasticity leads to different weight distributions, demonstrating the effect of AP attenuation
+The key manipulation is the D/P ratio: proximal and distal-simple synapses share the same ratio (1.1), while distal-complex synapses have a variable ratio, which models reduction in depression due to the selective reduction in AP amplitude in these dendritic branches. 
 
 ## Configuration
 
