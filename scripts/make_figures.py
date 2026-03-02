@@ -1331,7 +1331,7 @@ def figure5(fig_params: Figure5Params, show_fig: bool = True, save_fig: bool = F
 
 
 def figure5_version2(fig_params: Figure5Params, show_fig: bool = True, save_fig: bool = False):
-    fig_width = FigParams.single_width
+    fig_width = FigParams.onepointfive_width
     fig_height = fig_width * 0.75
 
     fig = plt.figure(figsize=(fig_width, fig_height), **FigParams.all_fig_params())
