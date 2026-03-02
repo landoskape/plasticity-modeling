@@ -7,7 +7,7 @@ import joblib
 import numpy as np
 import matplotlib.pyplot as plt
 import yaml
-from src.files import get_figure_dir, data_dir, results_dir
+from src.files import get_figure_dir, results_dir
 from src.plotting import (
     FigParams,
     Proximal,
@@ -298,7 +298,7 @@ def figure2(fig_params: Figure2Params, show_fig: bool = True, save_fig: bool = F
     ax_ltpltd = fig.add_subplot(gs[1, 3])
 
     # Get data for transfer function plots
-    conductance_data = joblib.load(data_dir() / "conductance_runs.joblib")
+    conductance_data = joblib.load(results_dir() / "conductance_runs.joblib")
 
     ap_amplitudes = [
         fig_params.amplitude_proximal,
@@ -1915,41 +1915,7 @@ def get_figure_args():
         default=None,
         help="Override Figures 5, 6, 6v2 full_simulations run name.",
     )
-    parser.add_argument(
-        "--pipeline-config",
-        type=str,
-        default=None,
-        help="Path to pipeline YAML config to load run name overrides from.",
-    )
     return parser.parse_args()
-
-
-def _load_pipeline_overrides(config_path: str | None) -> dict:
-    """Load run name overrides from a pipeline config YAML."""
-    overrides = {}
-    # Try explicit path first, then pipeline_local.yaml, then pipeline.yaml
-    paths_to_try = []
-    if config_path is not None:
-        paths_to_try.append(Path(config_path))
-    paths_to_try.append(Path("pipeline_local.yaml"))
-    paths_to_try.append(Path("pipeline.yaml"))
-
-    for path in paths_to_try:
-        if path.exists():
-            with open(path) as f:
-                cfg = yaml.safe_load(f) or {}
-            # Extract run names from pipeline config
-            corr = cfg.get("correlation", {})
-            hofer = cfg.get("hofer", {})
-            if "example_run_name" in corr:
-                overrides.setdefault("correlated_example", corr["example_run_name"])
-            if "full_run_name" in corr:
-                overrides.setdefault("correlated_full", corr["full_run_name"])
-            if "run_name" in hofer:
-                overrides.setdefault("hofer", hofer["run_name"])
-            break  # Use the first config found
-
-    return overrides
 
 
 if __name__ == "__main__":
@@ -1969,13 +1935,10 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Invalid mode: {mode}")
 
-    # Load overrides from pipeline config (if any)
-    pipeline_overrides = _load_pipeline_overrides(args.pipeline_config)
-
-    # CLI flags take highest precedence
-    correlated_example = args.correlated_example_run or pipeline_overrides.get("correlated_example")
-    correlated_full = args.correlated_full_run or pipeline_overrides.get("correlated_full")
-    hofer_run = args.hofer_run or pipeline_overrides.get("hofer")
+    # CLI Flags will take precedence over default Fig*Params if provided
+    correlated_example = args.correlated_example_run
+    correlated_full = args.correlated_full_run
+    hofer_run = args.hofer_run
 
     figures_to_make = set(args.figures)
 
